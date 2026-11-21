@@ -1,5 +1,20 @@
-import { ErrorCode, formatEspera, MENSAGENS_DE_ERRO, mensagemDaEntrada, mensagemDoSegundoFator, type TipoDeRede } from '@educa/shared'
+import {
+  ErrorCode,
+  formatEspera,
+  MENSAGENS_DE_ERRO,
+  mensagemDaEntrada,
+  mensagemDoSegundoFator,
+  MICROS_POR_CENTAVO,
+  TETO_MAXIMO_DE_SEGURANCA_PERCENTUAL,
+  TETO_MINIMO_DE_SEGURANCA_PERCENTUAL,
+  TETO_PADRAO_PERCENTUAL,
+  VALOR_MAXIMO_DE_IA_POR_ALUNO_CENTAVOS,
+  VALOR_MINIMO_DE_IA_POR_ALUNO_CENTAVOS,
+  type OrcamentoDeIaDoPainel,
+  type TipoDeRede,
+} from '@educa/shared'
 import { ApiError, estourouNoCliente } from '../api/client'
+import { formatNumber } from '../format'
 import type { FalhaDoConvite } from '../components/DialogoDoConvite'
 import { errorText as textoDaFalhaPeloCodigo } from '../components/error-text'
 import { TEXTO_DO_CONVITE_QUE_MUDOU, TEXTO_DO_CONVITE_QUE_NAO_VALE } from '../components/textos-do-convite'
@@ -28,6 +43,21 @@ export const TEXTO_DO_CODIGO_RECUSADO = 'O código não foi aceito. Entre de nov
 export const TEXTO_DA_SAIDA_NAO_CONFIRMADA =
   'Não foi possível confirmar a saída com o servidor. Se este computador é compartilhado, feche o navegador antes de deixá-lo.'
 
+/**
+ * A resposta da API que o contrato da web não reconhece: a web antiga com a API nova (camada-ia, 7.0). Continua sendo o
+ * `ERRO_INTERNO` para quem decide pelo código (`isResultadoIncerto`), e a tela a distingue pela classe para dizer o que
+ * resolve, que é atualizar a página, e não tentar de novo.
+ */
+export class RespostaForaDoContrato extends ApiError {
+  constructor() {
+    super(ErrorCode.ERRO_INTERNO)
+    this.name = 'RespostaForaDoContrato'
+  }
+}
+
+/** A resposta fora do contrato: tentar de novo traz a mesma, e o que resolve é a página nova. */
+export const TEXTO_PARA_ATUALIZAR = 'Atualize a página: esta tela ficou desatualizada em relação ao Turmma.'
+
 /** O código da falha, ou erro interno para o que não veio da API. */
 function codigoDe(erro: unknown): ErrorCode {
   return erro instanceof ApiError ? erro.codigo : ErrorCode.ERRO_INTERNO
@@ -54,6 +84,7 @@ export function textoDoLimite(esperaSegundos: number | undefined): string {
  * entrada, com a mensagem de sessão encerrada.
  */
 export function textoDaFalha(erro: unknown): string {
+  if (erro instanceof RespostaForaDoContrato) return TEXTO_PARA_ATUALIZAR
   return textoDaFalhaPeloCodigo(erro, {
     [ErrorCode.INDISPONIVEL_TENTE_DE_NOVO]: TEXTO_DA_OPERACAO_INDISPONIVEL,
     [ErrorCode.TEMPO_ESGOTADO]: TEXTO_DO_TEMPO_ESGOTADO,
@@ -174,3 +205,67 @@ export const TEXTO_DA_CONFIGURACAO_RECUSADA =
 
 /** Sem o desafio de configurar (F5, endereço digitado, desafio vencido): o caminho é entrar de novo. */
 export const TEXTO_DO_CONFIGURAR_SEM_DESAFIO = 'Para configurar o segundo fator, entre de novo com o seu e-mail e a sua senha.'
+
+/**
+ * O texto da recusa do `PUT` do orçamento de IA: o 429 com os minutos, o 503 e a resposta fora do contrato, os mesmos de qualquer falha da
+ * operação. É `textoDaFalha` com outro nome de propósito: `textoDaFalha` é homônimo liberado pelo mapa da onda de nomes só nos arquivos que
+ * ele lista (`tools/renomear/mapas/10.json`), e um arquivo novo que o citasse deixaria o `restos` vermelho.
+ */
+export function textoDoErroAoSalvar(erro: unknown): string {
+  return textoDaFalha(erro)
+}
+
+/** Quantos micros (milionésimos de real) vale um real: cem centavos. */
+const MICROS_POR_REAL = MICROS_POR_CENTAVO * 100
+const DUAS_CASAS = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** O valor em micros como o operador o digita, em reais com vírgula e duas casas: `4_000_000` → `4,00`. */
+export function valorDoCampoEmReais(micros: number): string {
+  return DUAS_CASAS.format(micros / MICROS_POR_REAL)
+}
+
+/** `5_000_000` → `R$ 5,00`, com o espaço comum, como o texto da tela o escreve (`cenarios.md`, seção 4). */
+export function reais(micros: number): string {
+  return `R$ ${valorDoCampoEmReais(micros)}`
+}
+
+/** Os dois limites do valor por aluno e do teto, nos textos de campo recusado: saem das constantes do contrato, e não de um número à parte. */
+export const TEXTO_DO_VALOR_FORA_DO_INTERVALO = `Use um valor entre ${reais(VALOR_MINIMO_DE_IA_POR_ALUNO_CENTAVOS * MICROS_POR_CENTAVO)} e ${reais(VALOR_MAXIMO_DE_IA_POR_ALUNO_CENTAVOS * MICROS_POR_CENTAVO)}.`
+export const TEXTO_DO_TETO_FORA_DO_INTERVALO = `Use de ${String(TETO_MINIMO_DE_SEGURANCA_PERCENTUAL)}% a ${String(TETO_MAXIMO_DE_SEGURANCA_PERCENTUAL)}%.`
+
+/** O carregamento do diálogo Orçamento de IA que falhou (cenário "erro" da seção 4); o "Tentar de novo" é do botão ao lado. */
+export const TEXTO_DO_CARREGAMENTO_QUE_FALHOU = 'Não foi possível carregar.'
+
+/** A ajuda abaixo do valor: a rede pode deixá-lo em branco, e a escola o troca pela caixa "Usar o valor da rede". */
+export const DICA_DO_VALOR_DA_REDE = 'Em reais, por aluno ativo. Em branco: a rede não define valor, e cada escola define o dela.'
+export const DICA_DO_VALOR_DA_ESCOLA = 'Em reais, por aluno ativo.'
+
+/** A ajuda abaixo do teto: o operador não precisa saber o que é "teto de segurança" para preencher (recomendação do `frontend-reviewer`, 7.1). */
+export const DICA_DO_TETO_DA_REDE = `Quando o uso do mês passa deste percentual do orçamento, só o trabalho em lote espera; o resto da IA continua. Em branco: vale ${String(TETO_PADRAO_PERCENTUAL)}%.`
+export const DICA_DO_TETO_DA_ESCOLA = `Quando o uso do mês passa deste percentual do orçamento, só o trabalho em lote espera; o resto da IA continua. Em branco: vale o da rede ou, sem ele, ${String(TETO_PADRAO_PERCENTUAL)}%.`
+
+type Vigente = OrcamentoDeIaDoPainel['vigente']
+
+function valorPorAluno(micros: number | null): string {
+  return micros === null ? 'sem valor por aluno' : `${reais(micros)} por aluno`
+}
+
+/** "Vale hoje: R$ 5,00 por aluno, da rede." Sem valor em nenhum dos dois, "Vale hoje: sem valor por aluno." */
+export function textoDoValeHoje(vigente: Vigente): string {
+  if (vigente.origemDoValor === 'nenhuma') return `Vale hoje: ${valorPorAluno(null)}.`
+  return `Vale hoje: ${valorPorAluno(vigente.valorPorAlunoMicros)}, da ${vigente.origemDoValor}.`
+}
+
+function valorETeto(vigente: Vigente): string {
+  return `${valorPorAluno(vigente.valorPorAlunoMicros)}, teto ${formatNumber(vigente.tetoDeSegurancaPercentual)}%`
+}
+
+/** "Antes: R$ 5,00 por aluno, teto 200%. Depois: R$ 4,00 por aluno, teto 200%." É o que o operador confere antes de salvar. */
+export function textoDoAntesEDepois(antes: Vigente, depois: Vigente): string {
+  return `Antes: ${valorETeto(antes)}. Depois: ${valorETeto(depois)}.`
+}
+
+/** Quantas escolas mudam junto, no diálogo da rede: as que usam o valor ou o teto da rede. */
+export function textoDasEscolasQueMudam(quantas: number): string {
+  return quantas === 1 ? 'Muda o orçamento de 1 escola que usa o valor da rede.' : `Muda o orçamento de ${formatNumber(quantas)} escolas que usam o valor da rede.`
+}

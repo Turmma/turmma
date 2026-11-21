@@ -14,9 +14,10 @@ import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
 import { ErroDaOperacao } from '../components/CascaDaOperacao'
 import { ConfirmarConvite } from '../components/ConfirmarConvite'
 import { GerarConvite, RefazerConvite } from '../components/DialogoDoConvite'
+import { DialogoDoOrcamento, type AlvoDoOrcamento } from '../components/DialogoDoOrcamento'
 import { Pagination, SortSelect, VazioAlemDaUltima } from '../components/NavegacaoDaLista'
 import { ScrollableList } from '../components/ScrollableList'
-import { useDialogState } from '../../components/ui/overlays/dialog-state'
+import { useDialogState, type DialogOpening } from '../../components/ui/overlays/dialog-state'
 import { TEXTO_DO_ESTADO, TOM_DO_ESTADO } from '../estados-da-escola'
 import { TEXTO_DA_LISTA_VAZIA } from '../textos'
 import { useOperacaoPageTitle } from '../document-title'
@@ -36,6 +37,61 @@ const COMPLEMENTO_DA_ACAO: Readonly<Record<AcaoDoConvite, string>> = {
 }
 
 type AoAcionar = (acao: AcaoDoConvite, escola: EscolaDoPainel) => void
+
+/** O orçamento de IA tem dois diálogos de uma só peça: o da rede da linha e o da escola dela (camada-ia, 7.0). */
+type DialogoDoOrcamentoAberto = 'orcamento-da-rede' | 'orcamento-da-escola'
+type AoAbrirOrcamento = (tipo: DialogoDoOrcamentoAberto, escola: EscolaDoPainel) => void
+
+/** Todos os diálogos da tela, e a abertura de um deles, com a escola da linha quando é de uma linha. */
+type TipoDoDialogo = 'rede' | 'escola' | AcaoDoConvite | DialogoDoOrcamentoAberto
+type AberturaDoDialogo = DialogOpening<TipoDoDialogo, EscolaDoPainel>
+
+const isOrcamento = (tipo: TipoDoDialogo): tipo is DialogoDoOrcamentoAberto => tipo === 'orcamento-da-rede' || tipo === 'orcamento-da-escola'
+
+/** Sobre o que o diálogo age: a rede da linha, ou a própria escola dela com o orçamento que a lista trouxe. */
+function alvoDoOrcamento(tipo: DialogoDoOrcamentoAberto, escola: EscolaDoPainel): AlvoDoOrcamento {
+  if (tipo === 'orcamento-da-rede') return { tipo: 'rede', id: escola.rede.id, nome: escola.rede.nome }
+  return { tipo: 'escola', id: escola.id, nome: escola.nome, redeId: escola.rede.id, orcamento: escola.orcamento }
+}
+
+interface PropsDoOrcamentoAberto {
+  readonly aberta: AberturaDoDialogo | undefined
+  readonly aoFechar: () => void
+  /** O orçamento salvo: recebe a abertura em que o pedido saiu, para só ela fechar. */
+  readonly aoSalvar: (abertura: AberturaDoDialogo) => void
+  readonly focarNaEscola: (escolaId: string) => void
+}
+
+/** O diálogo "Orçamento de IA" da rede ou da escola da linha, quando um dos dois é o aberto; os outros diálogos da tela não passam por aqui. */
+function OrcamentoAberto({ aberta, aoFechar, aoSalvar, focarNaEscola }: PropsDoOrcamentoAberto) {
+  const escola = aberta?.alvo
+  if (aberta === undefined || escola === undefined) return null
+  if (!isOrcamento(aberta.tipo)) return null
+  return (
+    <DialogoDoOrcamento
+      key={aberta.numero}
+      alvo={alvoDoOrcamento(aberta.tipo, escola)}
+      aoFechar={aoFechar}
+      focoDeReserva={() => focarNaEscola(escola.id)}
+      aoSalvar={() => aoSalvar(aberta)}
+    />
+  )
+}
+
+/** O resto do nome acessível de "Orçamento de IA": o botão diz de quem é, a rede ou a escola da linha (WCAG 2.5.3). */
+function AcaoDoOrcamento({ tipo, escola, aoAbrir }: { tipo: DialogoDoOrcamentoAberto; escola: EscolaDoPainel; aoAbrir: AoAbrirOrcamento }) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      <button type="button" onClick={() => aoAbrir(tipo, escola)} className={SECONDARY_BUTTON_CLASSES}>
+        Orçamento de IA
+        <span className="sr-only">
+          {' '}
+          {tipo === 'orcamento-da-rede' ? `da rede ${escola.rede.nome}` : `da escola ${escola.nome}`}
+        </span>
+      </button>
+    </div>
+  )
+}
 
 /** O que a linha precisa da tela: abrir o diálogo da ação, e pôr o foco num lugar estável da escola quando o perde. */
 interface AcoesDaLinha {
@@ -113,13 +169,14 @@ function CoordenacaoDaEscola({ escola, aoAcionar, focarNaEscola }: { escola: Esc
 }
 
 /** A coluna da escola: o nome e o endereço dela. O nome leva `data-nome-da-escola`: é por ele que o roteiro lê a ordem, na tabela e na lista do celular. */
-function IdentidadeDaEscola({ escola }: { escola: EscolaDoPainel }) {
+function IdentidadeDaEscola({ escola, aoAbrirOrcamento }: { escola: EscolaDoPainel; aoAbrirOrcamento: AoAbrirOrcamento }) {
   return (
     <>
       <span data-nome-da-escola="" className="block font-bold wrap-anywhere">
         {escola.nome}
       </span>
       <span className="block font-normal text-sutil wrap-anywhere">/e/{escola.slug}</span>
+      <AcaoDoOrcamento tipo="orcamento-da-escola" escola={escola} aoAbrir={aoAbrirOrcamento} />
     </>
   )
 }
@@ -129,7 +186,7 @@ function IdentidadeDaEscola({ escola }: { escola: EscolaDoPainel }) {
  * primeira coordenação e as contagens do ano letivo em curso — **só número**, nunca pessoa (D10, D76). A página e a ordem
  * ficam na query string; a troca mantém a página anterior na tela até a nova chegar. Nova rede e Nova escola abrem em
  * diálogo, daqui, e também o convite da coordenação de cada escola: convidar, refazer e revogar, pela matriz do estado
- * (tarefa 7.0).
+ * (tarefa 7.0), e o Orçamento de IA da rede e da escola de cada linha (camada-ia, 7.0).
  *
  * Os quatro estados (regra 50, item 5): carregando; erro, com "Tentar de novo" e a tela no lugar; vazio, que convida a
  * criar a rede; e com dado. A página além da última (endereço digitado, escola que saiu) tem o seu vazio, com o caminho
@@ -143,7 +200,7 @@ export function Escolas() {
   const escolas = useQuery(dasEscolasQueryOptions(consulta))
   // O diálogo aberto: um de cada vez, e só enquanto está aberto ele existe; cada abertura é uma instância própria. Os do
   // convite levam a escola da linha, fotografada na abertura.
-  const dialogo = useDialogState<'rede' | 'escola' | AcaoDoConvite, EscolaDoPainel>()
+  const dialogo = useDialogState<TipoDoDialogo, EscolaDoPainel>()
   const aberta = dialogo.aberta
   const alvo = aberta?.alvo
   const [anuncio, definirAnuncio] = useState('')
@@ -205,8 +262,17 @@ export function Escolas() {
           <Table
             rotulo="Escolas, com a rede, o estado da coordenação e as contagens do ano letivo em curso"
             colunas={[
-              { chave: 'escola', titulo: 'Escola', celula: (escola) => <IdentidadeDaEscola escola={escola} /> },
-              { chave: 'rede', titulo: 'Rede', celula: (escola) => <span className="wrap-anywhere">{escola.rede.nome}</span> },
+              { chave: 'escola', titulo: 'Escola', celula: (escola) => <IdentidadeDaEscola escola={escola} aoAbrirOrcamento={dialogo.open} /> },
+              {
+                chave: 'rede',
+                titulo: 'Rede',
+                celula: (escola) => (
+                  <>
+                    <span className="block wrap-anywhere">{escola.rede.nome}</span>
+                    <AcaoDoOrcamento tipo="orcamento-da-rede" escola={escola} aoAbrir={dialogo.open} />
+                  </>
+                ),
+              },
               { chave: 'coordenacao', titulo: 'Coordenação', celula: (escola) => <CoordenacaoDaEscola escola={escola} aoAcionar={dialogo.open} focarNaEscola={focarNaEscola} /> },
               { chave: 'uso', titulo: 'Uso', celula: (escola) => <UsoDaEscola escola={escola} /> },
             ]}
@@ -246,6 +312,16 @@ export function Escolas() {
       {aberta?.tipo === 'refazer' && alvo?.conviteId !== undefined && (
         <RefazerConvite key={aberta.numero} escola={alvo} conviteId={alvo.conviteId} aoFechar={dialogo.close} focoDeReserva={() => focarNaEscola(alvo.id)} />
       )}
+      {/* O orçamento salvo fecha o diálogo e se anuncia aqui; a lista, a de redes e o Uso já foram marcados para ler de novo. */}
+      <OrcamentoAberto
+        aberta={aberta}
+        aoFechar={dialogo.close}
+        focarNaEscola={focarNaEscola}
+        aoSalvar={(abertura) => {
+          definirAnuncio('Orçamento salvo.')
+          dialogo.closeSeAinda(abertura)
+        }}
+      />
       {aberta?.tipo === 'revogar' && alvo?.conviteId !== undefined && (
         <ConfirmarConvite
           key={aberta.numero}

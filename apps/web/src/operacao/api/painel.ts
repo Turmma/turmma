@@ -2,6 +2,7 @@ import {
   conviteDaCoordenacaoResponseSchema,
   criadoNoPainelResponseSchema,
   escolasDoPainelResponseSchema,
+  orcamentoDeIaDoPainelSchema,
   redesDoPainelResponseSchema,
   usoDoPainelResponseSchema,
   ESCOLAS_POR_PAGINA,
@@ -14,9 +15,12 @@ import {
   type CriarRedeRequest,
   type ConviteDaCoordenacaoResponse,
   type CriadoNoPainelResponse,
+  type OrcamentoDeIaDoPainel,
+  type OrcamentoDeIaRequest,
 } from '@educa/shared'
 import { keepPreviousData, mutationOptions, queryOptions } from '@tanstack/react-query'
-import { EMPTY_BODY } from '../../api/client'
+import { EMPTY_BODY, type ResponseSchema } from '../../api/client'
+import { RespostaForaDoContrato } from '../textos'
 import { operadorAuthedRequest } from './sessao'
 
 /**
@@ -86,10 +90,25 @@ export function paginasDoTotal(total: number): number {
   return Math.max(1, Math.ceil(total / ESCOLAS_POR_PAGINA))
 }
 
-/** `GET /v1/operacao/redes`: as redes do diálogo Nova escola, por nome. */
+/**
+ * O esquema que, ao recusar a resposta, diz que foi o contrato: a web antiga lendo a API nova (camada-ia, 7.0). O erro
+ * continua sendo o `ERRO_INTERNO` (`RespostaForaDoContrato`), e a tela diz "Atualize a página". Valem por ele a lista de redes
+ * (`dasRedesQueryOptions`, que o diálogo Orçamento de IA e o Nova escola leem: o Nova escola passa a dizer o mesmo) e o `PUT` do orçamento.
+ */
+function lidoPeloContrato<T>(esquema: ResponseSchema<T>): ResponseSchema<T> {
+  return {
+    safeParse: (valor) => {
+      const lido = esquema.safeParse(valor)
+      if (!lido.success) throw new RespostaForaDoContrato()
+      return lido
+    },
+  }
+}
+
+/** `GET /v1/operacao/redes`: as redes do diálogo Nova escola e do Orçamento de IA, por nome, com o orçamento de cada uma. */
 export const dasRedesQueryOptions = queryOptions({
   queryKey: ['operacao', 'redes'],
-  queryFn: ({ signal }) => operadorAuthedRequest(CAMINHO_DAS_REDES, redesDoPainelResponseSchema, { sinal: signal }),
+  queryFn: ({ signal }) => operadorAuthedRequest(CAMINHO_DAS_REDES, lidoPeloContrato(redesDoPainelResponseSchema), { sinal: signal }),
 })
 
 /** O prefixo das chaves que a criação de rede ou de escola deixa velhas (a da escola também deixa velho o uso). */
@@ -106,6 +125,21 @@ export function createRedeNoPainel(pedido: CriarRedeRequest): Promise<CriadoNoPa
 /** `POST /v1/operacao/escolas`, como o da rede. O endereço que já é de outra escola volta `CONFLITO`. */
 export function createEscolaNoPainel(pedido: CriarEscolaRequest): Promise<CriadoNoPainelResponse> {
   return operadorAuthedRequest(CAMINHO_DAS_ESCOLAS, criadoNoPainelResponseSchema, { metodo: 'POST', corpo: pedido })
+}
+
+/** De quem é o orçamento de IA: a rede ou a escola. O caminho do `PUT` sai do tipo e do id. */
+export interface AlvoDoOrcamentoDeIa {
+  readonly tipo: 'rede' | 'escola'
+  readonly id: string
+}
+
+/**
+ * `PUT /v1/operacao/{redes|escolas}/:id/orcamento-ia`: troca o valor e o teto, os dois, e devolve o próprio e o vigente. O
+ * mesmo pedido de novo não muda nada (a API grava e audita só quando difere), e por isso repetir é seguro.
+ */
+export function definirOrcamentoNoPainel(alvo: AlvoDoOrcamentoDeIa, pedido: OrcamentoDeIaRequest): Promise<OrcamentoDeIaDoPainel> {
+  const base = alvo.tipo === 'rede' ? CAMINHO_DAS_REDES : CAMINHO_DAS_ESCOLAS
+  return operadorAuthedRequest(`${base}/${encodeURIComponent(alvo.id)}/orcamento-ia`, lidoPeloContrato(orcamentoDeIaDoPainelSchema), { metodo: 'PUT', corpo: pedido })
 }
 
 /** `POST /v1/operacao/escolas/:id/convite-coordenacao`: o convite novo, com o token que só existe nesta resposta. */

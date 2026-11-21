@@ -2,13 +2,15 @@ import {
   conviteDaCoordenacaoRequestSchema,
   criarEscolaRequestSchema,
   criarRedeRequestSchema,
+  orcamentoDeIaRequestSchema,
   type ConviteDaCoordenacaoRequest,
   type CriarEscolaRequest,
   type CriarRedeRequest,
+  type OrcamentoDeIaRequest,
   type TipoDeRede,
 } from '@educa/shared'
 import { pedidoDeConvitePelo, TEXTO_DO_NOME_INVALIDO, type ValidacaoDoConvite } from '../components/pedido-de-convite'
-import { REGRA_DO_ENDERECO } from './textos'
+import { REGRA_DO_ENDERECO, TEXTO_DO_TETO_FORA_DO_INTERVALO, TEXTO_DO_VALOR_FORA_DO_INTERVALO } from './textos'
 
 /**
  * O id do pedido de rede ou de escola (Tech Spec da A0b, seção 5, "Idempotência"). Mora em `components/request-id.ts`, porque o
@@ -70,4 +72,32 @@ export function pedidoDeEscola(id: string, campos: { readonly redeId: string; re
  */
 export function pedidoDeConvite(campos: { readonly nome: string; readonly email: string }): ValidacaoDoConvite<ConviteDaCoordenacaoRequest> {
   return pedidoDeConvitePelo(conviteDaCoordenacaoRequestSchema, campos)
+}
+
+/** Os dois campos do `PUT` do orçamento de IA, com o nome que o contrato dá a cada um: é por ele que o texto de cada recusa se acha. */
+export type CampoDoOrcamento = keyof OrcamentoDeIaRequest
+
+const TEXTO_DO_CAMPO_DO_ORCAMENTO: Readonly<Record<CampoDoOrcamento, string>> = {
+  valorPorAlunoCentavos: TEXTO_DO_VALOR_FORA_DO_INTERVALO,
+  tetoDeSegurancaPercentual: TEXTO_DO_TETO_FORA_DO_INTERVALO,
+}
+
+/** O valor digitado em reais, com vírgula ou ponto e até duas casas: `4`, `4,5`, `4,00`, `100.00`. */
+const FORMATO_DO_VALOR_EM_REAIS = /^\d+(?:[.,]\d{1,2})?$/
+const FORMATO_DO_TETO_EM_PERCENTUAL = /^\d+$/
+
+/**
+ * O pedido de `PUT /v1/operacao/{escolas|redes}/:id/orcamento-ia` (camada-ia, 7.0), pelo **mesmo** contrato estrito da
+ * API: o operador digita reais, e o pedido sai em centavos. `semValor` é a decisão da tela (a escola que usa o valor da
+ * rede, a rede que deixou o campo em branco) e manda `null`, sem ler o que está no campo; o teto em branco também é
+ * `null`. O que não é número nesse formato vira `NaN`, que o contrato recusa, e o texto é o do campo.
+ */
+export function pedidoDeOrcamento(campos: { readonly valor: string; readonly teto: string; readonly semValor: boolean }): Validacao<OrcamentoDeIaRequest, CampoDoOrcamento> {
+  const valor = campos.valor.trim()
+  const teto = campos.teto.trim()
+  const centavos = campos.semValor ? null : FORMATO_DO_VALOR_EM_REAIS.test(valor) ? Math.round(Number(valor.replace(',', '.')) * 100) : Number.NaN
+  const percentual = teto === '' ? null : FORMATO_DO_TETO_EM_PERCENTUAL.test(teto) ? Number(teto) : Number.NaN
+  const lido = orcamentoDeIaRequestSchema.safeParse({ valorPorAlunoCentavos: centavos, tetoDeSegurancaPercentual: percentual })
+  if (lido.success) return { ok: true, pedido: lido.data }
+  return { ok: false, erros: errosDos(lido.error.issues.map((problema) => problema.path), TEXTO_DO_CAMPO_DO_ORCAMENTO) }
 }

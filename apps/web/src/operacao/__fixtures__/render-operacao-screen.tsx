@@ -1,4 +1,4 @@
-import type { EscolaDoPainel, UsoDaEscolaDoPainel } from '@educa/shared'
+import type { EscolaDoPainel, RedeDoPainel, UsoDaEscolaDoPainel } from '@educa/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, type RenderResult } from '@testing-library/react'
 import type { ReactElement } from 'react'
@@ -84,13 +84,16 @@ export function renderOperacaoScreen(tela: ReactElement, { caminho = '/', busca 
 
 const id = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 
+/** O id da rede de `escolaDoPainel` e de `redeDoPainel`: a escola da lista é dela. */
+export const REDE_DE_TESTE_ID = id(2000)
+
 /** Uma escola da lista do painel, com tudo em ordem; o caso muda só o que importa para ele. */
 export function escolaDoPainel(n: number, extra: Partial<EscolaDoPainel> = {}): EscolaDoPainel {
   return {
     id: id(1000 + n),
     nome: `Escola Sintética ${String(n)}`,
     slug: `escola-sintetica-${String(n)}`,
-    rede: { id: id(2000), nome: 'Rede Sintética' },
+    rede: { id: REDE_DE_TESTE_ID, nome: 'Rede Sintética' },
     estado: 'sem_convite',
     turmas: 4,
     professores: 6,
@@ -99,6 +102,21 @@ export function escolaDoPainel(n: number, extra: Partial<EscolaDoPainel> = {}): 
       proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
       vigente: { valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
     },
+    ...extra,
+  }
+}
+
+/** A rede do painel com R$ 5,00 por aluno e o teto padrão, e três escolas que usam o valor dela: o que o diálogo Orçamento de IA lê. */
+export function redeDoPainel(extra: Partial<RedeDoPainel> = {}): RedeDoPainel {
+  return {
+    id: REDE_DE_TESTE_ID,
+    nome: 'Rede Sintética',
+    tipo: 'independente',
+    orcamento: {
+      proprio: { valorPorAlunoMicros: 5_000_000, tetoDeSegurancaPercentual: null },
+      vigente: { valorPorAlunoMicros: 5_000_000, origemDoValor: 'rede', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+    },
+    escolasQueUsamOValorDaRede: 3,
     ...extra,
   }
 }
