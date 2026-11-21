@@ -1231,3 +1231,87 @@ Arquivos:
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--speccamada-ia/tasks/prd-camada-ia/cenarios.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--speccamada-ia/tasks/prd-camada-ia/techspec.md
 - /home/joaquimdp/Documents/git/.maestri/floors/educaia--speccamada-ia/infra/test/alertas.test.ts
+
+## test-engineer · 7ª rodada · REPROVADO · 2026-11-20 23:17:22 · `tasks/prd-camada-ia/revisao-spec.md`
+
+VEREDITO: REPROVADO
+
+**Cenários exigidos:** todas as linhas de `cenarios.md` §1 a §5, os textos e as medidas da §4 e as recomendações das rodadas 1 a 6 que pedem teste.
+
+**Cobertos:** a maior parte. O RF5 e o RF6 caem certo entre a 1.0 e a 11.0. As quatro corridas de `PUT` e o retrato por duas réplicas ficaram na 3.0 e na 4.0. O isolamento da §2 está distribuído pela 2.0, 3.0, 5.0 e 6.0, e a avaliação (RF13 a RF16) está na 12.0. As faltas estão abaixo.
+
+**Bloqueantes:** as faltas de cada tarefa. Em cada uma, uma linha de cenário ficou sem teste ou foi juntada a outra de um jeito que deixa a mutação viva.
+
+---
+
+### 2.0 (797 palavras)
+- Precedência (RF7): troque a linha 55 por `| escola sem valor, rede R$ 5: vale a rede, `origemDoValor = rede`; escola com R$ 3: vale 3 | U | precedência | |`. Sem o caso "R$ 3", a mutação "inverter a precedência" sobrevive.
+- `| "hoje": a chamada de 23h30 de São Paulo conta no dia certo (relógio falso) | I | dia de São Paulo | |` (RF8, linha 71 da `cenarios.md`; mutação "dia em UTC")
+- `| duas vigências no mês: a soma usa o custo gravado de cada linha | I | sem recalcular na leitura | |` (RF6, linha 57: "o mês soma as duas")
+- Na linha 65, acrescente "num ano da maior escola (~1,8 milhão de linhas)". É a recomendação da rodada 1 e está na Tech Spec §7c.
+- Para caber, apague dois trechos de "Como testar":
+  - a "Armadilha" da linha 77 (13 palavras): ela repete "conferindo A e B" da linha 63;
+  - o "Precedente de repository…" das linhas 70 e 71 (cerca de 14): repete o Contexto da linha 21.
+
+### 3.0 (793)
+- Corrida (§3, estado inicial): troque a linha 56 por `| corrida, a escola sem linha: dois `PUT` de valores diferentes, o primeiro segurado; vale o segundo, duas auditorias, nenhum 500 | I | `for update` e `on conflict` | |`. Sem a escola sem linha, a mutação "tirar o `on conflict do nothing`" (o 23505) não morre: a linha 52 é sequencial.
+- `| `GET /redes` e `/escolas`: o orçamento próprio e o vigente | I | RF11 | |` (linha 91; a subtarefa 3.4 não tem teste)
+- Linha 54: "id de escola **e de rede** inexistente: `NAO_ENCONTRADO`, com o corpo da rota inexistente" (linha 66)
+- Linha 60: "coordenação, **professor e aluno**…" (RF12, linha 93)
+- Para caber, corte o fim do Objetivo (linha 10, "e a lista de redes… valor da rede", cerca de 20 palavras), que a linha nova já diz. Corrija também "O diálogo (9.0)" para 7.0.
+
+### 4.0 (776)
+- Linha 60: acrescente "o do teto cita 'Classificação do material atrasada'". É a linha 75 da `cenarios.md` e a recomendação da rodada 1; está na subtarefa 4.4, mas sem teste.
+
+### 5.0 (713)
+- `| `ordem=custo` em `/escolas`: `VALIDACAO` | U, I | custo só no uso | |` (recomendação da rodada 2, `ORDENS_DO_PAINEL`)
+- Linha 53: "coordenação, professor e aluno em `…/uso-ia`: 404" (linha 93)
+
+### 6.0 (797)
+- Troque a linha 59 por `| Painel, texto por estado: `definido` "IA do mês: 62% do previsto."; 80 "…já usou 80%… Nada é cortado."; 100 "…passou do previsto…"; `sem_orcamento` "…ainda não foi definido…"; `sem_aluno_ativo` "A porcentagem aparece quando…"; carregando; erro "Não foi possível carregar. Tentar de novo" | U | §4 | |`
+- `| Governança: carregando, erro, mês sem execução | U | os estados | |`
+- `| resposta fora do contrato: "Atualize a página" | U | a volta do código | |`
+- Troque a linha 61 por `| Painel e Governança a 360 px sem rolagem; alvo de 24 px; nada só por hover; aviso e porcentagem com texto | E2E | §4 | |`
+- `| `EXPLAIN (ANALYZE, BUFFERS)` do `porFuncao`, num ano da maior escola | I | o índice | |` (Tech Spec §7c, recomendação da rodada 1)
+- Para caber (cerca de 75 palavras a mais):
+  - corte o fim do Objetivo, linha 11, "duas telas, porque… uma linha" (cerca de 13);
+  - deixe só os nomes de arquivo no Contexto "Código:", linhas 20 a 23 (cerca de 10);
+  - em "Como testar", cite os testes pelo começo do nome, linhas 66, 69 e 70 (cerca de 20);
+  - junte as linhas 53 e 54 (cerca de 6).
+  
+  Ainda fica apertado. Se não couber, o "Atualize a página" pode ir para uma linha única na 1.0, que já trata da volta do código na subtarefa 1.5.
+
+### 7.0 (645)
+- `| cada campo com o seu rótulo: "Valor por aluno por mês (R$)", "Teto de segurança (% do orçamento)", "Usar o valor da rede" | U | rótulo por campo | |`
+- `| "Vale hoje: R$ 5,00 por aluno, da rede." | U | o vigente | |`
+- `| depois de salvar: "Orçamento salvo." | U | o resultado | |`
+- Troque a linha 47 por `| R$ 0,00, R$ 100,01, 99% e 1001%: "Use um valor entre R$ 0,01 e R$ 100,00." / "Use de 100% a 1000%.", com `aria-describedby` e `role=alert`, sem chamar a API; R$ 0,01, R$ 100,00, 100 e 1000 passam | U | os limites e o anúncio | |`
+- `| `Esc` fecha e o foco fica preso no diálogo | E2E | acessibilidade | |` (recomendação da rodada 2)
+- `| alvo de 24 px nos campos e na caixa; nada só por hover | E2E | §4 | |`
+- `| "Atualize a página" | U | a volta do código | |`
+
+### 8.0 (593)
+- `| "Ver meses" a 360 px sem rolagem horizontal | E2E | celular | |`
+- `| "Ver meses": carregando e erro "Não foi possível carregar. Tentar de novo" | U | os estados | |`
+- `| o mês de "Ver meses" em pt-BR | U | o formato | |`
+- `| porcentagem com texto, não só cor; alvo de 24 px em "Definir orçamento" e "Ver meses"; nada só por hover | E2E | acessibilidade | |`
+- `| "Atualize a página" | U | a volta do código | |`
+
+### 9.0 (791)
+- A linha 63, "as recusas da 9.2, cada uma", é o defeito da X3: um item vale sozinho. Troque-a por linhas com nome, cada uma citando a variável:
+  - `| id da reserva igual ao do principal, também em `local` | U | a subida | |`
+  - `| reserva falsa em produção; `falso-reserva` sobre `openai_compat` em produção | U | a subida | |`
+  - `| `LLM_RESERVA_MODELO` e `LLM_RESERVA_MODELO_<PERFIL>` sem preço | U | RF6, linha 59 | |`
+  - `| reserva meio configurada: recusa citando a variável que falta | U | recomendação da rodada 6 | |`
+- `| `LLM_RESERVA_CHAVE_API` nunca na mensagem de erro | U | regra 20 | |` (o modelo é `llm-config.test.ts` › "a chave do provedor entra na configuração e nunca na mensagem de erro")
+- Linha 61: acrescente "em produção aceita a entrada de outro provedor; em `staging` aceita a do falso" (RF4, linha 26). Sem isso, a mutação "recusar tudo em produção" sobrevive.
+- `| reserva configurada e recusada: publica 0 e o alerta dispara depois de 10 min | I, U | o alerta, sem `absent()` | |` (linhas 75 e 76). Hoje só o caso "sem reserva" está na tabela.
+- Linha 56: acrescente "e no reinício" (linha 15).
+- Linha 57: nomeie as duas tarefas, `relatorio_da_correcao` (`trabalho_do_aluno`) e `gerar_atividade_objetiva` (linha 16).
+- Linha 59: acrescente o motivo `categoria_faltando:conversa_do_aluno`.
+- Para caber:
+  - apague "O roteamento é da 10.0." do Objetivo, que repete "Fora do escopo";
+  - tire os parênteses do Contexto, linhas 15 e 16 (cerca de 12);
+  - enxugue a linha 60 (de 28 para cerca de 20 palavras).
+
+[… 36 linhas cortadas]

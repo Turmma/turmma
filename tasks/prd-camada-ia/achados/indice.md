@@ -35,3 +35,5 @@ Leia este índice antes de codar, e abra só os blocos que interessam à tarefa 
 | 2026-11-20 22:57:22 | `infra-guardian` | 5ª | APROVADO | `revisao-spec` | cenarios.md, RF4, linha 28: deixar explícito se a recusa de `IA_RESERVA_PROVEDOR_ID=falso-reserva` sobre `openai_compat` vale em todo ambiente ou só em… |
 | 2026-11-20 22:58:04 | `test-engineer` | 5ª | REPROVADO | `revisao-spec` | techspec.md §7c, linha 143, contra cenarios.md RF9, linha 75. A cláusula "`ia.provedor_de_reserva.conferido` (0 por 10 min, só com reserva configurada)" não… |
 | 2026-11-20 22:59:19 | `test-engineer` | 6ª | APROVADO | `revisao-spec` | Série presa em 0, `cenarios.md:17` (RF1): depois do cadastro corrigido sem reiniciar, o cenário confere só que a chamada vai à reserva. Não confere que… |
+| 2026-11-20 23:17:22 | `test-engineer` | 7ª | REPROVADO | `revisao-spec` | as faltas de cada tarefa. Em cada uma, uma linha de cenário ficou sem teste ou foi juntada a outra de um jeito que deixa a mutação viva. |
+| 2026-11-20 23:23:32 | `test-engineer` | 1ª | REPROVADO | `6_task` | A Governança não testa os textos do orçamento (`tasks/prd-camada-ia/6_task.md:54`). |
