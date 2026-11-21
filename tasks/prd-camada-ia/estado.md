@@ -1,13 +1,14 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da correção `2026-11-20-revisoes-nao-se-perdem-por-script` (M2 da X6) e o do `Implementador 2` (L2) da `2026-11-20-faltando-junta-and-de-varias-linhas` (M4 da X6), partidas às 23:26, 1ª tentativa. Tarefas prontas (`81632ac3`, `RELATÓRIO` do `Arquiteto` às 23:24); aviso da D79: a construção começa às 23:58 sem objeção do Joaquim, e a 1.0 só parte depois das duas correções e da M2 da F4.
-- **Devo ainda:** depois das duas correções, a M2 da F4 (o inventário no portão, `TODO.md` "(F4, retro, M2)") por correção, e só então a 1.0; as M1, M3+M4 e M5 da F4b entram por correção. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `e9959a61`
+- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da correção `2026-11-20-faltando-junta-and-de-varias-linhas` (M4 da X6, partida 20/11 23:26) e o do `Implementador` (L1) da `2026-11-21-inventario-no-portao` (M2 da F4, partida 21/11 ~00:1x), 1ª tentativa. A 1.0 parte na primeira linha livre depois das duas. Pergunta do tamanho da spec aberta (não segura nada).
+- **Devo ainda:** as M1, M3+M4 e M5 da F4b entram por correção. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
+- **Base:** `spec/camada-ia` em `2cb1e9ab` (encontro da L1, M2 da X6); esteira verde em `b9188e3`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| correção `2026-11-20-revisoes-nao-se-perdem-por-script` (M2 da X6, L1) | `bdcef966` | Sonnet | 6 revisores APROVADO na 2ª | 29 casos, 22 mutações; `TODO.md`: M2 marcada e uma linha para a retro |
 
 ## Esperando o Joaquim
 ## 20/11 23:28 — F5 camada-ia, o tamanho da spec, no meu terminal
