@@ -94,7 +94,10 @@ export const ErrorCode = {
   IA_TEMPO_ESGOTADO: 'IA_TEMPO_ESGOTADO',
   /** A saída do modelo não passou no schema nem na conferência da tarefa, mesmo depois da repetição (502). Nada dela é usado. */
   IA_SAIDA_INVALIDA: 'IA_SAIDA_INVALIDA',
-  /** O orçamento de IA da escola não cobre mais uma chamada (D14; 429). O freio do Tutor por aluno tem código próprio. */
+  /**
+   * O teto de segurança do orçamento de IA da escola foi passado no mês (camada-ia; D14, D40; 429): quem o recebe é a fila de lote, e o processador a adia até a virada do mês ou até o teto subir (esse é o desenho da 4.0; hoje o `InMemoryOrcamento` o devolve só pelo limite de tokens, e a 4.0 confere este texto ao terminar). O orçamento em si
+   * (80% e 100%) nunca recusa chamada. O freio do Tutor por aluno tem código próprio.
+   */
   IA_ORCAMENTO_ESGOTADO: 'IA_ORCAMENTO_ESGOTADO',
   /** Quem chamou a camada de IA mandou entrada fora do schema da tarefa (500): é defeito nosso, e nada foi ao modelo. */
   IA_ENTRADA_INVALIDA: 'IA_ENTRADA_INVALIDA',

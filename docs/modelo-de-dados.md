@@ -6,7 +6,7 @@ Notação: `→` referência, `*` obrigatório.
 
 ```
 Rede*            nome, tipo (prefeitura | grupo | independente), ipsSaida (IP público de saída
-                 da rede, não é dado de pessoa)
+                 da rede, não é dado de pessoa), iaValorPorAlunoMicros?, iaTetoDeSegurancaPercentual? (camada-ia)
 Escola*          → rede*, nome, slug*, inatividadeAlunoMin (30), inatividadeEquipeMin (120)
 AnoLetivo*       → escola*, ano, inicio, fim, situacao (planejado | em_curso | encerrado)
 Serie*           → escola*, etapa (ef_anos_finais | em), ano (6–9 | 1–3)
@@ -636,7 +636,9 @@ ConsumoIa*         → (uma linha por chamada enviada ao modelo: a repetição e
                      escola*, aluno?, execucao?, tarefa*, funcao*, perfil*, origem*, modelo*, promptVersao*,
                      tokensDeEntrada*, tokensDeSaida*, custoMicros*, duracaoMs*, envioExterno*, provedor? (F3: só com
                      envioExterno; o id do provedor que recebeu o conteúdo), tentativas*,
-                     estado*, codigoDeErro?, entrada?, saida?, em*
+                     estado*, codigoDeErro?, entrada?, saida?, peloProvedorDeReserva* (camada-ia; falso por padrão), em*
+OrcamentoIaDoMes   → escola*, mes* (dia 1, de São Paulo), alunosAtivos*, valorPorAlunoMicros?, tetoPercentual*,
+                     origemDoValor* (escola | rede | nenhuma), atualizadoEm*   — chave (escola, mes); o retrato do mês (camada-ia)
 ThreadAgente*      → escola*, anoLetivo*, usuario*, agente*
 MensagemAgente*    → escola*, anoLetivo*, thread*, execucao*, autor* (usuario | agente), conteudo*, turma?, disciplina?
 Artefato*          → escola*, anoLetivo*, turma*, disciplina*, tipo*, titulo*, conteudo*, origem? (versão adaptada),
@@ -688,6 +690,10 @@ O que a fatia tem de diferente do desenho definitivo, e por quê:
   das tentativas, das correções de lote aprovado e dos sinais. `SinalTutor` não tem `detalhe`: é tipo fechado mais a
   referência ao trabalho, e `atencao_humana` não carrega referência nenhuma (D36, D57, D66).
 - **O freio e o pacote do Tutor** são duas colunas de `configuracao_operacional_escola`, e não a `PacoteTutor` por turma.
+- **O orçamento de IA** (camada-ia, 2.0) é duas colunas na escola (`configuracao_operacional_escola.ia_valor_por_aluno_micros` e `ia_teto_de_seguranca_percentual`), as mesmas duas na `rede`, e um retrato por escola e mês
+  (`orcamento_ia_do_mes`). Vale a escola, senão a rede, **coluna a coluna**; teto nulo nos dois vale 200%, e valor nulo nos dois é "sem orçamento". O orçamento do mês é o valor por aluno vezes os alunos ativos de hoje (a conta da
+  aba Escolas), e o mês corrente é calculado na hora; a medida regrava o retrato do mês corrente a cada 5 minutos e o mês fechado guarda o último. **O retrato não tem `ano_letivo_id`, de propósito:** é série no tempo, somada por mês,
+  como `uso_infra_diario` e `consumo_ia`; amarrá-lo a um ano o faria sumir de "os 12 meses anteriores" na virada do ano letivo, e fevereiro continua sendo de fevereiro. A rede é a exceção da operação, acima do tenant (sem `escola_id`).
 - **`ConsumoIa` não tem usuário** (D64): só o aluno, nas funções do Tutor. `entrada` e `saida` ficam nulas onde a chamada
   leva conversa de pessoa (o Tutor e a proposta de ferramenta).
 - **O uso do Tutor por turma** (`GET /v1/tutor/uso`) é leitura de `MensagemTutor`, sem tabela: por aluno, as trocas do dia,

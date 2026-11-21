@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { check, integer, jsonb, pgTable, smallint, text, time, uuid } from 'drizzle-orm/pg-core'
+import { bigint, check, integer, jsonb, pgTable, smallint, text, time, uuid } from 'drizzle-orm/pg-core'
 import { escola } from './escola.js'
 
 /** Vagas por fila numa escola. Fila ausente usa o padrão do ambiente. */
@@ -21,6 +21,9 @@ export type ConfiguredConcurrency = Partial<Record<'interativa' | 'ferramenta' |
  *   pacote do mês por aluno, somado na turma (D38). Nulo cai em `TROCAS_POR_DIA_PADRAO_DO_TUTOR` (60) e
  *   `TROCAS_POR_MES_PADRAO_DO_TUTOR` (300), de `@educa/shared`: a rede pública configura menos (D41), e o
  *   valor nunca é constante no código de quem aplica o freio (regra 30, item 8).
+ * - `ia_valor_por_aluno_micros` e `ia_teto_de_seguranca_percentual` (camada-ia, tarefa 2.0) são o orçamento de IA da escola (D39, D41) e o
+ *   teto que segura só o lote (D40): coluna a coluna, o valor da escola vale sobre o da rede, e o teto nulo nos dois vale 200%. O valor nulo
+ *   nos dois é "sem orçamento". Só a Operação grava (a rota é da 3.0); a coordenação nunca as lê. Nenhuma é dado de pessoa.
  */
 export const configuracaoOperacionalEscola = pgTable(
   'configuracao_operacional_escola',
@@ -41,12 +44,18 @@ export const configuracaoOperacionalEscola = pgTable(
     tutorTrocasPorDia: integer(),
     /** Trocas com o Tutor por aluno e por mês, somadas na turma (D38). */
     tutorTrocasPorMes: integer(),
+    /** O valor de IA por aluno por mês, em milionésimos de real (camada-ia, tarefa 2.0; D39, D41). Nulo vale o da rede. */
+    iaValorPorAlunoMicros: bigint({ mode: 'number' }),
+    /** O teto de segurança do lote, em % do orçamento do mês (100 a 1000). Nulo vale o da rede e, sem ele, 200%. */
+    iaTetoDeSegurancaPercentual: smallint(),
   },
   (tabela) => [
     check('configuracao_operacional_limite_usuario_positivo', sql`${tabela.limiteReqUsuarioMin} > 0`),
     check('configuracao_operacional_limite_escola_positivo', sql`${tabela.limiteReqEscolaMin} > 0`),
     check('configuracao_operacional_tutor_trocas_por_dia_positivo', sql`${tabela.tutorTrocasPorDia} > 0`),
     check('configuracao_operacional_tutor_trocas_por_mes_positivo', sql`${tabela.tutorTrocasPorMes} > 0`),
+    check('configuracao_operacional_ia_valor_positivo', sql`${tabela.iaValorPorAlunoMicros} > 0`),
+    check('configuracao_operacional_ia_teto_valido', sql`${tabela.iaTetoDeSegurancaPercentual} between 100 and 1000`),
     check(
       'configuracao_operacional_vagas_validas',
       sql`${tabela.vagas} is null or (

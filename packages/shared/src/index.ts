@@ -943,6 +943,17 @@ export type {
   FuncoesDaGovernancaResponse,
   ResumoDaGovernancaResponse,
 } from './governanca/governanca.js'
+export { diaDeSaoPaulo, FUSO_DO_ORCAMENTO, mesDeSaoPaulo, orcamentoDoMes, orcamentoSemRetrato, orcamentoVigente, TETO_PADRAO_PERCENTUAL } from './governanca/orcamento-de-ia.js'
+export type {
+  AvisoDoOrcamento,
+  OrcamentoDefinido,
+  OrcamentoDoMes,
+  OrcamentoVigente,
+  OrigemDoTeto,
+  OrigemDoValor,
+  RetratoDoOrcamento,
+  SituacaoDoOrcamento,
+} from './governanca/orcamento-de-ia.js'
 export {
   alertaDoAnalistaSchema,
   analistaNominalQuerySchema,

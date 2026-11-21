@@ -48,6 +48,7 @@ export const TABELAS_DO_NUCLEO = [
   'mensagemAgente',
   'mensagemTutor',
   'operador',
+  'orcamentoIaDoMes',
   'pedidoTitular',
   'provedorEscola',
   'rede',

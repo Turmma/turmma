@@ -39,6 +39,8 @@ import { usuario } from './usuario.js'
  *   não cabe.
  * - Sem `ano_letivo_id`: é série no tempo, somada por mês, como `uso_infra_diario`.
  * - Índice `(escola_id, funcao, em)`: o consumo do mês por função começa pelo escopo (regra 80, item 8).
+ * - Índice `consumo_ia_mes_idx` `(escola_id, em)` **`include`** `(custo_micros, tokens_de_entrada, tokens_de_saida, funcao, pelo_provedor_de_reserva, execucao_id)` (camada-ia, tarefa 2.0, migration `0067`): a soma
+ *   do mês e do dia da escola (o orçamento, a Operação, a Governança) lê só o índice, sem a tabela. O `drizzle-orm` não modela o `include`: o schema o declara sem ele, e a migration, à mão, com.
  * - **Anonimizado no prazo** (F3, tarefa 4.0): o expurgo noturno da escola anula `entrada` e `saida` na categoria
  *   `texto_do_modelo` e `aluno_id` na `consumo_por_aluno`, contadas de `em`, cada uma pelo seu índice parcial
  *   `(escola_id, em)`. A linha e os números ficam: a soma da governança não muda.
@@ -64,6 +66,8 @@ export const consumoIa = pgTable(
     duracaoMs: integer().notNull(),
     envioExterno: boolean().notNull(),
     provedor: text(),
+    /** A chamada foi atendida pelo provedor de reserva (camada-ia, tarefa 2.0; a 5.0 a grava): a Operação conta o que a reserva atendeu. Falso nas linhas de antes. */
+    peloProvedorDeReserva: boolean().notNull().default(false),
     tentativas: integer().notNull(),
     estado: text().$type<EstadoDeConsumoDeIa>().notNull(),
     codigoDeErro: text().$type<ErrorCode>(),
@@ -76,6 +80,7 @@ export const consumoIa = pgTable(
     // A migration escreve `on delete set null ("aluno_id")`: o `set null` inteiro anularia também a escola.
     foreignKey({ name: 'consumo_ia_aluno_da_escola_fk', columns: [tabela.escolaId, tabela.alunoId], foreignColumns: [usuario.escolaId, usuario.id] }).onDelete('set null'),
     index('consumo_ia_funcao_idx').on(tabela.escolaId, tabela.funcao, tabela.em),
+    index('consumo_ia_mes_idx').on(tabela.escolaId, tabela.em),
     index('consumo_ia_aluno_idx').on(tabela.escolaId, tabela.alunoId, tabela.em).where(sql`${tabela.alunoId} is not null`),
     // O ramo da execução do rastro e da contagem do texto do modelo, que descem pelas execuções que a pessoa pediu (F3, 13.0):
     // sem ele, a consulta lê o consumo da escola inteira (regra 80, item 8).

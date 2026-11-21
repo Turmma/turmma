@@ -143,6 +143,8 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   provedor_escola: SEM_PESSOA,
   configuracao_operacional_escola: SEM_PESSOA,
   uso_infra_diario: SEM_PESSOA,
+  // O retrato do orçamento de IA da escola por mês (camada-ia, 2.0): a escola, o mês e números (alunos ativos, valor por aluno, teto). Nenhuma pessoa; a linha fica com a escola.
+  orcamento_ia_do_mes: SEM_PESSOA,
   trecho: SEM_PESSOA,
   // Os capítulos lidos do PDF (ingestao-do-material, 4.0): número, título do material didático e faixa de páginas. Saem em cascata com o material expurgado.
   capitulo_do_material: SEM_PESSOA,

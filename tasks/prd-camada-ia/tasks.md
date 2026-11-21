@@ -18,15 +18,15 @@ teto de palavras. São 13, uma acima do teto de 12. O corte possível é em duas
   - [x] 1.5 `docs/runbook.md`, "Voltar o código depois da camada-ia 1.0"
   - [x] 1.6 Testes
 
-- [ ] **2.0 — O orçamento de IA existe no banco e na conta: colunas, retrato do mês e a leitura por escola**
-  - [ ] 2.1 Migration de expansão: colunas da escola e da rede, `orcamento_ia_do_mes`, `pelo_provedor_de_reserva`
-  - [ ] 2.2 Migration própria do índice do consumo do mês
-  - [ ] 2.3 A conta pura em `packages/shared`
-  - [ ] 2.4 `OrcamentoDoMesRepository` em `packages/core`
-  - [ ] 2.5 Glossário, modelo de dados, LGPD e a classificação de privacidade
-  - [ ] 2.6 `IA_ORCAMENTO_ESGOTADO` em `packages/shared/src/errors/`
-  - [ ] 2.7 Runbook da volta
-  - [ ] 2.8 Testes
+- [x] **2.0 — O orçamento de IA existe no banco e na conta: colunas, retrato do mês e a leitura por escola**
+  - [x] 2.1 Migration de expansão: colunas da escola e da rede, `orcamento_ia_do_mes`, `pelo_provedor_de_reserva`
+  - [x] 2.2 Migration própria do índice do consumo do mês
+  - [x] 2.3 A conta pura em `packages/shared`
+  - [x] 2.4 `OrcamentoDoMesRepository` em `packages/core`
+  - [x] 2.5 Glossário, modelo de dados, LGPD e a classificação de privacidade
+  - [x] 2.6 `IA_ORCAMENTO_ESGOTADO` em `packages/shared/src/errors/`
+  - [x] 2.7 Runbook da volta
+  - [x] 2.8 Testes
 
 - [ ] **3.0 — A Operação define o orçamento de IA da escola e da rede, com auditoria**
   - [ ] 3.1 Os dois `PUT`, no contexto da escola e pelo `OrcamentoDaRedeRepository`

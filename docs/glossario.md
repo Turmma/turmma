@@ -228,8 +228,20 @@ avisa, propõe e espera aprovação, ou nunca faz. Ver `docs/agentes.md`.
 **Perfil de IA** — A classe de tarefa que define qual modelo será usado: rápido, padrão,
 complexo ou visão.
 
-**Orçamento de IA** — O limite de consumo por aluno, turma e escola, com aviso antes do
-corte. Configuração por escola e por rede, nunca visível ao aluno como crédito.
+**Orçamento de IA** — O previsto de consumo de IA da escola no mês: o valor de IA por aluno vezes os alunos
+ativos. A coordenação vê a porcentagem usada ("62% do previsto") e é avisada a 80% e a 100%; **nada é cortado**
+(D40). Configuração da Operação, por escola e por rede, nunca visível ao aluno como crédito.
+
+**Valor de IA por aluno** — Quanto, em reais por aluno por mês, a Turmma prevê gastar com IA numa escola (D39, D41).
+Vale o da escola; onde ela não tem, o da rede. Sem os dois, a escola está "sem orçamento definido". Só a Operação o vê
+em reais: a coordenação vê a porcentagem.
+
+**Teto de segurança** — O ponto, em % do orçamento do mês (de 100% a 1000%; padrão 200%), a partir do qual só a fila de
+lote da escola espera, até o mês virar ou a Operação subir o teto. Existe contra defeito e abuso, não como cobrança: o
+Tutor e a ferramenta com o professor esperando nunca param por ele.
+
+**Provedor de reserva** — O segundo provedor de modelo, com contrato e conferência próprios, que atende a chamada quando
+o principal cai (D29). Só atende tarefa e modelo aprovados para ele, e nunca leva texto de aluno para fora do Brasil (D62).
 
 **Adaptação necessária** — O que precisa mudar numa prova ou atividade para um aluno:
 linguagem direta, resposta escrita no lugar da oral, fonte ampliada, tempo extra, enunciado

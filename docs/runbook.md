@@ -1393,6 +1393,30 @@ gastou dependem delas.
 
 **Depois:** nada a registrar, além da janela no `TODO.md` se o mês da Governança foi lido durante a volta.
 
+## Voltar o código depois da camada-ia 2.0 (rollback)
+
+*Procedimento, não alerta: não há regra em `infra/grafana/alertas/`. Vale para a volta da versão que criou o orçamento de IA no banco (camada-ia, tarefa 2.0: as colunas `ia_valor_por_aluno_micros` e
+`ia_teto_de_seguranca_percentual` em `configuracao_operacional_escola` e em `rede`, a tabela `orcamento_ia_do_mes`, `consumo_ia.pelo_provedor_de_reserva` e o índice `consumo_ia_mes_idx`) para a anterior. As duas
+migrations (`0066` e `0067`) só expandem, e o código anterior as ignora: **não há nada a reverter no banco**, e por isso não há bloco de SQL.*
+
+**Deploy e volta fora do horário letivo** (regra 80, item 9).
+
+**O que o código anterior faz com o que a 2.0 deixou:**
+
+- **As colunas novas** de `configuracao_operacional_escola`, de `rede` e de `consumo_ia`: a anterior lê e grava por nome de coluna, e nenhuma das novas é obrigatória (as duas de configuração e de rede são nulas; a de
+  `consumo_ia` tem `default false`). Insert e update dela seguem aceitos.
+- **A tabela `orcamento_ia_do_mes`**: a anterior não a conhece. Fica parada, com o último retrato de cada escola. Só a 4.0 a regrava.
+- **O índice `consumo_ia_mes_idx`**: a anterior não o usa, e ele só custa um pouco de escrita em `consumo_ia`. Não o apague para "voltar": a 2.0 de novo o espera.
+- **A subida da API e do worker**: a 2.0 não muda nenhuma exigência de configuração.
+
+**Se a `0067` falhar no deploy** (`lock_timeout` de 5 s: alguém segurava `consumo_ia`): o `migrate` (`packages/core/src/db/migrate.ts`) desfaz a transação inteira, e a `0066` também fica sem efeito. Rode o deploy de novo, fora do horário letivo. A trava exclusiva que a `0066` pega em `consumo_ia` (`ADD COLUMN`) dura até o fim da transação, inclusive durante a construção do índice da `0067`: a escrita em `consumo_ia` fica parada até o índice terminar. Hoje isso cabe, porque o deploy é fora do horário letivo.
+
+**Na volta para a versão nova (roll-forward):** não há bloco a rodar. Os valores que a Operação definiu (3.0) ficam nas colunas, e a medida (4.0) volta a regravar o retrato do mês corrente.
+
+**Não faça:** `DROP` das colunas, da tabela ou do índice "para voltar ao estado de antes": a contração é de uma tarefa própria, depois de o código novo estar em produção.
+
+**Depois:** nada a registrar.
+
 ## A D62 na subida: o `worker-ia` parado (procedimento)
 
 *Procedimento, não alerta: não há regra própria em `infra/grafana/alertas/`; o sinal é o healthcheck do `worker-ia` (o batimento não bate) e, com a fila esperando, o alerta "Job

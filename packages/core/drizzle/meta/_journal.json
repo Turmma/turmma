@@ -463,6 +463,20 @@
       "when": 1795016317352,
       "tag": "0065_contracao_da_f4",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1795238702807,
+      "tag": "0066_orcamento_de_ia",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1795238712233,
+      "tag": "0067_indice_do_consumo_do_mes",
+      "breakpoints": true
     }
   ]
 }

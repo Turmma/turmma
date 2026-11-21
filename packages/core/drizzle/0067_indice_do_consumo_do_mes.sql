@@ -1,0 +1,10 @@
+-- O índice da soma do mês do consumo de IA (camada-ia, tarefa 2.0; Tech Spec, seções 3 e 7c; regra 80, itens 8 e 9). Só expande, e o código anterior o ignora: nenhuma coluna, linha ou check muda.
+-- O orçamento (a soma do mês da escola, a cada 5 minutos pela medida e a cada leitura da coordenação e da Operação) e o "hoje" da Operação somam `custo_micros` e os tokens de uma escola numa faixa de `em`. Com o `include`, a soma sai só do
+-- índice, sem a tabela (o índice `(escola_id, funcao, em)` começa pela função e não serve à faixa de `em` sozinha). `consumo_ia` é a tabela que mais cresce: uma linha por chamada, até ~1,8 milhão por ano na maior escola.
+-- O `drizzle-orm` não modela o `include`; por isso o schema declara o índice sem ele, e esta migration, à mão, com.
+-- Sem `concurrently`, a exceção da 0034, da 0057 e da 0064 (o `migrate` roda todas as migrations numa transação só, e `CREATE INDEX CONCURRENTLY` não roda dentro dela): o índice lê a tabela inteira uma vez e trava a escrita nela enquanto
+-- isso. É seguro hoje (a escola ainda não tem volume, e o deploy roda fora do horário letivo; o `lock_timeout` de 5 s desfaz a transação se a trava não vier). Com volume de produção, esta criação vai para uma migration à parte e fora do
+-- `migrate`, com `concurrently` (`TODO.md`, a lista das migrations sem `concurrently`). Fica numa migration própria, depois da 0066, só para a 0066 não carregar o índice; o `SET LOCAL` vale até o fim da transação do `migrate`, que roda as duas juntas: se esta falhar, a 0066 também é desfeita (`docs/runbook.md`).
+-- O `consumo_ia_funcao_idx` fica: o `EXPLAIN` da tarefa (`orcamento-do-mes.plano.int.test.ts`) mostra a soma do mês pelo índice novo, e a soma por função (3.0) é quem diz se o antigo sobra.
+SET LOCAL lock_timeout = '5s';--> statement-breakpoint
+CREATE INDEX "consumo_ia_mes_idx" ON "consumo_ia" USING btree ("escola_id","em") INCLUDE ("custo_micros","tokens_de_entrada","tokens_de_saida","funcao","pelo_provedor_de_reserva","execucao_id");

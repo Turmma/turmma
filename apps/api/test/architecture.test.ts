@@ -1625,3 +1625,15 @@ describe('arquitetura: a leitura da tabela pública da BNCC é do BnccRepository
     expect(leitores).toEqual(['packages/core/src/bncc/bncc.repository.ts'])
   })
 })
+
+/**
+ * Regra 10, itens 3 e 9, e a Tech Spec da camada-ia (seção 6): o orçamento de IA do mês da escola é lido pelo `OrcamentoDoMesRepository`, sempre pela escola do contexto, e **nenhum método dele é `@Unscoped`**. A
+ * rede é lida pelo `escola.rede_id` da própria escola, nunca por id de fora; a exceção acima do tenant (o `PUT` da rede) é de outro repository, na 3.0.
+ */
+describe('arquitetura: o OrcamentoDoMesRepository lê pela escola do contexto e não declara exceção', () => {
+  it('nenhum método dele é @Unscoped, e a lista dos métodos é a que a tarefa entregou', () => {
+    const metodos = Object.getOwnPropertyNames(nucleo.OrcamentoDoMesRepository.prototype).filter((nome) => nome !== 'constructor')
+    expect(metodos.toSorted()).toEqual(['alunosAtivos', 'configuracaoDaEscola', 'configuracaoDaRede', 'consultaDoCustoDoMes', 'custoDoMes', 'doMes', 'regravarRetrato', 'retrato', 'retratoDeHoje', 'vigente'])
+    for (const metodo of metodos) expect(nucleo.unscopedJustification(nucleo.OrcamentoDoMesRepository, metodo), metodo).toBeUndefined()
+  })
+})

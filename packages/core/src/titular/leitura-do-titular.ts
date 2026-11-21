@@ -278,7 +278,11 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
       'id', 'execucao_id', 'tarefa', 'funcao', 'perfil', 'origem', 'modelo', 'prompt_versao', 'tokens_de_entrada', 'tokens_de_saida', 'custo_micros', 'duracao_ms',
       'envio_externo', 'provedor', 'tentativas', 'estado', 'codigo_de_erro', 'entrada', 'saida', 'em',
     ],
-    fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular, quando a chamada é do Tutor' },
+    fora: {
+      escola_id: ESCOPO,
+      aluno_id: 'o próprio titular, quando a chamada é do Tutor',
+      pelo_provedor_de_reserva: 'o contador da Operação (quantas chamadas a reserva atendeu); para onde o dado foi já está em `provedor`, que é o que o titular lê',
+    },
     consultas: ({ escolaId, titularId, versao }) => {
       // O `entrada` e a `saida` são o que foi enviado ao modelo e o que ele respondeu: só na versão completa (critério 5).
       const colunas = selectColumns(
