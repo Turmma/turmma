@@ -183,19 +183,64 @@ export async function definirUsoDaEscolaSemeada(escolaId: string, uso: { readonl
   })
 }
 
-/** Apaga o que `semearPainel` criou: uso, convites, usuários, contas, o que o worker gravou nas escolas (`expurgo_execucao` e `job_registro`), as escolas e a rede. */
+/**
+ * Apaga, de uma vez, o que toda tabela com FK para `escola` guarda das escolas dadas (menos a própria escola). A lista vem do catálogo do
+ * Postgres, não de uma enumeração à mão: a FK de uma tabela nova (`job_registro`, `expurgo_execucao`, `orcamento_ia_do_mes`…) quebrava a
+ * limpeza a cada vez, porque nenhuma tem `on delete`. A ordem é a das FKs entre essas tabelas: a que aponta para outra (`convite` para
+ * `usuario`) sai antes. FK de tabela de fora do conjunto para uma de dentro (e a composta para a escola) não se resolve aqui e falha alto,
+ * no `delete` da própria tabela, em vez de deixar a linha para trás.
+ *
+ * Só para o banco de teste: a conexão vem de `urlDoBancoDeTeste()`, e esta função apaga linhas de qualquer tabela com FK para a escola, sem
+ * guarda de nome de banco. Não a reaproveite em script de manutenção contra um banco real.
+ *
+ * Apaga também a auditoria, se ela tiver FK para a escola (regra 20, item 15: exclusão lógica e auditada vale para o produto, não para o seed
+ * sintético). Se a auditoria um dia ficar só de acréscimo, com trigger que recusa `delete`, a limpeza vai falhar de forma visível: o ajuste
+ * é ali, na limpeza, e não relaxar a trava da auditoria para o e2e passar.
+ *
+ * Limite: `colunaDe` guarda uma coluna por tabela. Hoje nenhuma tabela tem duas FKs de coluna única para a escola; se uma passar a ter, só a
+ * última é apagada e o `delete from escola` falha alto, então a tabela precisa de tratamento próprio aqui.
+ *
+ * A consulta ao catálogo se repete de propósito em `tabelasComLinhaDeEscola`, no teste (`tools/ci/painel-do-e2e.int.test.ts`): a cópia
+ * independente é a conferência. Não as una: uma só consulta deixaria o teste cego ao erro dela.
+ */
+export async function apagarDadosDasEscolas(banco: Client, escolas: readonly string[]): Promise<void> {
+  const { rows: doEscopo } = await banco.query<{ tabela: string; coluna: string }>(
+    `select cl.relname as tabela, a.attname as coluna
+       from pg_constraint con
+       join pg_class cl on cl.oid = con.conrelid
+       join pg_attribute a on a.attrelid = con.conrelid and a.attnum = con.conkey[1]
+      where con.contype = 'f' and con.confrelid = 'public.escola'::regclass and cardinality(con.conkey) = 1`,
+  )
+  const colunaDe = new Map(doEscopo.map((linha) => [linha.tabela, linha.coluna]))
+  const { rows: ligacoes } = await banco.query<{ filha: string; mae: string }>(
+    `select distinct filha.relname as filha, mae.relname as mae
+       from pg_constraint con
+       join pg_class filha on filha.oid = con.conrelid
+       join pg_class mae on mae.oid = con.confrelid
+      where con.contype = 'f' and filha.oid <> mae.oid`,
+  )
+  const aindaApontam = new Map<string, Set<string>>([...colunaDe.keys()].map((tabela) => [tabela, new Set<string>()]))
+  for (const { filha, mae } of ligacoes) {
+    if (colunaDe.has(filha) && colunaDe.has(mae)) aindaApontam.get(mae)?.add(filha)
+  }
+  // A tabela só sai quando ninguém do conjunto ainda aponta para ela.
+  while (aindaApontam.size > 0) {
+    const livres = [...aindaApontam].filter(([, filhas]) => filhas.size === 0).map(([tabela]) => tabela)
+    if (livres.length === 0) throw new Error(`as tabelas com FK para a escola se apontam em ciclo: ${[...aindaApontam.keys()].join(', ')}`)
+    for (const tabela of livres) {
+      await banco.query(`delete from "${tabela}" where "${colunaDe.get(tabela)}" = any($1::uuid[])`, [escolas])
+      aindaApontam.delete(tabela)
+      for (const filhas of aindaApontam.values()) filhas.delete(tabela)
+    }
+  }
+}
+
+/** Apaga o que `semearPainel` criou: tudo o que as tabelas com FK para a escola guardam dela (uso, convites, usuários, o que o worker gravou), as contas, as escolas e a rede. */
 export async function removerPainel(painel: PainelSemeado): Promise<void> {
   const escolas = painel.escolas.map((escola) => escola.id)
   await comBanco(async (banco) => {
-    await banco.query('delete from uso_infra_diario where escola_id = any($1::uuid[])', [escolas])
-    await banco.query('delete from convite where escola_id = any($1::uuid[])', [escolas])
-    await banco.query('delete from usuario where escola_id = any($1::uuid[])', [escolas])
+    await apagarDadosDasEscolas(banco, escolas)
     await banco.query('delete from conta where id = any($1::uuid[])', [painel.contas])
-    // O worker do ambiente roda as rotinas de escola enquanto o caso corre, e a FK sem `on delete` recusa a escola que elas tocaram: a das 1h
-    // grava um `job_registro` por escola (`retencao.expurgar-escola`), e o job, ao rodar, grava `expurgo_execucao`; a das 19h (classificação) só grava
-    // o `job_registro`, porque a escola sintética não tem material. A escola sai depois de tudo o que o worker gravou nela.
-    await banco.query('delete from expurgo_execucao where escola_id = any($1::uuid[])', [escolas])
-    await banco.query('delete from job_registro where escola_id = any($1::uuid[])', [escolas])
     await banco.query('delete from escola where id = any($1::uuid[])', [escolas])
     await banco.query('delete from rede where id = $1', [painel.redeId])
   })
@@ -262,8 +307,7 @@ export async function semearEscolaDoConvite(estado: 'sem_convite' | 'pendente'):
 /** Apaga a escola `sem_convite` que o teste só precisava ter no banco, e a rede dela: sem conta, usuário nem convite. */
 export async function removerEscolaSemConvite(escola: EscolaDoConvite): Promise<void> {
   await comBanco(async (banco) => {
-    await banco.query('delete from expurgo_execucao where escola_id = $1', [escola.id])
-    await banco.query('delete from job_registro where escola_id = $1', [escola.id])
+    await apagarDadosDasEscolas(banco, [escola.id])
     await banco.query('delete from escola where id = $1', [escola.id])
     await banco.query('delete from rede where id = $1', [escola.redeId])
   })
