@@ -95,6 +95,9 @@ class RegistroDaBancada extends RegistroDeComandos {
 
 const FILAS_POR_API = new WeakMap<TestApi, FilaDeIa>()
 
+/** Os tipos de job que o worker de IA da bancada consome: o que ela espera (`ociosa`) e o que ela descarta ao subir (`subir`) saem desta lista. */
+export const TIPOS_DE_JOB_DE_IA = ['ia.executar', 'ia.executar-lote']
+
 /** Espera a bancada da API ficar ociosa: o que os fixtures que só têm a API (`execucaoTerminada`) usam. Sem bancada ligada a ela, falha em vez de passar em branco. */
 export async function esperarAFilaDeIa(api: TestApi): Promise<void> {
   const fila = FILAS_POR_API.get(api)
@@ -112,6 +115,13 @@ export async function esperarAFilaDeIa(api: TestApi): Promise<void> {
  * troca provedor nem executor por conta própria.
  */
 export class FilaDeIa {
+  /**
+   * Quantas bancadas deste arquivo de teste estão de pé: só a primeira limpa o que outro arquivo deixou, e a segunda (a réplica de um caso) não apaga o job da primeira.
+   * Vale porque o Vitest dá a cada arquivo de teste uma cópia nova dos módulos (o padrão, que `vitest.config.ts` não muda): com `isolate: false` no projeto
+   * `integracao`, o contador passaria de um arquivo para o outro, e um arquivo que esquecesse o `fechar()` desligaria a limpeza sem avisar.
+   */
+  static #vivas = 0
+  #fechada = false
   readonly prefixo = `teste-ia-${randomUUID()}`
   readonly log = new InMemoryLog('worker-ia-teste')
   /** O registro que o processador e o agendador da bancada consultam; `usarRegistro` o troca entre um pedido e outro. */
@@ -172,6 +182,14 @@ export class FilaDeIa {
     const relogioDasLicencas = opcoes.relogioDasLicencas ?? montagem?.relogioDasLicencas
     const fila = new FilaDeIa(api, relogioDasLicencas === undefined ? opcoes : { ...opcoes, relogioDasLicencas }, sobreposicao, opcoes.medidor ?? medidor)
     FILAS_POR_API.set(api, fila)
+    // O banco é um só para todos os arquivos e `job_registro` não é esvaziado entre eles: o job de IA que o arquivo anterior deixou `aguardando` (o lote
+    // que a extração do PDF agenda, o de uma bancada sem consumo) seria publicado pelo despachante desta e rodaria no worker dela, contra o modelo dela.
+    // Limpa antes de ligar, e antes de o teste gravar qualquer job: o que ele agenda depois é dele.
+    // O `delete` não tem escopo de escola, e isso é de propósito: é limpeza de harness no banco de teste compartilhado (o pool vem de `configuracaoDoBanco`, que só abre o banco de
+    // teste), e não consulta de produto, por isso não leva `@Unscoped()`. Não copie esta linha para repository nem para rotina de `apps/*/src`. A execução (`execucao_agente`)
+    // cujo job some fica `pendente` para sempre: quem conta execuções pendentes no banco de teste filtra pela escola que o próprio teste criou.
+    if (FilaDeIa.#vivas === 0) await fila.pool.query("delete from job_registro where tipo = any($1::text[]) and estado not in ('concluido', 'falhou')", [TIPOS_DE_JOB_DE_IA])
+    FilaDeIa.#vivas += 1
     if (opcoes.semConsumir !== true) fila.ligar()
     return fila
   }
@@ -369,8 +387,8 @@ export class FilaDeIa {
     const prazo = Date.now() + limiteMs
     for (;;) {
       const { rows } = await this.pool.query<{ total: string }>(
-        "select count(*)::text as total from job_registro where tipo in ('ia.executar', 'ia.executar-lote') and criado_em >= $1 and estado not in ('concluido', 'falhou')",
-        [this.#inicio],
+        "select count(*)::text as total from job_registro where tipo = any($1::text[]) and criado_em >= $2 and estado not in ('concluido', 'falhou')",
+        [TIPOS_DE_JOB_DE_IA, this.#inicio],
       )
       if (rows[0]?.total === '0') return
       if (Date.now() > prazo) throw new Error('a bancada de IA não ficou ociosa no prazo')
@@ -384,6 +402,10 @@ export class FilaDeIa {
   }
 
   async fechar(): Promise<void> {
+    if (!this.#fechada) {
+      this.#fechada = true
+      FilaDeIa.#vivas -= 1
+    }
     this.restaurar()
     await this.#worker?.encerrar().catch(() => undefined)
     await this.#despachante.encerrar().catch(() => undefined)
