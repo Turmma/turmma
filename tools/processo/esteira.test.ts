@@ -21,6 +21,7 @@ import {
   fatiasSemRelatorio,
   fazerOCenso,
   FATIAS_DO_E2E,
+  jobsDoGh,
   jobsQueCairam,
   jobsQueNaoPassaram,
   nomeDoArtefatoDaFatia,
@@ -29,10 +30,11 @@ import {
   relatorioDoCenso,
   situacaoDaTarefa,
   situacaoDoFechamento,
-  ultimaVerde,
+  ultimaComE2eVerde,
   type ArtefatoDoGh,
   type Commit,
   type Execucao,
+  type JobDoGh,
 } from './esteira.ts'
 
 /** Saída real do `gh`, gravada em 23/10/2026 (`gh run list --branch spec/reengenharia--l2 ...` e `gh run view --json jobs`). */
@@ -274,7 +276,7 @@ describe('o que se pergunta ao GitHub', () => {
   })
 })
 
-describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo na última esteira verde', () => {
+describe('o censo do prazo do e2e (RF9, M4 da retro da F4b): o caso acima de dois terços do prazo na execução mais nova com o e2e verde', () => {
   /** O formato do repórter `json` do Playwright, com um caso por linha pedida. */
   function relatorioDe(...casos: { linha: number; titulo: string; duracaoMs: number; timeout?: number; projeto?: string }[]): RelatorioDoPlaywright {
     return {
@@ -294,6 +296,14 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
   const dasFatias = (relatorios: Record<number, RelatorioDoPlaywright>) => (_execucao: number, fatia: number) => relatorios[fatia] ?? relatorioDe()
   const completos: ArtefatoDoGh[] = FATIAS_DO_E2E.map((fatia) => ({ name: nomeDoArtefatoDaFatia(fatia), expired: false }))
   const verde = execucao('abc', 'verde', '2026-10-23T10:00:00Z', 10)
+  /** Os jobs como o `ci.yml` os nomeia: o `verificar` e uma fatia de e2e por número, cada um com a conclusão que o caso pede. */
+  const VERIFICAR = 'verificar (tipos, lint e guardas, segredo, dependências, git hook)'
+  const jobsDe = (verificar: string | null, e2e: (fatia: number) => string | null = () => 'success'): JobDoGh[] => [
+    { name: VERIFICAR, conclusion: verificar },
+    { name: 'unidade 1/2 (Vitest)', conclusion: 'success' },
+    ...FATIAS_DO_E2E.map((fatia) => ({ name: `e2e ${String(fatia)}/${String(FATIAS_DO_E2E.length)} (compose completo e Playwright)`, conclusion: e2e(fatia) })),
+  ]
+  const jobsVerdes = () => jobsDe('success')
 
   it('o caso a 70% do prazo é listado, com a fatia e o prazo; o a 60% não', () => {
     const censo = fazerOCenso(
@@ -302,6 +312,7 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
       dasFatias({
         3: relatorioDe({ linha: 5, titulo: 'a 70%', duracaoMs: 21_000 }, { linha: 9, titulo: 'a 60%', duracaoMs: 18_000 }),
       }),
+      jobsVerdes,
     )
     expect(censo).toMatchObject({ tipo: 'lista', execucao: { id: 10 } })
     const casos = censo.tipo === 'lista' ? censo.casos : []
@@ -310,6 +321,7 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
     expect(texto).toContain('e2e/material.spec.ts:5 (chromebook, fatia 3) levou 21,0 s de 30,0 s')
     expect(texto).toContain('1 caso(s)')
     expect(texto).not.toContain('a 60%')
+    expect(texto).not.toContain('vermelho fora do e2e')
     expect(codigoDoCenso(censo)).toBe(1)
   })
 
@@ -338,7 +350,7 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
       ['a 80%', 5],
       ['a 75%', 2],
     ])
-    const vazio = fazerOCenso([verde], () => completos, dasFatias({}))
+    const vazio = fazerOCenso([verde], () => completos, dasFatias({}), jobsVerdes)
     expect(codigoDoCenso(vazio)).toBe(0)
     expect(relatorioDoCenso(vazio, 'spec/x')).toContain('nenhum caso acima de dois terços do prazo')
   })
@@ -346,7 +358,7 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
   it('fatia sem artefato sai 2 e diz qual; o censo não lê as outras', () => {
     const lidas: number[] = []
     const semAQuarta = completos.filter((artefato) => artefato.name !== nomeDoArtefatoDaFatia(4))
-    const censo = fazerOCenso([verde], () => semAQuarta, (_id, fatia) => (lidas.push(fatia), relatorioDe()))
+    const censo = fazerOCenso([verde], () => semAQuarta, (_id, fatia) => (lidas.push(fatia), relatorioDe()), jobsVerdes)
     expect(censo).toMatchObject({ tipo: 'incompleto', faltando: [4], expiradas: [] })
     expect(codigoDoCenso(censo)).toBe(2)
     const texto = relatorioDoCenso(censo, 'spec/x')
@@ -357,7 +369,7 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
 
   it('artefato expirado sai 2 e diz qual, separado do que falta', () => {
     const comAQuintaExpirada = completos.map((artefato) => (artefato.name === nomeDoArtefatoDaFatia(5) ? { ...artefato, expired: true } : artefato))
-    const censo = fazerOCenso([verde], () => comAQuintaExpirada, dasFatias({}))
+    const censo = fazerOCenso([verde], () => comAQuintaExpirada, dasFatias({}), jobsVerdes)
     expect(censo).toMatchObject({ tipo: 'incompleto', faltando: [], expiradas: [5] })
     expect(codigoDoCenso(censo)).toBe(2)
     const texto = relatorioDoCenso(censo, 'spec/x')
@@ -371,7 +383,7 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
     expect(nomeDoArtefatoDaFatia(3)).toBe('censo-do-e2e-3')
   })
 
-  it('com uma vermelha mais nova que a verde, o censo lê a verde; a rodando e a cancelada também ficam de fora', () => {
+  it('a rodando e a cancelada ficam de fora, e a vermelha com uma fatia de e2e vermelha também: o censo lê a mais nova com o e2e verde', () => {
     const execucoes = [
       execucao('d', 'vermelha', '2026-10-23T12:00:00Z', 13),
       execucao('c', 'rodando', '2026-10-23T11:30:00Z', 12),
@@ -379,25 +391,80 @@ describe('o censo do prazo do e2e (RF9): o caso acima de dois terços do prazo n
       execucao('a', 'verde', '2026-10-23T10:00:00Z', 10),
       execucao('z', 'cancelada', '2026-10-23T11:45:00Z', 14),
     ]
-    expect(ultimaVerde(execucoes)?.id).toBe(11)
+    const lidasDosJobs: number[] = []
+    const dosJobs = (id: number) => (lidasDosJobs.push(id), id === 13 ? jobsDe('failure', (fatia) => (fatia === 4 ? 'failure' : 'success')) : jobsVerdes())
+    expect(ultimaComE2eVerde(execucoes, dosJobs)?.execucao.id).toBe(11)
+    // a rodando e a cancelada nem têm os jobs perguntados; a vermelha do e2e vermelho é perguntada e passada
+    expect(lidasDosJobs).toEqual([13, 11])
     const lidas: number[] = []
     const baixadas: [number, number][] = []
     const censo = fazerOCenso(
       execucoes,
       (id) => (lidas.push(id), completos),
       (id, fatia) => (baixadas.push([id, fatia]), relatorioDe()),
+      dosJobs,
     )
-    expect(censo).toMatchObject({ tipo: 'lista', execucao: { id: 11 } })
+    expect(censo).toMatchObject({ tipo: 'lista', execucao: { id: 11 }, foraDoE2e: [] })
     expect(new Set(lidas)).toEqual(new Set([11]))
-    // cada fatia da matriz, e só da verde: nem a vermelha mais nova, nem uma fatia pulada
+    // cada fatia da matriz, e só da execução lida: nem a vermelha mais nova, nem uma fatia pulada
     expect(baixadas).toEqual(FATIAS_DO_E2E.map((fatia) => [11, fatia]))
   })
 
-  it('sem nenhuma verde não há o que ler: sai 2', () => {
-    const censo = fazerOCenso([execucao('d', 'vermelha')], () => completos, dasFatias({}))
+  it('a execução vermelha só no verificar, com o e2e todo verde, é a lida: o topo diz qual leu e o que estava vermelho nela', () => {
+    const vermelha = execucao('d', 'vermelha', '2026-10-23T12:00:00Z', 13)
+    const antiga = execucao('a', 'verde', '2026-10-23T10:00:00Z', 10)
+    const lidas: number[] = []
+    const censo = fazerOCenso(
+      [antiga, vermelha],
+      (id) => (lidas.push(id), completos),
+      dasFatias({ 2: relatorioDe({ linha: 7, titulo: 'a 80%', duracaoMs: 24_000 }) }),
+      (id) => (id === 13 ? jobsDe('failure') : jobsVerdes()),
+    )
+    expect(censo).toMatchObject({ tipo: 'lista', execucao: { id: 13 }, foraDoE2e: [VERIFICAR] })
+    expect(new Set(lidas)).toEqual(new Set([13]))
+    expect(codigoDoCenso(censo)).toBe(1)
+    const texto = relatorioDoCenso(censo, 'spec/x')
+    const [topo = ''] = texto.split('\n')
+    expect(topo).toContain('leu a execução 13 (d)')
+    expect(topo).toContain('com o e2e verde')
+    expect(topo).toContain(`vermelho fora do e2e: ${VERIFICAR}`)
+    expect(texto).toContain('a 80%')
+  })
+
+  it('o job de e2e pulado ou cancelado não vale pela fatia, e fatia que falta na lista de jobs também não', () => {
+    const vermelha = execucao('d', 'vermelha', '2026-10-23T12:00:00Z', 13)
+    for (const conclusao of ['skipped', 'cancelled', null, 'failure']) {
+      expect(ultimaComE2eVerde([vermelha], () => jobsDe('success', (fatia) => (fatia === 7 ? conclusao : 'success')))).toBeUndefined()
+    }
+    expect(ultimaComE2eVerde([vermelha], () => jobsDe('success').filter((job) => !job.name.startsWith('e2e 11/')))).toBeUndefined()
+    expect(ultimaComE2eVerde([vermelha], () => jobsVerdes())?.execucao.id).toBe(13)
+  })
+
+  it('a execução com o e2e verde sem o artefato de uma fatia sai 2 e diz qual, vermelho fora do e2e incluído', () => {
+    const vermelha = execucao('d', 'vermelha', '2026-10-23T12:00:00Z', 13)
+    const semAQuarta = completos.filter((artefato) => artefato.name !== nomeDoArtefatoDaFatia(4))
+    const censo = fazerOCenso([vermelha], () => semAQuarta, dasFatias({}), () => jobsDe('failure'))
+    expect(censo).toMatchObject({ tipo: 'incompleto', execucao: { id: 13 }, faltando: [4], foraDoE2e: [VERIFICAR] })
+    expect(codigoDoCenso(censo)).toBe(2)
+    const texto = relatorioDoCenso(censo, 'spec/x')
+    expect(texto).toContain('Fatia(s) sem artefato: 4.')
+    expect(texto.split('\n')[0]).toContain(`vermelho fora do e2e: ${VERIFICAR}`)
+  })
+
+  it('sem nenhuma execução com o e2e verde não há o que ler: sai 2', () => {
+    const censo = fazerOCenso([execucao('d', 'vermelha')], () => completos, dasFatias({}), () => jobsDe('success', (fatia) => (fatia === 1 ? 'failure' : 'success')))
     expect(censo).toEqual({ tipo: 'sem-verde' })
     expect(codigoDoCenso(censo)).toBe(2)
-    expect(relatorioDoCenso(censo, 'spec/x')).toContain('nenhuma execução verde')
+    expect(relatorioDoCenso(censo, 'spec/x')).toContain('nenhuma execução com o e2e verde')
+  })
+
+  it('os jobs do gh vêm com nome e conclusão, e o job que não passou é o que a lista de jobs caídos já dava', () => {
+    const jobs = [
+      { name: 'verificar', conclusion: 'failure' },
+      { name: 'infra 1/3', conclusion: 'skipped' },
+    ]
+    expect(jobsDoGh(JSON.stringify({ jobs, outro: 1 }))).toEqual(jobs)
+    expect(jobsQueNaoPassaram(JSON.stringify({ jobs }))).toEqual(['verificar'])
   })
 
   it('o relatório de uma fatia gravado pela esteira é lido: o caso a 70% do fixture aparece, o a 30% não, e JSON quebrado diz de qual fatia', () => {

@@ -2954,18 +2954,28 @@ linhas). A M2 da F4 (o inventário no portão) vem logo depois: é a família de
       revisores`, e o `revisar-tarefa`, passo 1.3, manda `DEVOLUÇÃO` com a linha e o arquivo, sem chamar revisor. Casos: a linha que cita os dois
       com só um mudado; a que cita `cenarios.md:140` com o diff em outro trecho. Na F4b, 5 reprovações do `revisor-geral` em 4 tarefas e uma
       escalada. Guardiões: `revisor-geral`, `test-engineer`
-- [ ] (F4b, retro, M3) **O commit de código de processo fora de tarefa é recusado em qualquer sessão.** `tools/processo/portao.ts`
+- [x] (F4b, retro, M3) **O commit de código de processo fora de tarefa é recusado em qualquer sessão.** `tools/processo/portao.ts`
       (`decidirCommit`): todo commit de sessão do Claude Code, o Orquestrador incluído, passa pela conta do `conferir-entregas`
       (`ehCodigoParaAEsteira`); arquivo de código sem `(tarefa N.0)` ou `(correção <slug>)` é recusado, com o caminho (abrir a correção:
       `docs/aia/ouro-retido/` leva o `conformidade-reviewer`; ou pedir ao Joaquim o commit no terminal dele, com `Fora do processo:`). Casos: o
       commit do Orquestrador só com `docs/aia/ouro-retido/x.json`, recusado; o mesmo com `(correção …)`, aceito. Na F4b, `3209137c` e `080e774f`
-      deixaram o `verificar` vermelho em 14 execuções e cego três dias. Guardiões: `revisor-geral`, `test-engineer`
-- [ ] (F4b, retro, M4) **O censo lê a execução mais nova com o e2e verde**, na mesma correção da M3. `tools/ci/esteira.ts --censo`: a execução
+      deixaram o `verificar` vermelho em 14 execuções e cego três dias. Guardiões: `revisor-geral`, `test-engineer` *Feita na correção `2026-11-21-commit-de-processo-fora-de-tarefa` (21/11/2026).*
+- [x] (F4b, retro, M4) **O censo lê a execução mais nova com o e2e verde**, na mesma correção da M3. `tools/ci/esteira.ts --censo`: a execução
       mais nova com todas as fatias de e2e verdes, mesmo com outro job vermelho, dizendo no topo qual leu e o que estava vermelho nela. Caso com
-      `verificar` vermelho e e2e verde. Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer`
+      `verificar` vermelho e e2e verde. Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer` *Feita na correção `2026-11-21-commit-de-processo-fora-de-tarefa` (21/11/2026).*
 - [ ] (F4b, retro, M5) **O achado grava caminho relativo.** `tools/processo/revisoes.ts`: ao gravar o bloco em `achados/`, a raiz do checkout
       (a do andar ou da linha, `…/.maestri/floors/<andar>/`) sai, e o caminho fica relativo à raiz do repositório. Caso: o achado com o caminho
       absoluto de uma linha sai relativo. O repositório é público. Guardiões: `revisor-geral`, `test-engineer`
+
+## Da correção 2026-11-21-commit-de-processo-fora-de-tarefa (M3 e M4 da retro da F4b), fora dela
+
+- [ ] (correção `2026-11-21-commit-de-processo-fora-de-tarefa`, infra-guardian e test-engineer, 1ª, 21/11/2026) **`ultimaComE2eVerde` faz um `gh run view --json jobs` por execução terminada, até as 30 do `--limit`.** Com o e2e vermelho por muito tempo são até 30 chamadas por censo: pedir os jobs junto do `gh run list`, ou parar depois de N execuções sem e2e verde, e anotar o teto. Muda o custo e o contrato do `--censo`, e só pesa com e2e vermelho por muito tempo; não bloqueia
+- [ ] (idem, conformidade-reviewer, 1ª) **Gerar a mensagem de recusa do `portao.ts` a partir da tabela de `guardioes-por-caminho.ts`**, em vez de escrever à mão que `docs/aia/ouro-retido/` leva o `conformidade-reviewer`. Muda o desenho da mensagem e o seu teste; hoje a mensagem e a tabela concordam
+- [ ] (idem, conformidade-reviewer, 1ª) **Nota para a retro: o commit por `env -u`, script ou `sh -c` não passa pelo `PreToolUse`**; só a esteira (`conferir-entregas`) segura o ouro da AIA. Já valia em sessão de papel, e o documento da correção declara o limite; não é regressão
+- [ ] (idem, revisor-geral, 1ª) **`tasks/prd-harness/prd.md:55`: o RF9 diz "na última esteira verde da spec".** Nota de revisão apontando a M4 da F4b (o censo lê a execução mais nova com o e2e verde). Dono: Arquiteto; o PRD é documento dele, e a nota depende de o Joaquim aceitar a mudança
+- [ ] (idem, revisor-geral, 1ª) **`.github/workflows/ci.yml:186`: o comentário diz "última execução verde"**, junto do item acima. A correção o deixou como está, porque tocar `.github/` caduca todos os revisores por um comentário; entra na próxima que mexer no `ci.yml`
+- [ ] (idem, revisor-geral, 2ª) **`tasks/prd-harness/techspec.md:196-197`: a frase "mesmo com outro job vermelho, o `verificar` por exemplo, que o `gh run view --json jobs` diz" ficou truncada.** Sugestão: "e o que estava vermelho vem do `gh run view --json jobs`". Junto dos dois itens acima: é texto de documento já aprovado, e mexer nele agora anularia as seis aprovações por uma frase
+- [ ] (idem, test-engineer, 2ª) **O documento da correção descreve os dois casos novos de `hook-portao.test.ts` sem citar o nome deles** ("sem papel, passa calado: $etiqueta" e "sem papel (%s), o desvio com -a não é negado como desvio…"). É a validação que liga linha a teste; o RF não depende disso
 
 ## Da retrospectiva da X6 (reengenharia-continuacao, 17/11/2026)
 
@@ -3024,10 +3034,15 @@ duas causas voltaram na F4 (3 das 6 cláusulas sem prova, e a 9.0 perdeu a 1ª r
       está no arquivo; (b) linha nova de "Recomendações sem aplicar" com destino `TODO.md` quando o `TODO.md` não mudou desde a base. Na F4, 10
       bloqueantes em 8 tarefas por documento que afirmava o que a árvore não tinha (6.0 e 8.0 pelo caso renomeado, 12.0 pelo destino). Caso de
       teste para cada lado. Guardiões: `revisor-geral`, `test-engineer`
-- [ ] (F4, retro, M2) **O portão roda o inventário quando o diff toca o inventariado.** `tools/processo/sequencia-do-portao.ts`: migration nova em
+- [x] *(feito na correção `2026-11-21-inventario-no-portao`, 21/11/2026: `tools/processo/inventarios-do-portao.ts`, a tabela num lugar só, ligada ao `alvosDoPortao`; migration em `packages/core/drizzle/` e `infra/compose.yml`)* (F4, retro, M2) **O portão roda o inventário quando o diff toca o inventariado.** `tools/processo/inventarios-do-portao.ts` (o plano dizia `sequencia-do-portao.ts`; a tabela ficou em arquivo próprio, ligada ao `alvosDoPortao`): migration nova em
       `packages/core/drizzle/` puxa `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`; `infra/compose.yml` puxa `tools/ci/compose.int.test.ts`.
       A tabela "caminho → inventário" fica num lugar só, com teste. Na F4, três vermelhos da esteira (a FK do catálogo, duas vezes na 5.0, e o
       compose). Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
+- [ ] (F4, retro, M2, resto da correção `2026-11-21-inventario-no-portao`) **A tabela `INVENTARIOS_DO_PORTAO` ainda deixa dois caminhos de fora.**
+      (a) `tools/ci/compose.int.test.ts` também lê o `.env.example` (linha 34) e os estágios `FROM … AS` dos Dockerfiles (linha 60): mexer num deles não
+      puxa o inventário. Linha nova na tabela, com caso em `inventarios-do-portao.test.ts`. (b) Arquivo de `packages/core/src/db/schema/` sem migration
+      não puxa o inventário das tabelas, e o teste atual exige que `schema/mvp/tabela.ts` fique fora de propósito: decidir na retro se o schema entra.
+      Muda os alvos do portão, por isso ficou fora da correção, que entregou os dois casos que quebraram na F4. Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
 - [x] (F4, retro, M3) **A integração à mão recusa os workers de pé.** `tools/testes/integracao.setup.ts`: o `globalSetup` confere se há worker de pé
       no compose de teste e, havendo, recusa com a mensagem e o comando que os para (o mesmo `stop` da sequência do portão). Não derruba sozinho: o
       ambiente de pé pode ser a vitrine ou o e2e de alguém. Na F4, três vermelhos falsos, um deles na validação (menor 5 da r2). Caso de teste para

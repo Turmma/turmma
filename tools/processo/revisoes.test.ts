@@ -2215,7 +2215,7 @@ describe('RF15: o commit exige o guardião que o caminho pede', () => {
   })
 })
 
-describe('RF16: o código de processo exige revisão, só em sessão de papel', () => {
+describe('RF16: o código de processo exige revisão, em sessão de papel e na do Orquestrador (M3 da retro da F4b)', () => {
   const DOCUMENTO = 'tasks/prd-exemplo/9_task.md'
   const CORRECAO = 'tasks/correcoes/2026-09-13-x.md'
   const MARCA = 'Implementa x (tarefa 9.0)\n\nRevisões: ok'
@@ -2245,9 +2245,9 @@ describe('RF16: o código de processo exige revisão, só em sessão de papel', 
     return raiz
   }
 
-  /** O commit que leva `arquivos`, com a `mensagem`, na sessão do `papel` ('' é sem papel). */
-  const decidir = (raiz: string, arquivos: string[], papel: string | undefined, mensagem = MARCA) =>
-    decidirCommit({ mensagem, arquivos, conteudoDe: conteudoDoDisco(raiz), raiz, papel })
+  /** O commit que leva `arquivos`, com a `mensagem`, na sessão do `papel` ('' é sem papel). `sessaoDoClaudeCode` é o `PreToolUse`: o Orquestrador é sem papel e é dele. */
+  const decidir = (raiz: string, arquivos: string[], papel: string | undefined, mensagem = MARCA, sessaoDoClaudeCode = false) =>
+    decidirCommit({ mensagem, arquivos, conteudoDe: conteudoDoDisco(raiz), raiz, papel, sessaoDoClaudeCode })
 
   describe('sem tarefa nem correção', () => {
     it.each(CODIGO_PARA_A_ESTEIRA)('em papel, %s é código: recusado', (arquivo) => {
@@ -2282,21 +2282,51 @@ describe('RF16: o código de processo exige revisão, só em sessão de papel', 
       expect(decidir(arvore([]), ['docs/guia.md', 'tools/processo/x.ts', 'package.json'], 'implementador', 'Ajusta x')).toMatch(/leva código \(tools\/processo\/x\.ts, package\.json\)/)
     })
 
-    it('pelo PreToolUse: o commit do papel com tools/ é recusado, e o mesmo comando sem papel passa', () => {
+    it('pelo PreToolUse: o commit com tools/ é recusado com e sem papel, e o do Orquestrador diz o caminho', () => {
       const raiz = arvore(['tools/x.ts'])
       const comando = { tool_input: { command: 'git add tools/x.ts && git commit -m "Ajusta x"' } }
       expect(portao(comando, raiz, 'implementador')).toMatch(/leva código \(tools\/x\.ts\)/)
-      expect(portao(comando, raiz, '')).toBeNull()
+      expect(portao(comando, raiz, 'implementador')).not.toMatch(/Fora do processo/)
+      const orquestrador = portao(comando, raiz, '')
+      expect(orquestrador).toMatch(/^Commit bloqueado: ele leva código \(tools\/x\.ts\) sem "\(tarefa N\.0\)" nem "\(correção <slug>\)"/)
+      expect(orquestrador).toMatch(/\/corrigir/)
+      expect(orquestrador).toMatch(/commit no terminal dele, com `Fora do processo:`/)
     })
 
-    it('pelo caminho do hook, o papel vem de CLAUDE_CODE_AGENT: com `implementador` o commit com tools/ é recusado, sem o papel passa', () => {
+    it('o commit do Orquestrador só com docs/aia/ouro-retido/x.json é recusado; o mesmo com (correção …), revisado, é aceito', () => {
+      const sem = arvore(['docs/aia/ouro-retido/x.json'])
+      const comandoSem = { tool_input: { command: 'git add docs/aia/ouro-retido/x.json && git commit -m "Grava o ouro retido"' } }
+      expect(portao(comandoSem, sem, '')).toMatch(/leva código \(docs\/aia\/ouro-retido\/x\.json\)/)
+      const com = arvore(['docs/aia/ouro-retido/x.json'], [...SEMPRE, 'conformidade-reviewer'], ['conformidade-reviewer'], 'correcao')
+      const faltando = arvore(['docs/aia/ouro-retido/x.json'], SEMPRE, ['conformidade-reviewer'], 'correcao')
+      for (const raiz of [com, faltando]) {
+        writeFileSync(join(raiz, 'mensagem.txt'), 'Grava o ouro retido (correção 2026-09-13-x)\n\nRevisões: ok\n')
+        utimesSync(join(raiz, 'mensagem.txt'), new Date('2026-09-13T09:00:00'), new Date('2026-09-13T09:00:00'))
+      }
+      const comandoCom = { tool_input: { command: `git add docs/aia/ouro-retido/x.json ${CORRECAO} && git commit -F mensagem.txt` } }
+      expect(portao(comandoCom, com, '')).toBeNull()
+      expect(portao(comandoCom, faltando, '')).toContain('- conformidade-reviewer: nenhuma rodada registrada')
+    })
+
+    it('o Orquestrador conta o mesmo código que a esteira, e documento continua passando', () => {
+      const raiz = arvore([])
+      for (const arquivo of [...CODIGO_PARA_A_ESTEIRA, ...DOCUMENTO_PARA_A_ESTEIRA]) {
+        expect({ arquivo, recusado: decidir(raiz, [arquivo], '', 'Ajusta x', true) !== null }).toEqual({ arquivo, recusado: ehCodigoParaAEsteira(arquivo) })
+      }
+    })
+
+    it('fora do PreToolUse, sem papel (o terminal do Joaquim) continua passando: a decisão sem a sessão do Claude Code não conta o §5(e)', () => {
+      expect(decidir(arvore([]), ['tools/x.ts'], '', 'Ajusta x')).toBeNull()
+    })
+
+    it('pelo caminho do hook, o papel vem de CLAUDE_CODE_AGENT: com `implementador` o commit com tools/ é recusado, e sem o papel (o Orquestrador) também', () => {
       const raiz = arvore(['tools/x.ts'])
       const comando = { tool_input: { command: 'git add tools/x.ts && git commit -m "Ajusta x"' } }
       try {
         vi.stubEnv('CLAUDE_CODE_AGENT', 'implementador')
         expect(portao(comando, raiz)).toMatch(/leva código \(tools\/x\.ts\)/)
         vi.stubEnv('CLAUDE_CODE_AGENT', '')
-        expect(portao(comando, raiz)).toBeNull()
+        expect(portao(comando, raiz)).toMatch(/leva código \(tools\/x\.ts\)/)
       } finally {
         vi.unstubAllEnvs()
       }

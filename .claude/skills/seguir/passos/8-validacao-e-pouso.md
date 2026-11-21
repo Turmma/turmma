@@ -39,7 +39,8 @@ Sai **0**: nenhum caso passa de dois terços do prazo; siga. Sai **1**: a lista 
 segundos e prazo). Separe os casos dos arquivos que a spec alterou (`git -C <andar> diff --name-only develop... -- e2e/`):
 para esses, abra uma correção (`corrigir`, passo 10) que encurte ou divida cada caso, com a lista no `PEDIDO`, e valide de
 novo como acima. Os outros são dívida da `develop`: uma linha no grupo dela no `TODO.md`, com o número da execução, sem
-parada; o que passa de 90% do prazo vai ao topo do grupo (na X4, o Joaquim respondeu isso duas vezes). Sai **2**: não há o que ler (sem execução verde, ou fatia sem
+parada; o que passa de 90% do prazo vai ao topo do grupo (na X4, o Joaquim respondeu isso duas vezes). O censo lê a execução terminada mais nova com **todas as fatias de e2e verdes**, mesmo com outro job vermelho (o `verificar`): a primeira linha da saída diz qual
+execução leu e o que estava vermelho nela. Sai **2**: não há o que ler (sem execução com o e2e verde, ou fatia sem
 relatório ou com artefato expirado; a saída diz qual e o `gh workflow run` que gera outro): rode de
 novo com a esteira nova, e, sem GitHub, registre em "O que falhou" e siga com o portão local.
 
