@@ -28,7 +28,8 @@ nem `tasks.md` nesta pasta). Ao abrir o andar, o Arquiteto:
    dependia da 2.0, que já pousou) e as referências dos documentos (`prd.md`, `techspec.md` e `cenarios.md` passam a ser os
    desta pasta), e completa o "Como testar" com os precedentes que a F5a deixou.
 4. Confere que a estimada da interrompida ainda grava sem custo (`consumoEstimadoDaInterrompida`, em
-   `packages/core/src/ia/consumo.ts`, aponta a 11.0 da F5): o custo dela é desta spec. E as pendências da F5 que são desta
+   `packages/core/src/ia/consumo.ts`, aponta a 11.0 da F5): o custo dela é desta spec, e não da F5a (Joaquim,
+   21/11/2026, depois do corte). E as pendências da F5 que são desta
    spec no `TODO.md`: a linha 99 de `docs/lgpd.md` com `pelo_provedor_de_reserva`
    (dona: a 10.0 da F5, 10.4) e o teste de que `provedor` guarda o id da reserva.
 
