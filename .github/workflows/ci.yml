@@ -82,11 +82,24 @@ jobs:
       - run: npm run ci:unidade -- --shard=${{ matrix.fatia }}/2
 
   integracao:
-    name: integração (Postgres, Redis, storage)
+    # Em fatias, cada uma no seu runner e com o seu compose, como a infra, o e2e e a unidade: o Vitest reparte os arquivos por hash do
+    # caminho, sem sobra nem repetição, e nenhum arquivo depende de outro ter rodado antes (cada fatia começa com o banco vazio, como o
+    # job único começava). A suíte inteira, num runner só, levava 22, 28,5 e 28,3 min nas verdes e foi cancelada no teto de 30 min da execução
+    # 44887365743 com 194 dos 206 arquivos já verdes (tasks/correcoes/2026-11-21-integracao-no-teto-da-esteira.md). Ela cresce a cada tarefa:
+    # passando dos 12 min de teste numa fatia na esteira, acrescente fatia (a matriz, o `/3` do nome e o do passo), em vez de subir o teto.
+    name: integração ${{ matrix.fatia }}/3 (Postgres, Redis, storage)
     runs-on: ubuntu-24.04
-    # Sem os testes de infra (D52), a suíte leva de 15 a 20 min no runner da esteira (2 núcleos), e cresce com cada tarefa: o teto de 20
-    # cancelou a execução 41775656221 com 135 dos 148 arquivos já verdes. 30 min dá folga sem esconder um teste travado.
-    timeout-minutes: 30
+    strategy:
+      # Uma fatia vermelha não cancela as outras: o vermelho de cada uma continua aparecendo.
+      fail-fast: false
+      # O número de fatias é o tamanho desta lista, e o total do `--shard` do passo `npm run ci:integracao` e o do `name` do job têm de
+      # acompanhá-lo (`tools/ci/esteira.test.ts` confere).
+      matrix:
+        fatia: [1, 2, 3]
+    # O teto é de cada fatia. Medido no log da execução cancelada, a repartição por hash dá de 9,4 a 11,3 min de teste por fatia (a soma
+    # é de uns 31 min), e `npm ci`, subida do compose e migrations custam uns 3 min: uns 14 min, com folga até os 25. Num runner 50% mais
+    # lento a mais longa leva uns 21.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -96,7 +109,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run ci:integracao
+      - run: npm run ci:integracao -- --shard=${{ matrix.fatia }}/3
 
   infra:
     # Em fatias, cada uma no seu runner e com o seu compose, como o e2e: o Vitest roda um arquivo de `infra/test` por vez (os testes

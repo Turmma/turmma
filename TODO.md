@@ -3042,7 +3042,7 @@ ainda aberta):** os workers de pé voltaram na 9.0 da X6, com 14 e 17 de 31 verm
       argumentos (`- 4` → `- 3`, e sem o `Math.max`; os casos de `argumentosDeVariasLinhas`, o `brand(` e o `and(` no começo do arquivo já a cobrem), e o `every` → `some` de `continuacao` em
       `itensDaLinhaDeArgumento` (um caso com a linha de um grupo de dentro com vários argumentos). Entram na próxima correção que tocar `mutacoes.ts` (dono: Implementador)
 - [ ] (X6, retro, M7) **O teto de cada job da esteira, com aviso e conta,** junto da M4 da F4, na mesma correção: o `/N` do nome derivado de
-      `strategy.job-total` nos três jobs com matriz (unidade, infra, e2e), e a anotação "perto do teto" no resumo de `tools/ci/unidade.ts`, como a
+      `strategy.job-total` nos jobs com matriz (unidade, infra, e2e, e a integração, que virou três fatias na correção `2026-11-21-integracao-no-teto-da-esteira`), e a anotação "perto do teto" no resumo de `tools/ci/unidade.ts`, como a
       de `tools/ci/e2e.ts`. Três specs seguidas com um job passando do teto sem aviso (a fatia do e2e na F2c e na F4, o infra de 45 min na F4, o
       `verificar` de 15 min na X6). Guardiões: `infra-guardian`, `revisor-geral`, `test-engineer`
 

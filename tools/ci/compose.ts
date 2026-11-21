@@ -179,7 +179,7 @@ export function comandosDaSubidaDeTeste(ambiente: Readonly<Record<string, string
 
 /**
  * Sobe Postgres, Redis e storage, roda o `npm run <script>` (numa fatia dos arquivos, quando é a da esteira) e derruba o
- * ambiente, com os logs dos serviços antes quando falha. É o corpo de `ci:integracao` e `ci:infra`.
+ * ambiente, com os logs dos serviços antes quando falha. É o corpo de `ci:integracao` e `ci:infra`, as duas em fatias na esteira.
  */
 export function executarTestesComInfra(nome: string, script: string, fatia: string | null = null): Promise<number> {
   return executarEtapas(

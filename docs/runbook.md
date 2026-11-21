@@ -2031,6 +2031,16 @@ tomada de novo, com o `privacy-guardian`. O mesmo vale para o relatório do cens
 (`censo-do-e2e-<i>`, o `censo-do-e2e.json`), que também é público, inclusive na execução de pull request de fork, e leva o
 `stdout`, o `stderr` e os `errors` de cada caso: um `console.log` de fixture com dado real vazaria por ali.
 
+## Esteira vermelha na integração
+
+A integração (Postgres, Redis e storage) roda em **três fatias**, cada uma num job próprio (`integração 1/3` a `integração 3/3`), com o seu compose e o seu `--shard=<i>/3` do
+Vitest, que reparte os arquivos `*.int.test.ts` por hash do caminho; uma fatia vermelha não cancela as outras, e cada uma começa com o banco vazio. O projeto roda um arquivo por vez (os testes param e
+religam serviços). Num runner só a suíte levava 22, 28,5 e 28,3 min nas execuções verdes e foi cancelada no teto de 30 min com 194 dos 206 arquivos já verdes (execução 44887365743;
+`tasks/correcoes/2026-11-21-integracao-no-teto-da-esteira.md`). Em três fatias a de mais teste leva uns 11 min, e com `npm ci`, subida do compose e migrations uns 14, para um teto de 25 min por fatia.
+Cancelada sem push novo é o prazo: some a duração de cada arquivo no log da fatia (`gh run view <id> --log`; o log da esteira é público, porque o repositório é: fixture de integração que imprima dado não sintético apareceria agora em três jobs, e não em um, e por isso nada além da saída do Vitest vai para o log, regra 20, item 17) e, passando dos 12 min de teste numa fatia, acrescente fatia em vez de subir o
+`timeout-minutes`. O total de fatias está escrito em três lugares do `.github/workflows/ci.yml`: a matriz, o `name` do job e o `--shard` do passo. Localmente, `npm run ci:integracao` roda tudo, e
+`npm run ci:integracao -- --shard=<i>/<n>` roda uma fatia. Um arquivo que só passa depois de outro ter rodado é defeito do arquivo, e a fatia o mostra: conserte o isolamento dele, não a repartição.
+
 ## Esteira vermelha na infra
 
 A infra roda em **três fatias**, cada uma num job próprio (`infra 1/3` a `infra 3/3`), com o seu compose e o seu `--shard=<i>/3` do

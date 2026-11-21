@@ -47,12 +47,12 @@ export async function executarEtapas(
 }
 
 /**
- * Lê `--shard=<i>/<n>` dos argumentos de `ci:infra` e de `ci:unidade`, a fatia dos arquivos de teste que este runner roda (o Vitest
+ * Lê `--shard=<i>/<n>` dos argumentos de `ci:integracao`, `ci:infra` e `ci:unidade`, a fatia dos arquivos de teste que este runner roda (o Vitest
  * reparte por arquivo, por hash do caminho). Sem ele, `null`: o projeto inteiro, que é o `npm run ci:<suíte>` da máquina. Formato
  * errado reprova antes de rodar qualquer coisa, em vez de rodar a suíte inteira numa fatia que não cabe no teto. `suite` só entra
  * na mensagem do erro.
  */
-export function fatiaDosArgumentosDoVitest(argumentos: readonly string[], suite: 'infra' | 'unidade'): string | null {
+export function fatiaDosArgumentosDoVitest(argumentos: readonly string[], suite: 'integracao' | 'infra' | 'unidade'): string | null {
   if (argumentos.length === 0) return null
   const fatia = /^--shard=(\d+)\/(\d+)$/.exec(argumentos.length === 1 ? (argumentos[0] ?? '') : '')
   const indice = Number(fatia?.[1])
