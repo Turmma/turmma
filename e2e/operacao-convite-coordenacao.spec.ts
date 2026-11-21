@@ -188,10 +188,13 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     await expect(page.getByRole('status').filter({ hasText: `Escola ${nomeDaEscola} criada.` })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     const escolaId = await idDaEscolaComOEndereco(endereco)
 
-    // A escola nova, sem convite: só "Convidar", com o alvo de toque da ação principal, e a tela cabe a 360 px.
+    // A escola nova, sem convite: "Convidar" e os dois "Orçamento de IA" (o da rede e o da escola, camada-ia 7.0), com o alvo de
+    // toque da ação principal, e a tela cabe a 360 px.
     const item = itemDaEscola(page, nomeDaEscola)
     await expect(item).toContainText('Sem convite', { timeout: SIGN_IN_TIMEOUT_MS })
-    await expect(item.getByRole('button')).toHaveCount(1)
+    await expect(item.getByRole('button')).toHaveCount(3)
+    await expect(item.getByRole('button', { name: `Convidar a coordenação de ${nomeDaEscola}` })).toHaveCount(1)
+    await expect(item.getByRole('button', { name: /^Orçamento de IA/ })).toHaveCount(2)
     await conferirAlvos(item)
     expect(await horizontalOverflow(page)).toBe(0)
 
@@ -251,7 +254,7 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     await expect(coordenadora.getByRole('heading', { name: 'Configurar o segundo fator' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
 
     // A lista, recarregada, mostra a escola Ativa e, sem turma (nada foi importado ainda), "Sem turma ainda" no lugar das
-    // três contagens, e sem ação.
+    // três contagens, e sem ação de convite: só os dois "Orçamento de IA", que valem em qualquer estado da escola.
     const recarregada = proximaLista(page)
     await page.reload()
     const lista = (await (await recarregada).json()) as EscolasDoPainelResponse
@@ -259,7 +262,8 @@ test.describe('O convite da coordenação pelo painel (A0b, tarefa 7.0)', () => 
     expect(naLista).toMatchObject({ estado: 'ativa', turmas: 0, professores: 0, alunos: 0 })
     await expect(item).toContainText('Ativa', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(item.getByText('Sem turma ainda')).toBeVisible()
-    await expect(item.getByRole('button')).toHaveCount(0)
+    await expect(item.getByRole('button')).toHaveCount(2)
+    await expect(item.getByRole('button', { name: /^Orçamento de IA/ })).toHaveCount(2)
   })
 
   test('W2 e W10: um operador refaz; o outro, com a lista velha, vê "o convite mudou" e a lista recarrega; o revogar já revogado', async ({ page, browser, hasTouch }) => {

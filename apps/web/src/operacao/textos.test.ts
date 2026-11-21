@@ -1,7 +1,26 @@
 import { ErrorCode, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
-import { isEnderecoRepetido, isResultadoIncerto, falhaDoConvite, TEXTO_DA_OPERACAO_INDISPONIVEL, TEXTO_DA_SESSAO_ENCERRADA, TEXTO_DO_ENDERECO_REPETIDO, textoDaFalha, textoDoLimite } from './textos'
+import {
+  isEnderecoRepetido,
+  isResultadoIncerto,
+  falhaDoConvite,
+  reais,
+  RespostaForaDoContrato,
+  TEXTO_DA_OPERACAO_INDISPONIVEL,
+  TEXTO_DA_SESSAO_ENCERRADA,
+  TEXTO_DO_ENDERECO_REPETIDO,
+  TEXTO_DO_TETO_FORA_DO_INTERVALO,
+  TEXTO_DO_VALOR_FORA_DO_INTERVALO,
+  TEXTO_PARA_ATUALIZAR,
+  textoDaFalha,
+  textoDoErroAoSalvar,
+  textoDasEscolasQueMudam,
+  textoDoAntesEDepois,
+  textoDoLimite,
+  textoDoValeHoje,
+  valorDoCampoEmReais,
+} from './textos'
 
 /**
  * W10 (mensagens de rede e escola): o que as telas do painel dizem para cada falha. O texto é o do cenário, escrito aqui
@@ -99,5 +118,49 @@ describe('W10: as mensagens do convite da coordenação', () => {
         for (const identificador of Object.values(ErrorCode)) expect(texto).not.toContain(identificador)
       }
     }
+  })
+})
+
+/** Os textos do diálogo Orçamento de IA (camada-ia, 7.0), escritos por extenso como na `cenarios.md`, seção 4. */
+describe('o diálogo Orçamento de IA: os textos', () => {
+  const REDE_5 = { valorPorAlunoMicros: 5_000_000, origemDoValor: 'rede', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' } as const
+
+  it('reais com vírgula e duas casas, e o espaço comum depois do R$', () => {
+    expect(reais(5_000_000)).toBe('R$ 5,00')
+    expect(reais(10_000)).toBe('R$ 0,01')
+    expect(reais(100_000_000)).toBe('R$ 100,00')
+    expect(reais(4_100_000)).toBe('R$ 4,10')
+    expect(valorDoCampoEmReais(4_000_000)).toBe('4,00')
+  })
+
+  it('os limites, como o cenário os diz', () => {
+    expect(TEXTO_DO_VALOR_FORA_DO_INTERVALO).toBe('Use um valor entre R$ 0,01 e R$ 100,00.')
+    expect(TEXTO_DO_TETO_FORA_DO_INTERVALO).toBe('Use de 100% a 1000%.')
+  })
+
+  it('"Vale hoje" diz o valor e de quem ele é; sem valor, diz que não há', () => {
+    expect(textoDoValeHoje(REDE_5)).toBe('Vale hoje: R$ 5,00 por aluno, da rede.')
+    expect(textoDoValeHoje({ ...REDE_5, valorPorAlunoMicros: 3_000_000, origemDoValor: 'escola' })).toBe('Vale hoje: R$ 3,00 por aluno, da escola.')
+    expect(textoDoValeHoje({ valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' })).toBe('Vale hoje: sem valor por aluno.')
+  })
+
+  it('o antes e o depois, e as escolas que mudam no singular e no plural', () => {
+    expect(textoDoAntesEDepois(REDE_5, { ...REDE_5, valorPorAlunoMicros: 4_000_000 })).toBe('Antes: R$ 5,00 por aluno, teto 200%. Depois: R$ 4,00 por aluno, teto 200%.')
+    expect(textoDoAntesEDepois(REDE_5, { ...REDE_5, valorPorAlunoMicros: null, tetoDeSegurancaPercentual: 1000 })).toBe(
+      'Antes: R$ 5,00 por aluno, teto 200%. Depois: sem valor por aluno, teto 1.000%.',
+    )
+    expect(textoDasEscolasQueMudam(3)).toBe('Muda o orçamento de 3 escolas que usam o valor da rede.')
+    expect(textoDasEscolasQueMudam(1)).toBe('Muda o orçamento de 1 escola que usa o valor da rede.')
+  })
+
+  it('a resposta fora do contrato manda atualizar a página, continua sendo o erro interno para quem decide pelo código, e o erro interno comum não manda', () => {
+    expect(textoDaFalha(new RespostaForaDoContrato())).toBe(TEXTO_PARA_ATUALIZAR)
+    expect(TEXTO_PARA_ATUALIZAR).toContain('Atualize a página')
+    expect(new RespostaForaDoContrato().codigo).toBe(ErrorCode.ERRO_INTERNO)
+    expect(isResultadoIncerto(new RespostaForaDoContrato())).toBe(true)
+    expect(textoDaFalha(new ApiError(ErrorCode.ERRO_INTERNO))).toBe(MENSAGENS_DE_ERRO[ErrorCode.ERRO_INTERNO])
+    // O que o diálogo do orçamento mostra ao salvar é o mesmo texto.
+    expect(textoDoErroAoSalvar(new RespostaForaDoContrato())).toBe(TEXTO_PARA_ATUALIZAR)
+    expect(textoDoErroAoSalvar(new ApiError(ErrorCode.ERRO_INTERNO))).toBe(MENSAGENS_DE_ERRO[ErrorCode.ERRO_INTERNO])
   })
 })

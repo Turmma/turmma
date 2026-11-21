@@ -3,7 +3,7 @@ import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import type { EscolasDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
 import { TEXTO_DO_ESTADO } from '../apps/web/src/operacao/estados-da-escola.ts'
 import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
-import { criarRedeDoPainel, escolasComOEndereco, nomeDeRedeQueVemPrimeiro, redesComONome, removerPainel, semearPainel, type PainelSemeado, type UsoDoPainel } from './support/painel.ts'
+import { criarRedeDoPainel, escolasComOEndereco, nomeDeRedeQueVemPrimeiro, redesComONome, removerPainel, semearEscolaDoConvite, semearPainel, type PainelSemeado, type UsoDoPainel } from './support/painel.ts'
 import { expect, test } from './support/profiles.ts'
 import { activate, conferirAListaQueRola, conferirQueCadaNumeroFicaEmUmaLinha, entrarNaOperacao, SIGN_IN_TIMEOUT_MS, trocarAPrimeiraDaResposta } from './support/operacao-screen.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, horizontalOverflow, larguraExcedenteDoDialogo, seriousViolations } from './support/checks.ts'
@@ -832,5 +832,147 @@ test.describe('Escolas, Nova rede e Nova escola (A0b, tarefa 6.0)', () => {
     await expect(page.getByRole('alert')).toHaveText(MENSAGENS_DE_ERRO.SESSAO_ENCERRADA)
     await expect(noDialogo(page)).toHaveCount(0)
     expect(await escolasComOEndereco(semSessao)).toEqual([])
+  })
+})
+
+/**
+ * O diálogo "Orçamento de IA" (camada-ia, 7.0; RF7), contra a API de verdade, nos projetos `chromebook` e `celular`. Cada
+ * caso é uma escola numa rede própria (`semearEscolaDoConvite`), com o nome que abre a lista, e sai do zero: sem valor
+ * nem teto próprios. Casos curtos, cada um com a sua entrada: o prazo de cada caso é medido pela metade.
+ */
+test.describe('Orçamento de IA, da rede e da escola (camada-ia, tarefa 7.0)', () => {
+  const DA_REDE = /^Orçamento de IA\s*da rede /
+  const DA_ESCOLA = /^Orçamento de IA\s*da escola /
+
+  /** Clique, ou toque no celular, no botão de uma linha só (o nome acessível do botão repete o da rede e o da escola). */
+  async function ativar(alvo: Locator, hasTouch: boolean): Promise<void> {
+    if (hasTouch) await alvo.tap()
+    else await alvo.click()
+  }
+
+  /** A escola semeada na lista, já na tela, com a sessão aberta. */
+  async function abrirAListaComAEscola(page: Page, hasTouch: boolean): Promise<{ item: Locator; nome: string }> {
+    const escola = await semearEscolaDoConvite('sem_convite')
+    const operador = await novoOperador()
+    await entrarNaOperacao(page, operador, hasTouch)
+    const item = itemDaEscola(page, escola.nome)
+    await expect(item.getByRole('button', { name: DA_ESCOLA })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    return { item, nome: escola.nome }
+  }
+
+  test('a rede: abre pelo teclado, com o foco preso no diálogo, e o Esc o fecha e devolve o foco ao botão', async ({ page, hasTouch }) => {
+    const { item } = await abrirAListaComAEscola(page, hasTouch)
+    const abrir = item.getByRole('button', { name: DA_REDE })
+    await tabAte(page, abrir)
+    await page.keyboard.press('Enter')
+    const dialogo = noDialogo(page)
+    await expect(dialogo.getByLabel('Valor por aluno por mês (R$)')).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo).toContainText('Vale hoje: sem valor por aluno.')
+    // O foco não sai do diálogo com Tab nem com Shift+Tab; o Esc fecha e devolve o foco a quem abriu.
+    for (let tecla = 0; tecla < 8; tecla++) {
+      await page.keyboard.press('Tab')
+      expect(await focoDentroDoDialogo(page)).toBe(true)
+    }
+    for (let tecla = 0; tecla < 8; tecla++) {
+      await page.keyboard.press('Shift+Tab')
+      expect(await focoDentroDoDialogo(page)).toBe(true)
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await expect(abrir).toBeFocused()
+  })
+
+  test('a rede: mostra o antes e o depois, salva só com Tab e Enter, e o que salvou volta ao reabrir', async ({ page, hasTouch }) => {
+    const { item } = await abrirAListaComAEscola(page, hasTouch)
+    const abrir = item.getByRole('button', { name: DA_REDE })
+    await tabAte(page, abrir)
+    await page.keyboard.press('Enter')
+    const dialogo = noDialogo(page)
+    await expect(dialogo.getByLabel('Valor por aluno por mês (R$)')).toBeFocused({ timeout: SIGN_IN_TIMEOUT_MS })
+    // Valor, Tab, teto, Tab até "Salvar orçamento", Enter.
+    await page.keyboard.type('4,00')
+    await page.keyboard.press('Tab')
+    await expect(dialogo.getByLabel('Teto de segurança (% do orçamento)')).toBeFocused()
+    await page.keyboard.type('250')
+    await expect(dialogo).toContainText('Antes: sem valor por aluno, teto 200%. Depois: R$ 4,00 por aluno, teto 250%.')
+    await page.keyboard.press('Tab')
+    await expect(dialogo.getByRole('button', { name: 'Salvar orçamento' })).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('status').filter({ hasText: 'Orçamento salvo.' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo).toHaveCount(0)
+    await expect(abrir).toBeFocused()
+
+    // O que a API gravou é o que o diálogo traz ao reabrir, lido de novo da lista de redes.
+    await page.keyboard.press('Enter')
+    await expect(dialogo.getByLabel('Valor por aluno por mês (R$)')).toHaveValue('4,00', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo.getByLabel('Teto de segurança (% do orçamento)')).toHaveValue('250')
+    await expect(dialogo).toContainText('Vale hoje: R$ 4,00 por aluno, da rede.')
+  })
+
+  test('a escola sem valor próprio usa o valor que a rede ganhou pela própria tela', async ({ page, hasTouch }) => {
+    const { item } = await abrirAListaComAEscola(page, hasTouch)
+    await ativar(item.getByRole('button', { name: DA_REDE }), hasTouch)
+    const dialogo = noDialogo(page)
+    await dialogo.getByLabel('Valor por aluno por mês (R$)').fill('4,00', { timeout: SIGN_IN_TIMEOUT_MS })
+    await activate(page, 'Salvar orçamento', hasTouch)
+    await expect(page.getByRole('status').filter({ hasText: 'Orçamento salvo.' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo).toHaveCount(0)
+
+    await ativar(item.getByRole('button', { name: DA_ESCOLA }), hasTouch)
+    await expect(dialogo.getByRole('checkbox', { name: 'Usar o valor da rede' })).toBeChecked({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo.getByLabel('Valor por aluno por mês (R$)')).toBeDisabled()
+    await expect(dialogo).toContainText('Vale hoje: R$ 4,00 por aluno, da rede.')
+  })
+
+  test('a escola: desmarcar a caixa libera o valor próprio, e o que salvou volta ao reabrir', async ({ page, hasTouch }) => {
+    const { item } = await abrirAListaComAEscola(page, hasTouch)
+    await ativar(item.getByRole('button', { name: DA_ESCOLA }), hasTouch)
+    const dialogo = noDialogo(page)
+    await dialogo.getByRole('checkbox', { name: 'Usar o valor da rede' }).uncheck({ timeout: SIGN_IN_TIMEOUT_MS })
+    await dialogo.getByLabel('Valor por aluno por mês (R$)').fill('3,00')
+    await expect(dialogo).toContainText('Antes: sem valor por aluno, teto 200%. Depois: R$ 3,00 por aluno, teto 200%.')
+    await activate(page, 'Salvar orçamento', hasTouch)
+    await expect(page.getByRole('status').filter({ hasText: 'Orçamento salvo.' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo).toHaveCount(0)
+
+    await ativar(item.getByRole('button', { name: DA_ESCOLA }), hasTouch)
+    await expect(dialogo.getByLabel('Valor por aluno por mês (R$)')).toHaveValue('3,00', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo.getByRole('checkbox', { name: 'Usar o valor da rede' })).not.toBeChecked()
+    await expect(dialogo).toContainText('Vale hoje: R$ 3,00 por aluno, da escola.')
+  })
+
+  test('o erro de cada campo fica no campo, anunciado, sem ir à API; e, no celular e no computador, nada rola de lado, os alvos têm o tamanho e o diálogo não tem violação grave', async ({ page, hasTouch }) => {
+    const { item } = await abrirAListaComAEscola(page, hasTouch)
+    const enviados: string[] = []
+    await page.route(/\/orcamento-ia$/, (rota) => {
+      enviados.push(rota.request().method())
+      return rota.fallback()
+    })
+    await item.getByRole('button', { name: DA_ESCOLA }).click()
+    const dialogo = noDialogo(page)
+    const caixa = dialogo.getByRole('checkbox', { name: 'Usar o valor da rede' })
+    await expect(caixa).toBeChecked({ timeout: SIGN_IN_TIMEOUT_MS })
+    await caixa.uncheck()
+    const valor = dialogo.getByLabel('Valor por aluno por mês (R$)')
+    const teto = dialogo.getByLabel('Teto de segurança (% do orçamento)')
+    await valor.fill('100,01')
+    await teto.fill('99')
+    await activate(page, 'Salvar orçamento', hasTouch)
+    const alertas = dialogo.getByRole('alert')
+    await expect(alertas).toHaveText(['Use um valor entre R$ 0,01 e R$ 100,00.', 'Use de 100% a 1000%.'])
+    await expect(valor).toHaveAttribute('aria-invalid', 'true')
+    await expect(valor).toHaveAccessibleDescription(/Use um valor entre R\$ 0,01 e R\$ 100,00\.$/)
+    await expect(teto).toHaveAccessibleDescription(/Use de 100% a 1000%\.$/)
+    expect(enviados).toEqual([])
+
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await larguraExcedenteDoDialogo(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    const botao = await dialogo.getByRole('button', { name: 'Salvar orçamento' }).boundingBox()
+    expect(botao?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
+    const marca = await caixa.boundingBox()
+    expect(marca?.width ?? 0).toBeGreaterThanOrEqual(24)
+    expect(marca?.height ?? 0).toBeGreaterThanOrEqual(24)
+    for (const campo of [valor, teto]) expect((await campo.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(24)
   })
 })

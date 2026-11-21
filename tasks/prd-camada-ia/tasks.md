@@ -61,12 +61,12 @@ teto de palavras. São 13, uma acima do teto de 12. O corte possível é em duas
   - [ ] 6.6 `docs/interface.md` e o roteiro da demonstração
   - [ ] 6.7 Testes
 
-- [ ] **7.0 — A Operação define o orçamento de IA num diálogo, vendo o antes e o depois**
-  - [ ] 7.1 O diálogo "Orçamento de IA"
-  - [ ] 7.2 A ação na rede e na escola
-  - [ ] 7.3 Os erros anunciados e o 429
-  - [ ] 7.4 `docs/interface.md` §5a (Escolas)
-  - [ ] 7.5 Testes
+- [x] **7.0 — A Operação define o orçamento de IA num diálogo, vendo o antes e o depois**
+  - [x] 7.1 O diálogo "Orçamento de IA"
+  - [x] 7.2 A ação na rede e na escola
+  - [x] 7.3 Os erros anunciados e o 429
+  - [x] 7.4 `docs/interface.md` §5a (Escolas)
+  - [x] 7.5 Testes
 
 - [ ] **8.0 — A aba Uso da Operação mostra o uso de IA por escola e os 12 meses**
   - [ ] 8.1 O grupo "IA" na tabela e no cartão

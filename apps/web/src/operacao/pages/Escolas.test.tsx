@@ -2,13 +2,14 @@
 import { ESTADOS_DA_COORDENACAO, type EscolaDoPainel, type EstadoDaCoordenacao } from '@educa/shared'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TEXTO_DO_ESTADO } from '../estados-da-escola'
 import {
   OPERATOR_TEST_AUTHORIZATION,
   CONVITE_DE_TESTE,
   escolaDoPainel,
   janelaDe,
+  redeDoPainel,
   setupOperacaoScreen,
   fakeNetwork,
   renderOperacaoScreen,
@@ -224,5 +225,130 @@ describe('Escolas: as ações da página (RF21)', () => {
     const cheios = screen.getAllByRole('button').filter((botao) => botao.classList.contains('bg-laranja'))
     expect(cheios.map((botao) => botao.textContent)).toEqual(['Nova escola'])
     expect(screen.getByRole('button', { name: 'Nova rede' }).classList.contains('bg-laranja')).toBe(false)
+  })
+})
+
+describe('Escolas: o Orçamento de IA da rede e da escola, em cada linha (camada-ia, 7.0)', () => {
+  const NOME_DA_ESCOLA = 'Escola Sintética 1'
+  const DA_ESCOLA = new RegExp(`^Orçamento de IA\\s*da escola ${NOME_DA_ESCOLA}$`)
+  const DA_REDE = /^Orçamento de IA\s*da rede Rede Sintética$/
+
+  beforeEach(() => {
+    // O `jsdom` não implementa o `dialog` modal: o teste instala o `showModal` e o `close`.
+    HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    }
+    HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+      this.removeAttribute('open')
+    }
+  })
+
+  /** A rede falsa de uma escola, a lista de redes e o `PUT`; devolve o que a tela mandou no `PUT`. */
+  function preparar(put: FakeResponse | (() => Promise<FakeResponse>) = { status: 200, corpo: redeDoPainel().orcamento }): { puts: unknown[]; rede: ReturnType<typeof fakeNetwork> } {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/operacao/escolas', lista([escolaDoPainel(1)]))
+    rede.responderPor('/v1/operacao/redes', { status: 200, corpo: { itens: [redeDoPainel()] } })
+    rede.responderPor(/\/orcamento-ia$/, put)
+    const puts: unknown[] = []
+    const pedir = globalThis.fetch
+    vi.stubGlobal('fetch', (caminho: string, opcoes?: RequestInit) => {
+      if (opcoes?.method === 'PUT') puts.push({ caminho, corpo: JSON.parse(String(opcoes.body)) })
+      return pedir(caminho, opcoes)
+    })
+    return { puts, rede }
+  }
+
+  it('no computador, a linha oferece "Orçamento de IA" da escola e da rede, e cada botão diz de quem é', async () => {
+    preparar()
+    renderOperacaoScreen(<Escolas />)
+    await screen.findByRole('table')
+    const linha = linhaDa(NOME_DA_ESCOLA)
+    expect(within(linha).getByRole('button', { name: DA_ESCOLA })).toBeTruthy()
+    expect(within(linha).getByRole('button', { name: DA_REDE })).toBeTruthy()
+    // Um em cada coluna: o da escola junto do nome dela, o da rede junto do nome da rede.
+    expect(within(within(linha).getByRole('rowheader')).getByRole('button', { name: DA_ESCOLA })).toBeTruthy()
+    expect(within(linha).getAllByRole('button', { name: /^Orçamento de IA/ })).toHaveLength(2)
+  })
+
+  it('no celular, o cartão oferece as mesmas duas ações, sem tabela', async () => {
+    janelaDe(360)
+    preparar()
+    renderOperacaoScreen(<Escolas />)
+    const cartao = (await screen.findAllByRole('listitem')).find((item) => item.textContent.includes(NOME_DA_ESCOLA))
+    if (cartao === undefined) throw new Error('sem cartão')
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(within(cartao).getByRole('button', { name: DA_ESCOLA })).toBeTruthy()
+    expect(within(cartao).getByRole('button', { name: DA_REDE })).toBeTruthy()
+  })
+
+  it('"Orçamento de IA" é secundário: "Nova escola" continua o único botão cheio', async () => {
+    preparar()
+    renderOperacaoScreen(<Escolas />)
+    await screen.findByRole('table')
+    const cheios = screen.getAllByRole('button').filter((botao) => botao.classList.contains('bg-laranja'))
+    expect(cheios.map((botao) => botao.textContent)).toEqual(['Nova escola'])
+  })
+
+  it('o botão da escola abre o diálogo da escola, com a caixa "Usar o valor da rede"; o da rede abre o da rede, sem ela', async () => {
+    preparar()
+    renderOperacaoScreen(<Escolas />)
+    await screen.findByRole('table')
+    await userEvent.click(within(linhaDa(NOME_DA_ESCOLA)).getByRole('button', { name: DA_ESCOLA }))
+    expect(await screen.findByRole('checkbox', { name: 'Usar o valor da rede' })).toBeTruthy()
+    expect(within(screen.getByRole('dialog')).getByText(NOME_DA_ESCOLA)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await userEvent.click(within(linhaDa(NOME_DA_ESCOLA)).getByRole('button', { name: DA_REDE }))
+    expect(await screen.findByLabelText('Valor por aluno por mês (R$)')).toBeTruthy()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(within(screen.getByRole('dialog')).getByText('Rede Sintética')).toBeTruthy()
+  })
+
+  it('salvar o orçamento da rede fecha o diálogo, anuncia "Orçamento salvo." e lê a lista de novo', async () => {
+    const { puts, rede } = preparar()
+    renderOperacaoScreen(<Escolas />)
+    await screen.findByRole('table')
+    const leituras = (caminho: string) => rede.chamadas.filter((chamada) => chamada.metodo === 'GET' && chamada.caminho.startsWith(caminho)).length
+    await userEvent.click(within(linhaDa(NOME_DA_ESCOLA)).getByRole('button', { name: DA_REDE }))
+    const valor = await screen.findByLabelText('Valor por aluno por mês (R$)')
+    await userEvent.clear(valor)
+    await userEvent.type(valor, '4,00')
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar orçamento' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getAllByRole('status').map((regiao) => regiao.textContent)).toContain('Orçamento salvo.')
+    // A lista de escolas e a de redes foram lidas de novo: a primeira leitura mais a que o salvar marcou.
+    await waitFor(() => expect(leituras('/v1/operacao/escolas?')).toBe(2))
+    expect(leituras('/v1/operacao/redes')).toBe(2)
+    expect(puts).toEqual([{ caminho: expect.stringMatching(/^\/v1\/operacao\/redes\/.+\/orcamento-ia$/) as string, corpo: { valorPorAlunoCentavos: 400, tetoDeSegurancaPercentual: null } }])
+    // O foco volta ao botão que abriu o diálogo.
+    expect(document.activeElement).toBe(within(linhaDa(NOME_DA_ESCOLA)).getByRole('button', { name: DA_REDE }))
+  })
+
+  it('o `PUT` que responde depois de o diálogo fechar, com outro aberto, anuncia "Orçamento salvo." e não fecha o diálogo novo', async () => {
+    let liberar: (resposta: FakeResponse) => void = () => undefined
+    const segurada = new Promise<FakeResponse>((resolver) => (liberar = resolver))
+    const { puts } = preparar(() => segurada)
+    renderOperacaoScreen(<Escolas />)
+    await screen.findByRole('table')
+    await userEvent.click(within(linhaDa(NOME_DA_ESCOLA)).getByRole('button', { name: DA_REDE }))
+    const valor = await screen.findByLabelText('Valor por aluno por mês (R$)')
+    await userEvent.clear(valor)
+    await userEvent.type(valor, '4,00')
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar orçamento' }))
+    await waitFor(() => expect(puts).toHaveLength(1))
+    // O operador desiste com o pedido ainda no ar e abre outro diálogo da mesma linha.
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await userEvent.click(within(linhaDa(NOME_DA_ESCOLA)).getByRole('button', { name: /^Convidar/ }))
+    const convite = await screen.findByRole('dialog')
+    expect(within(convite).getByRole('heading').textContent).not.toBe('Orçamento de IA')
+    // A resposta chega: o orçamento foi salvo e a tela o diz, mas o diálogo que está aberto agora não é o dele.
+    await act(async () => {
+      liberar({ status: 200, corpo: redeDoPainel().orcamento })
+      await segurada
+    })
+    await waitFor(() => expect(screen.getAllByRole('status').map((regiao) => regiao.textContent)).toContain('Orçamento salvo.'))
+    expect(screen.getByRole('dialog')).toBe(convite)
   })
 })

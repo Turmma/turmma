@@ -264,3 +264,47 @@ describe('o convite da coordenação (tarefa 7.0)', () => {
     expect(recarregar).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('o orçamento de IA (camada-ia, 7.0)', () => {
+  const ESCOLA_ID = ESCOLA.id
+  const REDE_ID = ESCOLA.rede.id
+  const pedido = { valorPorAlunoCentavos: 400, tetoDeSegurancaPercentual: null }
+  const orcamento = {
+    proprio: { valorPorAlunoMicros: 4_000_000, tetoDeSegurancaPercentual: null },
+    vigente: { valorPorAlunoMicros: 4_000_000, origemDoValor: 'escola', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+  }
+
+  it('o `PUT` da escola e o da rede vão cada um à sua rota, com o pedido inteiro e a sessão do operador', async () => {
+    fila.push({ status: 200, corpo: orcamento }, { status: 200, corpo: orcamento })
+    expect(await m.painel.definirOrcamentoNoPainel({ tipo: 'escola', id: ESCOLA_ID }, pedido)).toEqual(orcamento)
+    expect(await m.painel.definirOrcamentoNoPainel({ tipo: 'rede', id: REDE_ID }, pedido)).toEqual(orcamento)
+    expect(chamadas).toEqual([
+      { caminho: `/v1/operacao/escolas/${ESCOLA_ID}/orcamento-ia`, metodo: 'PUT', corpo: pedido, autorizacao: 'Bearer token-de-acesso' },
+      { caminho: `/v1/operacao/redes/${REDE_ID}/orcamento-ia`, metodo: 'PUT', corpo: pedido, autorizacao: 'Bearer token-de-acesso' },
+    ])
+  })
+
+  it('o 429 sobe com a espera do Retry-After, para o diálogo dizer os minutos', async () => {
+    vi.mocked(fetch).mockImplementationOnce(async () => new Response('{}', { status: 429, headers: { 'Retry-After': '120' } }))
+    await expect(m.painel.definirOrcamentoNoPainel({ tipo: 'rede', id: REDE_ID }, pedido)).rejects.toMatchObject({ codigo: 'LIMITE_EXCEDIDO', esperaSegundos: 120 })
+  })
+
+  it('a resposta do `PUT` fora do contrato sobe como `RespostaForaDoContrato`, que é o erro interno para quem decide pelo código', async () => {
+    fila.push({ status: 200, corpo: { ...orcamento, autor: 'outra coisa' } })
+    await expect(m.painel.definirOrcamentoNoPainel({ tipo: 'rede', id: REDE_ID }, pedido)).rejects.toMatchObject({ name: 'RespostaForaDoContrato', codigo: 'ERRO_INTERNO' })
+  })
+
+  it('a lista de redes fora do contrato sobe como `RespostaForaDoContrato`; a dentro dele traz o orçamento e a contagem', async () => {
+    const rede = { id: REDE_ID, nome: 'Rede sintética', tipo: 'grupo', orcamento, escolasQueUsamOValorDaRede: 2 }
+    fila.push({ status: 200, corpo: { itens: [{ ...rede, campoNovo: 1 }] } }, { status: 200, corpo: { itens: [rede] } })
+    await expect(new QueryClient().fetchQuery(m.painel.dasRedesQueryOptions)).rejects.toMatchObject({ name: 'RespostaForaDoContrato' })
+    expect(await new QueryClient().fetchQuery(m.painel.dasRedesQueryOptions)).toEqual({ itens: [rede] })
+  })
+
+  it('o erro de contrato das outras leituras continua sendo o erro interno comum, sem mandar atualizar a página', async () => {
+    fila.push({ status: 200, corpo: { itens: [{ ...ESCOLA, coordenacao: { nome: 'Maria' } }], pagina: 1, total: 1 } })
+    const falha: unknown = await new QueryClient().fetchQuery(m.painel.dasEscolasQueryOptions({ pagina: 1, ordem: 'nome' })).catch((erro: unknown) => erro)
+    expect(falha).toMatchObject({ codigo: 'ERRO_INTERNO' })
+    expect((falha as Error).name).toBe('ApiError')
+  })
+})

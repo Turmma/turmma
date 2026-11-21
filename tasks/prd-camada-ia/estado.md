@@ -1,13 +1,15 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da 5.0 (grande) e do `Implementador 2` (L2) da 7.0 (pequena), partidas 21/11 05:58, 1ª tentativa. L3 ociosa: a 6.0 não corre junto com a 5.0 (o `tasks.md` não autoriza); a 9.0 e a 12.0 esperam a pergunta do tamanho (num corte vão para a F5b).
+- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da correção `2026-11-21-integracao-no-teto-da-esteira` (07:51), do `Implementador 2` (L2) da 6.0 (grande, partida 08:28) e do `Implementador 3` (L3) da correção `2026-11-21-limpeza-do-e2e-com-orcamento-do-mes` (da 2.0, partida 08:28), 1ª tentativa de cada. A 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
 - **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `e6e2690c`; esteira verde em `1a291ab` (44877752471)
+- **Base:** `spec/camada-ia` em `f74f44b0`; última verde `1a291ab`; `21e6186` vermelha (integração no teto)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 7.0 | `edee568c` | Sonnet | 7 revisores APROVADO na 2ª | encontro em `f74f44b0`; DIVERGÊNCIA (ordem) no item 6 da r1, triada pelo `Arquiteto` como mal-entendido; telas vistas pelo Implementador (a vitrine não tem operador); apontou `orcamento_ia_do_mes` fora da limpeza do e2e (correção na L3) e dois e2e intermitentes (E3 celular, W4 chromebook) |
+| 5.0 | `83292427` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `cc6e316c`; o `5_task.md:43` corrigido para ENTRADA_INVALIDA |
 | 3.0 | `57c9182a` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `e6e2690c`; 4 divergências registradas em `cenarios.md`/`techspec.md`; o `5_task.md:43` cita VALIDACAO (o código é ENTRADA_INVALIDA), dito à 5.0 |
 | 4.0 | `5d8332d7` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `47c16e14` |
 | 2.0 | `67ea22b2` | Sonnet | 6 revisores APROVADO, na 1ª e na 2ª | encontro em `a545ab9f`; `TODO.md` "Da camada-ia, tarefa 2.0" e a 0067 na lista das migrations sem `concurrently` |
@@ -29,7 +31,9 @@ Recomendo: cortar em F5a e F5b. Numa spec só, o pouso inteiro espera a 13.0, qu
 Segue sem depender: as correções M2 e M4 da X6 (processo) e a 1.0 em diante, que estão nas duas opções.
 
 ## O que falhou
+- 21/11 ~07:4x: esteira de `21e6186` (44887365743): o job de integração cancelado no `timeout-minutes` de 30; nas verdes anteriores, 22, 28,5 e 28,3 min. Não é intermitência: o job encostou no teto. Correção na L1, antes de qualquer partida.
 - 21/11: esteira de `970e37c` (44862658083) vermelha no e2e 4/11: `operacao-escolas.spec.ts:595`, o `afterEach` apaga a escola com `job_registro` dela (FK). A spec só mudou processo até aqui: defeito da develop, correção na L3. O encontro da L3 passou de 10 min (a verificação tem prazo de 540 s) e terminou bem.
 - 20/11 21:4x: o `maestri floor delete` do andar L1 da F4b deu "malformed floorLifecycleVerdictResult frame": o andar saiu da lista, mas o checkout e a branch ficaram; removi à mão (contidos na `develop`). Depois, o `recruit --replace` dos dois Arquitetos falhou pela pasta da L1: pasta vazia, replace, rmdir; `Implementador` e `Mesa` reapontados para o térreo.
 ## O que decidi sem perguntar
+- 21/11 ~08:1x: DIVERGÊNCIA (ordem) da 7.0, item 6 da ordem r1 (`textoDaFalha` deixa o `restos.test.ts` vermelho). Triagem do `Arquiteto` na L2: mal-entendido, o item não se aplica (homônimo do X8, só nos arquivos do mapa `10.json`); vai a "Recomendações sem aplicar", destino `TODO.md`. `PEDIDO de retomada` ao `Implementador 2`, sem reinício. Entra na observação da 7.0.
 - 21/11 ~00:4x: a 1.0 partiu na L2 sem esperar a M2 da F4 (L1). O P da retro da F4b pede antes das tarefas só a M2 e a M4 da X6; a M2 da F4 vem "logo depois". A 1.0 não cria migration, que é o caso que o inventário pega.

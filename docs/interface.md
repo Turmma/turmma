@@ -808,6 +808,23 @@ põe as duas abas na página.
   da Tech Spec da A0b
 - **Nova rede** e **nova escola**: nome, tipo de rede e o endereço da escola
 - **Convite da coordenação**: cadastrar a primeira coordenadora, copiar o link, revogar e refazer
+- **Orçamento de IA** (camada-ia, 7.0; RF7): a ação "Orçamento de IA" fica na linha da rede (coluna Rede, junto do nome dela) e
+  na da escola (coluna Escola, junto do nome), na tabela e no cartão do celular; o nome acessível diz de quem é ("Orçamento de
+  IA da rede X", "… da escola Y"). O diálogo "Orçamento de IA" mostra, nesta ordem: "Rede X" ou "Escola Y"; o que vale hoje
+  ("Vale hoje: R$ 5,00 por aluno, da rede." / "…, da escola." / "Vale hoje: sem valor por aluno."); o campo "Valor por aluno por mês
+  (R$)" (em reais, com vírgula; a rede o deixa em branco para não definir valor); na escola, a caixa "Usar o valor da rede" (marcada
+  quando a escola não tem valor próprio, e o campo fica desligado); o campo "Teto de segurança (% do orçamento)", com a frase de ajuda
+  "Quando o uso do mês passa deste percentual do orçamento, só o trabalho em lote espera; o resto da IA continua." e, no fim, o que
+  vale em branco ("Em branco: vale 200%." na rede; "Em branco: vale o da rede ou, sem ele, 200%." na escola). Com os dois campos
+  válidos, **antes** de "Salvar orçamento" aparece o antes e o depois ("Antes: R$ 5,00 por aluno, teto 200%. Depois: R$ 4,00 por aluno,
+  teto 200%.") e, na rede, quando o orçamento muda, "Muda o orçamento de 3 escolas que usam o valor da rede." (a conta é a de
+  `orcamentoDaEscolaNoPainel` e `orcamentoDaRedeNoPainel`, de `packages/shared`, que usam `orcamentoVigente`: a tela não tem conta própria). Valor fora do intervalo: "Use um valor entre R$ 0,01 e
+  R$ 100,00."; teto fora: "Use de 100% a 1000%." — cada um embaixo do campo, anunciado (`role="alert"`) e ligado a ele por
+  `aria-describedby`, e nada vai à API. Salvo, o diálogo fecha e a tela anuncia "Orçamento salvo."; o 429 diz em quantos minutos tentar
+  de novo, e o mesmo botão tenta outra vez. O diálogo lê a lista de redes: carregando ("Carregando o orçamento…"), erro ("Não foi
+  possível carregar." com "Tentar de novo") e a web antiga com a API nova ("Atualize a página: esta tela ficou desatualizada em
+  relação ao Turmma.", sem "Tentar de novo"). "Salvar orçamento" tem 44 px, a caixa 24 px, e nada depende de hover. A aba Uso abre o
+  mesmo diálogo de "Definir orçamento" (camada-ia, 8.0)
 - **Aba Uso**: por escola, no dia e no mês — o uso de infra desde já (D30), o consumo de IA
   contra o teto por aluno (D39), que a D76 previa com a A2 e o MVP não trouxe (`TODO.md`)
 
