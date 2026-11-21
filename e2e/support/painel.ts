@@ -183,7 +183,7 @@ export async function definirUsoDaEscolaSemeada(escolaId: string, uso: { readonl
   })
 }
 
-/** Apaga o que `semearPainel` criou: uso, convites, usuários, contas, escolas e a rede. */
+/** Apaga o que `semearPainel` criou: uso, convites, usuários, contas, o que o worker gravou nas escolas (`expurgo_execucao` e `job_registro`), as escolas e a rede. */
 export async function removerPainel(painel: PainelSemeado): Promise<void> {
   const escolas = painel.escolas.map((escola) => escola.id)
   await comBanco(async (banco) => {
@@ -191,6 +191,11 @@ export async function removerPainel(painel: PainelSemeado): Promise<void> {
     await banco.query('delete from convite where escola_id = any($1::uuid[])', [escolas])
     await banco.query('delete from usuario where escola_id = any($1::uuid[])', [escolas])
     await banco.query('delete from conta where id = any($1::uuid[])', [painel.contas])
+    // O worker do ambiente roda as rotinas de escola enquanto o caso corre, e a FK sem `on delete` recusa a escola que elas tocaram: a das 1h
+    // grava um `job_registro` por escola (`retencao.expurgar-escola`), e o job, ao rodar, grava `expurgo_execucao`; a das 19h (classificação) só grava
+    // o `job_registro`, porque a escola sintética não tem material. A escola sai depois de tudo o que o worker gravou nela.
+    await banco.query('delete from expurgo_execucao where escola_id = any($1::uuid[])', [escolas])
+    await banco.query('delete from job_registro where escola_id = any($1::uuid[])', [escolas])
     await banco.query('delete from escola where id = any($1::uuid[])', [escolas])
     await banco.query('delete from rede where id = $1', [painel.redeId])
   })
@@ -257,6 +262,8 @@ export async function semearEscolaDoConvite(estado: 'sem_convite' | 'pendente'):
 /** Apaga a escola `sem_convite` que o teste só precisava ter no banco, e a rede dela: sem conta, usuário nem convite. */
 export async function removerEscolaSemConvite(escola: EscolaDoConvite): Promise<void> {
   await comBanco(async (banco) => {
+    await banco.query('delete from expurgo_execucao where escola_id = $1', [escola.id])
+    await banco.query('delete from job_registro where escola_id = $1', [escola.id])
     await banco.query('delete from escola where id = $1', [escola.id])
     await banco.query('delete from rede where id = $1', [escola.redeId])
   })

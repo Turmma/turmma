@@ -184,6 +184,16 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## Infra e operação
 
+- [ ] (correção `2026-11-21-limpeza-do-painel-com-job-registro`, revisor-geral e infra-guardian, 1ª) **Os outros removedores de escola do e2e não apagam o que o
+      worker grava nela.** Dez arquivos de `e2e/support/` (cada um com o seu `comBanco`) apagam a escola sem apagar `job_registro` nem `expurgo_execucao`, as duas
+      tabelas com FK para `escola` que a correção fechou só no `painel.ts`: o mesmo `afterEach` pode cair neles. Levantar a lista, mover a limpeza para um
+      ponto só e conferir se outra tabela com FK sem `on delete` é gravada pelo worker. Junto: a corrida restante no `painel.ts` (o worker grava entre o
+      `delete from job_registro` e o `delete from escola`); a saída é uma transação que começa por `select id from escola where id = any($1) for update`, com um teste
+      de concorrência, que não se escreve de forma determinística. Revisar se a falha voltar na esteira. Entram no mesmo levantamento (2ª rodada): `uso_infra_diario`
+      (FK para `escola`, gravada pela rotina das 2h, `consolidar-uso`) que `removerEscolaSemConvite` não apaga; a condição do comentário de `removerPainel` (a
+      classificação só grava `job_registro` enquanto o seed não semear material; com material grava `execucao_agente`, também com FK para a escola); e o `afterAll`
+      de `tools/ci/painel-do-e2e.int.test.ts`, que repete os `delete` à mão, não se protege de um `beforeAll` que falhou (`if (foraDoSeed)`) e pode perder a corrida
+      com o worker (dono: Implementador)
 - [ ] (correção `2026-11-17-integracao-recusa-workers-de-pe`, 2ª rodada, revisor-geral e test-engineer) **Cinco arremates em `tools/testes/`** (`integracao.setup.test.ts`,
       `integracao.setup.ts`, `workers-de-pe.ts`): (1) o caso "o Docker ausente" simula o Docker que some entre o `up` e o `ps`, e sem Docker o `up` falha antes:
       ajustar o nome ou o comentário de `listarServicosDePe`; (2) o mesmo caso usa `stdout: null`, contra `saida: string`: pôr `?? ''` em `saida`; (3) afirmar nele também
