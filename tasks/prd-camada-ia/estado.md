@@ -1,13 +1,14 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da correção `2026-11-21-inventario-no-portao` (M2 da F4, partida 21/11 00:15) e o do `Implementador 2` (L2) da tarefa 1.0 (partida 21/11 ~00:4x), 1ª tentativa de cada. A 12.0 não parte enquanto a pergunta do tamanho estiver aberta: num corte ela vai para a F5b.
-- **Devo ainda:** as M1, M3+M4 e M5 da F4b entram por correção. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `2cb1e9ab` (encontro da L1, M2 da X6); esteira verde em `b9188e3`
+- **Espero:** o `RELATÓRIO` do `Implementador 2` (L2) da tarefa 1.0 (partida 21/11 00:32), do `Implementador` (L1) da correção `2026-11-21-divergencia-cobra-cada-arquivo` (M1 da F4b) e do `Implementador 3` (L3, aberta agora) da `2026-11-21-commit-de-processo-fora-de-tarefa` (M3+M4 da F4b), 1ª tentativa de cada. A 12.0 não parte enquanto a pergunta do tamanho estiver aberta: num corte ela vai para a F5b.
+- **Devo ainda:** a M5 da F4b (caminho relativo em `achados/`) por correção, na próxima linha livre sem tarefa. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
+- **Base:** `spec/camada-ia` em `0e89d1cd`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| correção `2026-11-21-inventario-no-portao` (M2 da F4, L1) | `2dcf4891` | Sonnet | `revisor-geral` na 2ª; os outros cinco na 1ª | 5 mutações; `TODO.md`: M2 marcada e uma linha nova |
 | correção `2026-11-20-faltando-junta-and-de-varias-linhas` (M4 da X6, L2) | `e2dd889a` | Sonnet | 4 revisores APROVADO na 2ª | 61 mutações; `TODO.md`: M4 marcada e 3 itens na seção da F4b |
 | correção `2026-11-20-revisoes-nao-se-perdem-por-script` (M2 da X6, L1) | `bdcef966` | Sonnet | 6 revisores APROVADO na 2ª | 29 casos, 22 mutações; `TODO.md`: M2 marcada e uma linha para a retro |
 
