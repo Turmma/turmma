@@ -45,12 +45,12 @@ teto de palavras. São 13, uma acima do teto de 12. O corte possível é em duas
   - [x] 4.6 Nada em `packages/shared`
   - [x] 4.7 Testes
 
-- [ ] **5.0 — A Operação lê o uso de IA de cada escola, no dia, no mês e nos 12 meses anteriores**
-  - [ ] 5.1 A ordem `custo` só no uso
-  - [ ] 5.2 `uso()` com os trechos do `OrcamentoDoMesRepository`
-  - [ ] 5.3 `GET …/escolas/:id/uso-ia` pelo retrato
-  - [ ] 5.4 Contrato estrito e `ROTAS_DO_PAINEL`
-  - [ ] 5.5 Testes
+- [x] **5.0 — A Operação lê o uso de IA de cada escola, no dia, no mês e nos 12 meses anteriores**
+  - [x] 5.1 A ordem `custo` só no uso
+  - [x] 5.2 `uso()` com os trechos do `OrcamentoDoMesRepository`
+  - [x] 5.3 `GET …/escolas/:id/uso-ia` pelo retrato
+  - [x] 5.4 Contrato estrito e `ROTAS_DO_PAINEL`
+  - [x] 5.5 Testes
 
 - [ ] **6.0 — A coordenação vê "IA do mês: N% do previsto" no Painel e na Governança, sem reais nem tokens**
   - [ ] 6.1 Contrato estrito de `governanca/consumo`

@@ -24,12 +24,18 @@ import {
   orcamentoDaEscolaNoPainel,
   orcamentoDaRedeNoPainel,
   orcamentoDeIaDoPainelSchema,
+  orcamentoDoMes,
+  orcamentoVigente,
   redesDoPainelResponseSchema,
+  usoDeIaDaEscolaDoPainelResponseSchema,
   usoDoPainelResponseSchema,
   type OrcamentoDefinido,
   type OrcamentoDeIaDoPainel,
   type OrcamentoDeIaRequest,
   type PainelQuery,
+  type UsoDeIaDaEscolaDoPainel,
+  type UsoDeIaDaEscolaDoPainelResponse,
+  type UsoDoPainelQuery,
   type ConviteDaCoordenacaoRequest,
   type CriarEscolaRequest,
   type CriarRedeRequest,
@@ -45,7 +51,7 @@ import { createEscola, createRede } from '../escola/escola.js'
 import { type AuthorCheck, createConviteDeCoordenador, refazerConviteDaCoordenacao, revogarConvitePeloOperador } from '../../sessao/index.js'
 import { OperadorRepository } from '../operador/operador.repository.js'
 import { OrcamentoDaRedeRepository } from './orcamento-da-rede.repository.js'
-import { PainelRepository, type ReferenciaDoUso } from './painel.repository.js'
+import { PainelRepository, type IaLidaNoPainel, type ReferenciaDoUso } from './painel.repository.js'
 
 /**
  * O autor das escritas do painel: o operador da sessão, conferido dentro da transação da escrita (Tech Spec da A0b,
@@ -73,6 +79,26 @@ export function referenciaDoUso(agora: Date): ReferenciaDoUso {
 /** O pedido em micros: o valor digitado em centavos vira micros, e o teto segue em %. Nulo continua nulo ("sem valor próprio", e a escola volta a valer o da rede). */
 function definidoPeloPedido(pedido: OrcamentoDeIaRequest): OrcamentoDefinido {
   return { valorPorAlunoMicros: pedido.valorPorAlunoCentavos === null ? null : centavosParaMicros(pedido.valorPorAlunoCentavos), tetoPercentual: pedido.tetoDeSegurancaPercentual }
+}
+
+/**
+ * O grupo `ia` de uma escola no uso: o consumo de hoje e do mês, e o orçamento do mês corrente, calculado **na hora** com os alunos ativos de hoje e o que vale (a escola sobre a rede, coluna a coluna): a mesma conta
+ * (`orcamentoVigente`, `orcamentoDoMes`) do lote, da Governança e da medida. Sem valor, `sem_orcamento`; sem aluno ativo, `sem_aluno_ativo`; nos dois a porcentagem é nula e os reais seguem no consumo.
+ */
+function iaDaEscola(ia: IaLidaNoPainel): UsoDeIaDaEscolaDoPainel {
+  const vigente = orcamentoVigente(ia.orcamento.escola, ia.orcamento.rede)
+  // `true` é o mês corrente, o único que tem aviso; o aviso sai calculado e fica de fora do uso de propósito (o contrato do uso só leva a porcentagem, e o aviso é do lote e da Governança).
+  const mes = orcamentoDoMes({ alunosAtivos: ia.alunosAtivos, valorPorAlunoMicros: vigente.valorPorAlunoMicros, tetoPercentual: vigente.tetoPercentual, origemDoValor: vigente.origemDoValor }, ia.mes.custoMicros, true)
+  return {
+    hoje: ia.hoje,
+    mes: ia.mes,
+    alunosAtivos: ia.alunosAtivos,
+    valorPorAlunoMicros: vigente.valorPorAlunoMicros,
+    origemDoValor: vigente.origemDoValor,
+    porcentagem: mes.porcentagem,
+    // O cast é seguro: o mês corrente nunca é `sem_retrato` (essa situação é só do mês fechado sem retrato), e o `parse` estrito do uso recusa se um dia for.
+    situacao: mes.situacao as UsoDeIaDaEscolaDoPainel['situacao'],
+  }
 }
 
 /** O estado do orçamento como a auditoria o guarda, com os nomes dela. */
@@ -123,7 +149,8 @@ export class PainelService {
    * `conviteId` do último convite de coordenação, quando há. Na ordem `uso`, o mês de referência é o do `uso`.
    */
   async escolas({ pagina, ordem }: PainelQuery): Promise<EscolasDoPainelResponse> {
-    const lida = await new PainelRepository(this.banco).escolas({ pagina, ordem, referencia: referenciaDoUso(this.relogio.agora()) })
+    const agora = this.relogio.agora()
+    const lida = await new PainelRepository(this.banco).escolas({ pagina, ordem, referencia: referenciaDoUso(agora), agora })
     return escolasDoPainelResponseSchema.parse({
       pagina,
       total: lida.total,
@@ -136,11 +163,42 @@ export class PainelService {
     })
   }
 
-  /** Uma página do uso por escola, com o último dia fechado e o mês dele como referência. */
-  async uso({ pagina, ordem }: PainelQuery): Promise<UsoDoPainelResponse> {
-    const referencia = referenciaDoUso(this.relogio.agora())
-    const lida = await new PainelRepository(this.banco).uso({ pagina, ordem, referencia })
-    return usoDoPainelResponseSchema.parse({ pagina, total: lida.total, itens: lida.itens, dia: referencia.dia, mes: referencia.dia.slice(0, 7) })
+  /**
+   * Uma página do uso por escola, com o último dia fechado e o mês dele como referência para a infra, e o grupo `ia` (hoje e o mês corrente de São Paulo, pelo relógio do serviço). Na ordem `custo`, a de maior
+   * custo de IA do mês primeiro.
+   */
+  async uso({ pagina, ordem }: UsoDoPainelQuery): Promise<UsoDoPainelResponse> {
+    const agora = this.relogio.agora()
+    const referencia = referenciaDoUso(agora)
+    const lida = await new PainelRepository(this.banco).uso({ pagina, ordem, referencia, agora })
+    return usoDoPainelResponseSchema.parse({
+      pagina,
+      total: lida.total,
+      itens: lida.itens.map(({ ia, ...uso }) => ({ ...uso, ia: iaDaEscola(ia) })),
+      dia: referencia.dia,
+      mes: referencia.dia.slice(0, 7),
+    })
+  }
+
+  /**
+   * Os 12 meses anteriores da escola do `:id`, cada um **pelo retrato** (camada-ia, 5.0; RF11). Tudo no contexto da escola: o consumo, o retrato e a existência da escola partem do `:id`, e a leitura de outra escola
+   * não entra. Escola inexistente é `NAO_ENCONTRADO`. Não audita nem loga: só número, sem aluno nem pessoa.
+   */
+  async usoDeIaDaEscola(escolaId: string): Promise<UsoDeIaDaEscolaDoPainelResponse> {
+    const requisicaoId = currentContext()?.requisicaoId ?? randomUUID()
+    const meses = await runInContext({ requisicaoId, escolaId }, () => new OrcamentoDoMesRepository(this.banco).usoDosMesesAnteriores(this.relogio.agora()))
+    if (meses === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    return usoDeIaDaEscolaDoPainelResponseSchema.parse({
+      meses: meses.map(({ mes, uso, orcamento }) => ({
+        mes,
+        ...uso,
+        alunosAtivos: orcamento.alunosAtivos,
+        valorPorAlunoMicros: orcamento.valorPorAlunoMicros,
+        origemDoValor: orcamento.origemDoValor,
+        porcentagem: orcamento.porcentagem,
+        situacao: orcamento.situacao,
+      })),
+    })
   }
 
   async createRede(pedido: CriarRedeRequest): Promise<CriadoNoPainelResponse> {

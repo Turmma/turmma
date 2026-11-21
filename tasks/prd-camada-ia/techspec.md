@@ -70,6 +70,8 @@ preço de cada modelo: se a tarefa tem aprovação para o provedor de reserva co
 
 O corpo do `PUT` é um `z.strictObject` com os dois campos obrigatórios: fora da faixa, campo a mais ou campo faltando respondem **`400 ENTRADA_INVALIDA`**, o código de todo corpo recusado do painel (`VALIDACAO` não existe em `ErrorCode`). O `GET …/redes` e o `GET …/escolas` estendidos mudam o contrato de `RedeDoPainel` e `EscolaDoPainel`, e a web acompanha só no tipo e no mock (`NovaRede.tsx`, o fixture e o mock de `api/painel.test.ts`); o diálogo é da 7.0 (§9).
 
+**O uso (tarefa 5.0):** `?ordem=custo` é só do `GET /v1/operacao/uso` (`usoDoPainelQuerySchema`, `ORDENS_DO_USO_DO_PAINEL`): `GET /v1/operacao/escolas?ordem=custo` responde `400 ENTRADA_INVALIDA`. O grupo `ia` do item tem `hoje`, `mes`, `alunosAtivos`, `valorPorAlunoMicros`, `origemDoValor`, `porcentagem` e `situacao`; o custo por aluno é `ia.mes.custoMicros` ÷ `ia.alunosAtivos`, que a tela divide (nenhum campo novo: `porcentagem` é a única conta do orçamento, e vem do servidor). O mês e o dia de IA são os de São Paulo do "agora" do serviço, pela faixa do mês e do dia do `OrcamentoDoMesRepository` (`faixaDoMes`, `faixaDoDia`), e o mês corrente nunca é `sem_retrato`. `GET …/escolas/:id/uso-ia` devolve exatamente 12 itens, **do mês anterior ao corrente para trás**, cada um com o `mes` (`AAAA-MM`), os números de `ia.mes` e o orçamento do retrato dele (`alunosAtivos`, `valorPorAlunoMicros`, `origemDoValor`, `porcentagem`, `situacao`), sem aviso nem teto.
+
 `situacao`: `definido`, `sem_orcamento`, `sem_aluno_ativo` ou `sem_retrato` (mês fechado antes da F5). O mês corrente
 é calculado na hora; o fechado lê o retrato. `parte` (0 a 100) é a fatia dos tokens. `aviso`: o limiar já cruzado no mês corrente (`>=`); nulo no fechado. "Hoje" é o dia de São Paulo até agora. `execucoes` é `count(distinct execucao_id)` mais uma por linha sem execução; `escolasQueUsamOValorDaRede` conta valor ou teto vindo da rede. Entrada em centavos (R$ 0,01 a R$ 100,00), saída em micros. Id inexistente: `NAO_ENCONTRADO`.
 
@@ -113,8 +115,8 @@ do `PUT` ficam em `packages/shared/src/operacao/painel.ts`.
 
 `OrcamentoDoMesRepository` lê consumo, alunos ativos, configuração e rede pela escola do contexto
 (`requireEscolaId()`); a medida estende a `EscolaGauge`. Os meses e o `PUT` da escola
-rodam no contexto da escola `:id` (`runInContext`, como `naEscola`). A leitura entre escolas fica nos três `@Unscoped` do I1 (`uso()`, `escolas()`, `redes()`),
-só com id, nome e número; o `uso()` monta a soma e os alunos com os mesmos trechos do `OrcamentoDoMesRepository`. A
+rodam no contexto da escola `:id` (`runInContext`, como `naEscola`); os meses são `OrcamentoDoMesRepository.usoDosMesesAnteriores` (e `consultaDoUsoDosMeses`, a consulta que o `EXPLAIN` lê), sem `@Unscoped`, e a escola inexistente é `NAO_ENCONTRADO`. A leitura entre escolas fica nos três `@Unscoped` do I1 (`uso()`, `escolas()`, `redes()`),
+só com id, nome e número; o `uso()` monta a soma e os alunos com os mesmos trechos do `OrcamentoDoMesRepository` (`faixaDoMes`, `faixaDoDia`, `custoDaEscolaNoMes`, `COLUNAS_DO_USO_DE_IA` e `alunosAtivosDaEscola`, exportados por ele; a contagem de alunos da aba Escolas é a mesma). A
 rede se grava no único `@Unscoped` do `OrcamentoDaRedeRepository` (acima do tenant). O `PUT` da escola usa os dois métodos novos do `OrcamentoDoMesRepository` (§5), sem `@Unscoped`. Rotas novas em `ROTAS_DO_PAINEL`; testes em
 `cenarios.md` §2.
 

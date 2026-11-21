@@ -128,6 +128,15 @@ export function usoDaEscolaDoPainel(n: number, extra: Partial<UsoDaEscolaDoPaine
     nome: `Escola Sintética ${String(n)}`,
     dia: { requisicoes: 1234, jobs: 12, bytesStorage: 1_288_490_189 },
     mes: { requisicoes: 56_789, jobs: 345, bytesStorage: 2048 },
+    ia: {
+      hoje: { execucoes: 3, chamadas: 4, tokens: 1200, custoMicros: 2_000_000, chamadasPeloProvedorDeReserva: 0 },
+      mes: { execucoes: 30, chamadas: 41, tokens: 12_000, custoMicros: 20_000_000, chamadasPeloProvedorDeReserva: 1 },
+      alunosAtivos: 112,
+      valorPorAlunoMicros: null,
+      origemDoValor: 'nenhuma',
+      porcentagem: null,
+      situacao: 'sem_orcamento',
+    },
     ...extra,
   }
 }

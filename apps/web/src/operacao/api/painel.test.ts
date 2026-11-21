@@ -109,6 +109,15 @@ describe('o uso por escola (tarefa 8.0)', () => {
     nome: ESCOLA.nome,
     dia: { requisicoes: 10, jobs: 2, bytesStorage: 1024 },
     mes: { requisicoes: 300, jobs: 40, bytesStorage: 2048 },
+    ia: {
+      hoje: { execucoes: 1, chamadas: 2, tokens: 300, custoMicros: 1000, chamadasPeloProvedorDeReserva: 0 },
+      mes: { execucoes: 10, chamadas: 20, tokens: 3000, custoMicros: 10_000, chamadasPeloProvedorDeReserva: 0 },
+      alunosAtivos: 0,
+      valorPorAlunoMicros: null,
+      origemDoValor: 'nenhuma',
+      porcentagem: null,
+      situacao: 'sem_orcamento',
+    },
   }
 
   it('o GET do uso leva a página e a ordem da tela, com o token da sessão, e cada consulta tem a sua chave, fora da da lista', async () => {

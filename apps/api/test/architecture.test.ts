@@ -732,10 +732,10 @@ describe('arquitetura: os marcadores da operação só na pasta da operação (C
 describe('arquitetura: a rota @RotaDeOperacao tem a GuardaDeOperador no handler resolvido (C41)', () => {
   it('toda rota @RotaDeOperacao registrada tem a guarda', () => {
     const rotas = rotasDaApi().filter((rota) => rota.marcador === 'rota')
-    // I3 (A0b): a varredura enxerga exatamente o `/eu` e as dez rotas do painel (as oito da A0b e as duas `PUT` do orçamento de IA), nem uma a mais, nem uma a menos.
+    // I3 (A0b): a varredura enxerga exatamente o `/eu` e as onze rotas do painel (as oito da A0b, as duas `PUT` do orçamento de IA e o `GET …/uso-ia`), nem uma a mais, nem uma a menos.
     expect(rotas.map(nomeDaRota).toSorted()).toEqual(ROTAS_COM_SESSAO_DE_OPERADOR)
     expect(rotasDe([PainelController]).map(nomeDaRota).toSorted()).toEqual(ROTAS_DO_PAINEL.toSorted())
-    expect(ROTAS_DO_PAINEL).toHaveLength(10)
+    expect(ROTAS_DO_PAINEL).toHaveLength(11)
     expect(rotasDeOperacaoSemGuarda(rotas)).toEqual([])
   })
 
@@ -1642,6 +1642,7 @@ describe('arquitetura: o OrcamentoDoMesRepository lê pela escola do contexto e 
       'configuracaoDaEscola',
       'configuracaoDaRede',
       'consultaDoCustoDoMes',
+      'consultaDoUsoDosMeses',
       'custoDoMes',
       'doMes',
       'lockConfiguracaoDaEscola',
@@ -1649,6 +1650,7 @@ describe('arquitetura: o OrcamentoDoMesRepository lê pela escola do contexto e 
       'retrato',
       'retratoDeHoje',
       'saveConfiguracaoDaEscola',
+      'usoDosMesesAnteriores',
       'vigente',
     ])
     for (const metodo of metodos) expect(nucleo.unscopedJustification(nucleo.OrcamentoDoMesRepository, metodo), metodo).toBeUndefined()

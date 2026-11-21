@@ -182,7 +182,16 @@ export { TitularSearchRateLimit, TITULAR_SEARCH_RATE_LIMIT_KEY } from './rate-li
 export { createApiRedisClient, createQueueRedisClient, TIMEOUT_COMANDO_REDIS_API_MS, TIMEOUT_COMANDO_REDIS_FILA_MS } from './redis/clients.js'
 export { usoInfraDiario } from './db/schema/uso-infra-diario.js'
 export { orcamentoIaDoMes } from './db/schema/orcamento-ia-do-mes.js'
-export { alunosAtivosDaEscola, OrcamentoDoMesRepository } from './ia/orcamento-do-mes.repository.js'
+export {
+  alunosAtivosDaEscola,
+  COLUNAS_DO_USO_DE_IA,
+  custoDaEscolaNoMes,
+  faixaDoDia,
+  faixaDoMes,
+  OrcamentoDoMesRepository,
+  usoDeIaLido,
+} from './ia/orcamento-do-mes.repository.js'
+export type { FaixaDeTempo, UsoDeIa, UsoDeIaDaLinha, UsoDeIaDoMes } from './ia/orcamento-do-mes.repository.js'
 export { diaAnterior, diaDeUso, diaValido, FORMATO_DIA, FORMATO_MES, FUSO_DO_USO, limitesDoMes } from './usage/usage-day.js'
 export { CHAVES_POR_LEITURA, UsageMeter, VALIDADE_DO_CONTADOR_SEGUNDOS } from './usage/usage-meter.js'
 export type { DailyCount, UsageMetric, UsageMeterOptions } from './usage/usage-meter.js'

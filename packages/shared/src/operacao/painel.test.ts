@@ -15,7 +15,10 @@ import {
   criadoNoPainelResponseSchema,
   escolasDoPainelResponseSchema,
   redesDoPainelResponseSchema,
+  usoDoPainelQuerySchema,
   usoDoPainelResponseSchema,
+  usoDeIaDaEscolaDoPainelResponseSchema,
+  MESES_DO_USO_DE_IA,
   MAXIMA_PAGINA_DO_PAINEL,
   MAXIMO_DE_REDES_DO_PAINEL,
   REFAZER_CONVITE_POR_ESTADO,
@@ -112,11 +115,30 @@ describe('contratos do painel da operação (Tech Spec da A0b, seção 4)', () =
     expect(escolasDoPainelResponseSchema.safeParse({ ...pagina, itens: Array.from({ length: ESCOLAS_POR_PAGINA + 1 }, () => item) }).success).toBe(false)
   })
 
-  it('a resposta do uso é estrita: id, nome, dia e mês com as três medidas, e as datas de referência', () => {
+  it('a consulta do uso aceita também a ordem `custo`, e a da lista não: `custo` é só do uso', () => {
+    expect(usoDoPainelQuerySchema.parse({})).toStrictEqual({ pagina: 1, ordem: 'nome' })
+    for (const ordem of ['nome', 'uso', 'custo']) expect(usoDoPainelQuerySchema.parse({ pagina: '2', ordem })).toStrictEqual({ pagina: 2, ordem })
+    expect(painelQuerySchema.safeParse({ ordem: 'custo' }).success).toBe(false)
+    for (const invalida of [{ ordem: 'Custo' }, { ordem: 'tokens' }, { pagina: '0' }, { escolaId: V4 }]) expect(usoDoPainelQuerySchema.safeParse(invalida).success, JSON.stringify(invalida)).toBe(false)
+  })
+
+  it('a resposta do uso é estrita: id, nome, dia e mês com as três medidas, o grupo `ia`, e as datas de referência', () => {
     const periodo = { requisicoes: 10, jobs: 2, bytesStorage: 1_048_576 }
-    const resposta = { itens: [{ id: V7, nome: 'Colégio Sintético', dia: periodo, mes: periodo }], pagina: 1, total: 1, dia: '2026-09-23', mes: '2026-09' }
+    const consumo = { execucoes: 3, chamadas: 5, tokens: 1200, custoMicros: 45_000, chamadasPeloProvedorDeReserva: 1 }
+    const ia = { hoje: consumo, mes: consumo, alunosAtivos: 100, valorPorAlunoMicros: 5_000_000, origemDoValor: 'escola', porcentagem: 20, situacao: 'definido' }
+    const resposta = { itens: [{ id: V7, nome: 'Colégio Sintético', dia: periodo, mes: periodo, ia }], pagina: 1, total: 1, dia: '2026-09-23', mes: '2026-09' }
+    const comIa = (mudanca: object) => ({ ...resposta, itens: [{ ...resposta.itens[0], ia: { ...ia, ...mudanca } }] })
     expect(usoDoPainelResponseSchema.safeParse(resposta).success).toBe(true)
     expect(usoDoPainelResponseSchema.safeParse({ ...resposta, itens: [{ ...resposta.itens[0], slug: 'x' }] }).success).toBe(false)
+    // O grupo `ia` é obrigatório e estrito: sem ele, ou com pessoa, função, modelo ou aviso, a resposta é recusada.
+    expect(usoDoPainelResponseSchema.safeParse({ ...resposta, itens: [{ id: V7, nome: 'Colégio Sintético', dia: periodo, mes: periodo }] }).success).toBe(false)
+    for (const aMais of [{ alunoId: V4 }, { funcao: 'tutor' }, { modelo: 'x' }, { aviso: 80 }, { tetoDeSegurancaPercentual: 200 }]) expect(usoDoPainelResponseSchema.safeParse(comIa(aMais)).success, JSON.stringify(aMais)).toBe(false)
+    expect(usoDoPainelResponseSchema.safeParse(comIa({ hoje: { ...consumo, usuarioId: V4 } })).success).toBe(false)
+    // O mês corrente nunca é `sem_retrato`; a porcentagem é inteira e não negativa, ou nula (sem divisão por zero).
+    expect(usoDoPainelResponseSchema.safeParse(comIa({ situacao: 'sem_retrato' })).success).toBe(false)
+    expect(usoDoPainelResponseSchema.safeParse(comIa({ situacao: 'sem_aluno_ativo', porcentagem: null, valorPorAlunoMicros: null, origemDoValor: 'nenhuma', alunosAtivos: 0 })).success).toBe(true)
+    for (const porcentagem of [-1, 1.5, '20']) expect(usoDoPainelResponseSchema.safeParse(comIa({ porcentagem })).success, String(porcentagem)).toBe(false)
+    expect(usoDoPainelResponseSchema.safeParse(comIa({ hoje: { ...consumo, custoMicros: -1 } })).success).toBe(false)
     expect(usoDoPainelResponseSchema.safeParse({ ...resposta, itens: [{ ...resposta.itens[0], dia: { ...periodo, custo: 1 } }] }).success).toBe(false)
     for (const dia of ['2026-02-30', '23/09/2026', '2026-9-23']) expect(usoDoPainelResponseSchema.safeParse({ ...resposta, dia }).success, dia).toBe(false)
     for (const mes of ['2026-13', '2026-9', '2026-09-01']) expect(usoDoPainelResponseSchema.safeParse({ ...resposta, mes }).success, mes).toBe(false)
@@ -217,5 +239,28 @@ describe('o orçamento de IA no painel da Operação (camada-ia, 3.0)', () => {
     expect(orcamentoDeIaDoPainelSchema.safeParse({ ...SEM_ORCAMENTO, proprio: { ...SEM_ORCAMENTO.proprio, valorPorAlunoMicros: 0 } }).success).toBe(false)
     expect(orcamentoDeIaDoPainelSchema.safeParse({ ...SEM_ORCAMENTO, vigente: { ...SEM_ORCAMENTO.vigente, tetoDeSegurancaPercentual: 99 } }).success).toBe(false)
     expect(orcamentoDeIaDoPainelSchema.safeParse({ ...SEM_ORCAMENTO, vigente: { ...SEM_ORCAMENTO.vigente, origemDoValor: 'operador' } }).success).toBe(false)
+  })
+})
+
+describe('o uso de IA dos 12 meses anteriores de uma escola (camada-ia, 5.0)', () => {
+  const consumo = { execucoes: 3, chamadas: 5, tokens: 1200, custoMicros: 45_000, chamadasPeloProvedorDeReserva: 1 }
+  const fechado = { ...consumo, mes: '2026-03', alunosAtivos: 100, valorPorAlunoMicros: 5_000_000, origemDoValor: 'escola', porcentagem: 20, situacao: 'definido' }
+  const semRetrato = { ...consumo, mes: '2026-02', alunosAtivos: null, valorPorAlunoMicros: null, origemDoValor: null, porcentagem: null, situacao: 'sem_retrato' }
+  const meses = (quantos: number) => Array.from({ length: quantos }, () => fechado)
+
+  it('são exatamente 12 meses: 11 ou 13 são recusados', () => {
+    expect(MESES_DO_USO_DE_IA).toBe(12)
+    expect(usoDeIaDaEscolaDoPainelResponseSchema.safeParse({ meses: meses(12) }).success).toBe(true)
+    for (const quantos of [0, 11, 13]) expect(usoDeIaDaEscolaDoPainelResponseSchema.safeParse({ meses: meses(quantos) }).success, String(quantos)).toBe(false)
+  })
+
+  it('o mês sem retrato leva só o consumo e o resto nulo; o mês é `AAAA-MM`; o item e a resposta são estritos', () => {
+    expect(usoDeIaDaEscolaDoPainelResponseSchema.safeParse({ meses: [semRetrato, ...meses(11)] }).success).toBe(true)
+    for (const mes of ['2026-13', '2026-3', '2026-03-01', 'março']) expect(usoDeIaDaEscolaDoPainelResponseSchema.safeParse({ meses: [{ ...fechado, mes }, ...meses(11)] }).success, mes).toBe(false)
+    for (const aMais of [{ aviso: 80 }, { alunoId: V4 }, { funcao: 'tutor' }, { tetoDeSegurancaPercentual: 200 }]) {
+      expect(usoDeIaDaEscolaDoPainelResponseSchema.safeParse({ meses: [{ ...fechado, ...aMais }, ...meses(11)] }).success, JSON.stringify(aMais)).toBe(false)
+    }
+    expect(usoDeIaDaEscolaDoPainelResponseSchema.safeParse({ meses: meses(12), escolaId: V4 }).success).toBe(false)
+    expect(usoDeIaDaEscolaDoPainelResponseSchema.safeParse({ meses: [{ ...fechado, situacao: 'outra' }, ...meses(11)] }).success).toBe(false)
   })
 })

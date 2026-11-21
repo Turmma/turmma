@@ -1,13 +1,16 @@
-import { createDatabase, createPool, type Database, type DatabasePool } from '@educa/core'
+import { createDatabase, createPool, OrcamentoDoMesRepository, runInContext, type Database, type DatabasePool } from '@educa/core'
 import {
   ErrorCode,
   ESCOLAS_POR_PAGINA,
+  mesDeSaoPaulo,
   conviteDaCoordenacaoResponseSchema,
   escolasDoPainelResponseSchema,
   redesDoPainelResponseSchema,
+  usoDeIaDaEscolaDoPainelResponseSchema,
   usoDoPainelResponseSchema,
   type EscolaDoPainel,
   type OrdemDoPainel,
+  type OrdemDoUso,
   type UsoDaEscolaDoPainel,
   type UsoDoPeriodoDoPainel,
 } from '@educa/shared'
@@ -130,7 +133,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
   }
 
   /** O uso inteiro, página a página, pela API. */
-  async function uso(ordem: OrdemDoPainel, textos?: string[]) {
+  async function uso(ordem: OrdemDoUso, textos?: string[]) {
     let referencia: { dia: string; mes: string } | undefined
     const lido = await todasAsPaginas(async (pagina) => {
       const resposta = await pedir(url, 'GET', `/v1/operacao/uso?pagina=${pagina}&ordem=${ordem}`, sessao.token)
@@ -179,7 +182,7 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       await app.close()
     } finally {
       try {
-        for (const tabela of ['vinculo', 'credencial_matricula', 'turma', 'disciplina', 'serie', 'ano_letivo', 'convite', 'sessao', 'usuario', 'uso_infra_diario', 'auditoria', 'configuracao_operacional_escola']) {
+        for (const tabela of ['consumo_ia', 'orcamento_ia_do_mes', 'execucao_agente', 'vinculo', 'credencial_matricula', 'turma', 'disciplina', 'serie', 'ano_letivo', 'convite', 'sessao', 'usuario', 'uso_infra_diario', 'auditoria', 'configuracao_operacional_escola']) {
           await pool.query(`delete from ${tabela} where escola_id = any($1::uuid[])`, [escolas])
         }
         await pool.query('delete from escola where id = any($1::uuid[])', [escolas])
@@ -315,12 +318,14 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
         nome: `Escola Leitura Uso ${sufixo}`,
         dia: periodo(7_000, 30, 5_000),
         mes: antes === undefined ? periodo(7_000, 30, 5_000) : periodo(8_000, 40, 9_000),
+        ia: expect.objectContaining({ alunosAtivos: 0 }),
       })
       expect(doItem(lido.itens, pouco)).toStrictEqual({
         id: pouco,
         nome: `Escola Leitura Uso ${sufixo}`,
         dia: periodo(70, 3, 1_000),
         mes: antes === undefined ? periodo(70, 3, 1_000) : periodo(75, 4, 1_000),
+        ia: expect.objectContaining({ alunosAtivos: 0 }),
       })
       expect(soAsMinhas(lido.itens, [muito, pouco]).map((item) => item.id)).toEqual([muito, pouco])
 
@@ -557,7 +562,283 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
     })
   })
 
-  describe('I6: nenhuma resposta das oito rotas traz pessoa da escola, nem o operador, inclusive 400, 404, 409 e 503', () => {
+  /**
+   * O uso de IA que a aba Uso da Operação lê (camada-ia, 5.0; RF11; `cenarios.md` §1 RF11 e §2): `GET /v1/operacao/uso`, com o grupo `ia` de hoje e do mês corrente de São Paulo e a ordem por custo, e
+   * `GET /v1/operacao/escolas/:id/uso-ia`, os 12 meses anteriores pelo retrato. O relógio é falso (`AGORA`: 23h45 de 30/04/2033 em São Paulo, já 1º/05 em UTC) e todo consumo é de 2033, longe do de outros arquivos.
+   */
+  describe('camada-ia 5.0: o uso de IA por escola, hoje e no mês, e os 12 meses anteriores', () => {
+    const REAIS = 1_000_000
+    const AGORA = new Date('2033-05-01T02:45:00Z')
+    const comRelogioFalso = () => new PainelService(banco, { agora: () => AGORA })
+    const ZERO_DE_IA = { execucoes: 0, chamadas: 0, tokens: 0, custoMicros: 0, chamadasPeloProvedorDeReserva: 0 }
+    const deIa = (execucoes: number, chamadas: number, tokens: number, custoMicros: number, chamadasPeloProvedorDeReserva: number) => ({ execucoes, chamadas, tokens, custoMicros, chamadasPeloProvedorDeReserva })
+
+    interface Montagem {
+      rede?: { valor: number | null; teto: number | null }
+      propria?: { valor: number | null; teto: number | null }
+      alunos?: number
+      semAnoEmCurso?: boolean
+      id?: string
+    }
+    interface EscolaDeIa {
+      id: string
+      anoId: string
+      serieId: string
+      turmaId: string
+      coordenadorId: string
+    }
+
+    /** Uma rede do grupo, com o valor e o teto dados (ou nulos), anotada para a limpeza. */
+    const redeDeIa = (rede: Montagem['rede']) => idDe(`insert into rede (nome, tipo, ia_valor_por_aluno_micros, ia_teto_de_seguranca_percentual) values ($1, 'grupo', $2, $3) returning id`, [`Rede IA ${randomUUID()}`, rede?.valor ?? null, rede?.teto ?? null])
+
+    /** Uma escola em rede própria, com o orçamento da rede e o da escola dados, o ano de 2033 (em curso, salvo `semAnoEmCurso`) e `alunos` alunos ativos na turma. */
+    async function escolaDeIa({ rede, propria, alunos = 0, semAnoEmCurso, id }: Montagem = {}): Promise<EscolaDeIa> {
+      const redeId = await redeDeIa(rede)
+      redes.push(redeId)
+      const escolaId = id ?? randomUUID()
+      await pool.query('insert into escola (id, rede_id, nome, slug) values ($1, $2, $3, $4)', [escolaId, redeId, nomeQueVemPrimeiro('Escola IA'), `ia-${randomUUID()}`])
+      escolas.push(escolaId)
+      if (propria !== undefined) {
+        await pool.query('insert into configuracao_operacional_escola (escola_id, ia_valor_por_aluno_micros, ia_teto_de_seguranca_percentual) values ($1, $2, $3)', [escolaId, propria.valor, propria.teto])
+      }
+      const anoId = await anoLetivo(escolaId, 2033, semAnoEmCurso === true ? 'planejado' : 'em_curso')
+      const serieId = await serie(escolaId)
+      const turmaId = await turma(escolaId, anoId, serieId, '2ºB')
+      const coordenadorId = await pessoa(escolaId, 'coordenador')
+      const escolaDeTeste = { id: escolaId, anoId, serieId, turmaId, coordenadorId }
+      if (alunos > 0) await alunosNaTurma(escolaDeTeste, alunos)
+      return escolaDeTeste
+    }
+
+    /** `quantos` alunos novos, cada um com um vínculo de aluno não encerrado na turma e no ano dados. */
+    async function alunosNaTurma(e: EscolaDeIa, quantos: number, turmaId = e.turmaId, anoId = e.anoId): Promise<string[]> {
+      const { rows } = await pool.query<{ id: string }>(
+        `with novos as (
+           insert into usuario (escola_id, papel, nome) select $1, 'aluno', 'Aluno sintético' from generate_series(1, $2::int) returning id
+         ), vinculos as (
+           insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, criado_por) select $1, $3, id, $4, 'aluno', $5 from novos returning usuario_id
+         ) select usuario_id as id from vinculos`,
+        [e.id, quantos, anoId, turmaId, e.coordenadorId],
+      )
+      return rows.map((linha) => linha.id)
+    }
+
+    /** Uma execução da rotina de classificação, sem pessoa e sem ano: a que as linhas de consumo apontam. */
+    const execucaoDe = (escolaId: string) =>
+      idDe(`insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada) values ($1, null, 'classificacao_do_material', 'classificar_secoes', null, $2, '{"tarefa":"classificar_secoes"}') returning id`, [
+        escolaId,
+        randomUUID(),
+      ])
+
+    /** Uma chamada da escola, com o custo gravado, 100 tokens de entrada e 50 de saída, no instante `em`. */
+    function chamada(escolaId: string, em: string, custoMicros: number, opcoes: { execucaoId?: string; reserva?: boolean } = {}): Promise<unknown> {
+      return pool.query(
+        `insert into consumo_ia (escola_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, tokens_de_entrada, tokens_de_saida, duracao_ms, envio_externo, tentativas, estado, custo_micros, pelo_provedor_de_reserva, execucao_id, em)
+         values ($1, 'gerar_atividade_objetiva', 'conversa_e_ferramentas', 'padrao', 'openai_compat', 'modelo-de-teste', '2026-11-21.1', 100, 50, 10, false, 1, 'concluida', $2, $3, $4, $5::timestamptz)`,
+        [escolaId, custoMicros, opcoes.reserva === true, opcoes.execucaoId ?? null, em],
+      )
+    }
+
+    const retrato = (escolaId: string, mes: string, r: { alunos: number; valor: number | null; teto: number; origem: 'escola' | 'rede' | 'nenhuma' }) =>
+      pool.query('insert into orcamento_ia_do_mes (escola_id, mes, alunos_ativos, valor_por_aluno_micros, teto_percentual, origem_do_valor) values ($1, $2, $3, $4, $5, $6)', [escolaId, mes, r.alunos, r.valor, r.teto, r.origem])
+
+    /** A primeira página do uso, na ordem por custo (as escolas com custo de IA no mês vêm antes das sem), pelo relógio falso. */
+    const usoPorCusto = async () => (await comRelogioFalso().uso({ pagina: 1, ordem: 'custo' })).itens
+    const mesesDe = async (escolaId: string) => (await comRelogioFalso().usoDeIaDaEscola(escolaId)).meses
+
+    /** A (rede R$ 9 e 500%, escola R$ 5 e 200%) e B (rede R$ 2 e 300%, escola R$ 1 e 100%), em redes diferentes, no mesmo mês. */
+    async function aEB() {
+      const a = await escolaDeIa({ rede: { valor: 9 * REAIS, teto: 500 }, propria: { valor: 5 * REAIS, teto: 200 }, alunos: 100 })
+      const b = await escolaDeIa({ rede: { valor: 2 * REAIS, teto: 300 }, propria: { valor: 1 * REAIS, teto: 100 }, alunos: 900 })
+      // A gastou R$ 100 em abril (R$ 40 às 23h30 do último dia, em São Paulo), R$ 700 em março e R$ 5.000 já em maio; B gastou R$ 1.000 em abril.
+      await chamada(a.id, '2033-04-10T10:00:00-03:00', 60 * REAIS)
+      await chamada(a.id, '2033-04-30T23:30:00-03:00', 40 * REAIS)
+      await chamada(a.id, '2033-03-31T23:59:00-03:00', 700 * REAIS)
+      await chamada(a.id, '2033-05-01T00:10:00-03:00', 5000 * REAIS)
+      await chamada(b.id, '2033-04-15T10:00:00-03:00', 1000 * REAIS)
+      await chamada(b.id, '2033-05-01T00:10:00-03:00', 5000 * REAIS)
+      return { a, b }
+    }
+
+    it('A e B da §2: a linha de A traz 20% e 100 alunos, a de B 111% e 900; a chamada de 23h30 do último dia conta no mês e em hoje, e a de março e a de maio, não', async () => {
+      const { a, b } = await aEB()
+      const itens = await usoPorCusto()
+      expect(soAsMinhas(itens, [a.id, b.id]).map((item) => item.id)).toEqual([b.id, a.id])
+      expect(doItem(itens, a.id).ia).toStrictEqual({
+        hoje: deIa(1, 1, 150, 40 * REAIS, 0),
+        mes: deIa(2, 2, 300, 100 * REAIS, 0),
+        alunosAtivos: 100,
+        valorPorAlunoMicros: 5 * REAIS,
+        origemDoValor: 'escola',
+        porcentagem: 20,
+        situacao: 'definido',
+      })
+      expect(doItem(itens, b.id).ia).toStrictEqual({
+        hoje: ZERO_DE_IA,
+        mes: deIa(1, 1, 150, 1000 * REAIS, 0),
+        alunosAtivos: 900,
+        valorPorAlunoMicros: 1 * REAIS,
+        origemDoValor: 'escola',
+        porcentagem: 111,
+        situacao: 'definido',
+      })
+    })
+
+    it('a ordem por custo põe a de maior custo do mês primeiro, mesmo com o id maior, e conta o mês corrente de São Paulo: o de março e o de maio não entram', async () => {
+      const [menor, maior] = [randomUUID(), randomUUID()].toSorted()
+      if (menor === undefined || maior === undefined) throw new Error('ids')
+      const pouco = await escolaDeIa({ id: menor })
+      const muito = await escolaDeIa({ id: maior })
+      // `pouco` gastou muito em março e em maio e R$ 10 em abril; `muito` gastou R$ 20 em abril: só abril vale, e o desempate pelo id poria `pouco` na frente.
+      await chamada(pouco.id, '2033-03-20T10:00:00-03:00', 500 * REAIS)
+      await chamada(pouco.id, '2033-04-20T10:00:00-03:00', 10 * REAIS)
+      await chamada(pouco.id, '2033-05-01T00:30:00-03:00', 900 * REAIS)
+      await chamada(muito.id, '2033-04-20T10:00:00-03:00', 20 * REAIS)
+      const itens = await usoPorCusto()
+      expect(soAsMinhas(itens, [pouco.id, muito.id]).map((item) => item.id)).toEqual([muito.id, pouco.id])
+      expect(doItem(itens, muito.id).ia.mes.custoMicros).toBe(20 * REAIS)
+    })
+
+    it('`chamadasPeloProvedorDeReserva` conta linhas e `execucoes` conta execuções (uma por linha sem execução); hoje e o mês, cada um com a sua soma de tokens', async () => {
+      const e = await escolaDeIa({ alunos: 3 })
+      const comDuasLinhas = await execucaoDe(e.id)
+      const comUma = await execucaoDe(e.id)
+      // Hoje (30/04): uma execução com duas linhas (a segunda, da reserva). No mês, antes de hoje: duas linhas sem execução (uma da reserva) e uma execução de uma linha.
+      await chamada(e.id, '2033-04-30T10:00:00-03:00', 3 * REAIS, { execucaoId: comDuasLinhas })
+      await chamada(e.id, '2033-04-30T10:00:05-03:00', 2 * REAIS, { execucaoId: comDuasLinhas, reserva: true })
+      await chamada(e.id, '2033-04-12T10:00:00-03:00', 1 * REAIS)
+      await chamada(e.id, '2033-04-12T10:00:01-03:00', 1 * REAIS, { reserva: true })
+      await chamada(e.id, '2033-04-12T10:00:02-03:00', 1 * REAIS, { execucaoId: comUma })
+      const { ia } = doItem(await usoPorCusto(), e.id)
+      expect(ia.hoje).toStrictEqual(deIa(1, 2, 300, 5 * REAIS, 1))
+      expect(ia.mes).toStrictEqual(deIa(4, 5, 750, 8 * REAIS, 2))
+    })
+
+    it('sem valor nem na rede: `sem_orcamento`, origem `nenhuma` e porcentagem nula, com os alunos e os reais à vista; a rede com valor e a escola sem: vale a da rede', async () => {
+      const semValor = await escolaDeIa({ alunos: 4 })
+      const daRede = await escolaDeIa({ rede: { valor: 4 * REAIS, teto: null }, alunos: 5 })
+      await chamada(semValor.id, '2033-04-10T10:00:00-03:00', 7 * REAIS)
+      await chamada(daRede.id, '2033-04-10T10:00:00-03:00', 10 * REAIS)
+      const itens = await usoPorCusto()
+      expect(doItem(itens, semValor.id).ia).toMatchObject({ situacao: 'sem_orcamento', origemDoValor: 'nenhuma', valorPorAlunoMicros: null, porcentagem: null, alunosAtivos: 4, mes: { custoMicros: 7 * REAIS } })
+      // R$ 10 sobre 5 alunos a R$ 4 (R$ 20): 50%.
+      expect(doItem(itens, daRede.id).ia).toMatchObject({ situacao: 'definido', origemDoValor: 'rede', valorPorAlunoMicros: 4 * REAIS, porcentagem: 50 })
+    })
+
+    it('sem ano em curso: `sem_aluno_ativo`, sem porcentagem e com os reais à vista; sem valor e sem aluno vale `sem_orcamento`', async () => {
+      const semAluno = await escolaDeIa({ propria: { valor: 5 * REAIS, teto: null }, semAnoEmCurso: true })
+      const semNada = await escolaDeIa({ semAnoEmCurso: true })
+      await chamada(semAluno.id, '2033-04-10T10:00:00-03:00', 7 * REAIS)
+      await chamada(semNada.id, '2033-04-10T10:00:00-03:00', 6 * REAIS)
+      const itens = await usoPorCusto()
+      expect(doItem(itens, semAluno.id).ia).toMatchObject({ situacao: 'sem_aluno_ativo', alunosAtivos: 0, valorPorAlunoMicros: 5 * REAIS, porcentagem: null, mes: { custoMicros: 7 * REAIS } })
+      expect(doItem(itens, semNada.id).ia).toMatchObject({ situacao: 'sem_orcamento', alunosAtivos: 0, porcentagem: null })
+    })
+
+    it('os alunos ativos da linha são os da aba Escolas: o vínculo não encerrado do ano anterior não conta, e o aluno em duas turmas do ano conta uma vez (A segue com 100)', async () => {
+      const a = await escolaDeIa({ propria: { valor: 5 * REAIS, teto: null }, alunos: 99 })
+      const segundaTurma = await turma(a.id, a.anoId, a.serieId, '2ºC')
+      const [emDuasTurmas] = await alunosNaTurma(a, 1)
+      if (emDuasTurmas === undefined) throw new Error('aluno')
+      await vinculo(a.id, a.anoId, emDuasTurmas, segundaTurma, 'aluno', a.coordenadorId)
+      // Cinco alunos com vínculo não encerrado só num ano anterior, já encerrado.
+      const anoAnterior = await anoLetivo(a.id, 2032, 'encerrado')
+      const turmaAnterior = await turma(a.id, anoAnterior, a.serieId, '1ºB')
+      await alunosNaTurma(a, 5, turmaAnterior, anoAnterior)
+      await chamada(a.id, '2033-04-10T10:00:00-03:00', 100 * REAIS)
+      const { ia } = doItem(await usoPorCusto(), a.id)
+      expect(ia).toMatchObject({ alunosAtivos: 100, porcentagem: 20 })
+      // A aba Escolas (o nome da escola vem antes dos outros do banco, na primeira página) conta os mesmos 100.
+      expect(doItem((await comRelogioFalso().escolas({ pagina: 1, ordem: 'nome' })).itens, a.id).alunos).toBe(100)
+    })
+
+    it('o relógio é o do serviço, não o `now()` do Postgres: com o relógio em 2033, a chamada de 2033 conta, e a de hoje de verdade não', async () => {
+      const e = await escolaDeIa({ propria: { valor: 5 * REAIS, teto: null }, alunos: 10 })
+      await chamada(e.id, '2033-04-30T12:00:00-03:00', 4 * REAIS)
+      await pool.query(`insert into consumo_ia (escola_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, tokens_de_entrada, tokens_de_saida, duracao_ms, envio_externo, tentativas, estado, custo_micros, em)
+         values ($1, 'gerar_atividade_objetiva', 'conversa_e_ferramentas', 'padrao', 'openai_compat', 'modelo-de-teste', '2026-11-21.1', 1, 1, 10, false, 1, 'concluida', $2, now())`, [e.id, 9 * REAIS])
+      const { ia } = doItem(await usoPorCusto(), e.id)
+      expect(ia.mes).toStrictEqual(deIa(1, 1, 150, 4 * REAIS, 0))
+      expect(ia.hoje).toStrictEqual(deIa(1, 1, 150, 4 * REAIS, 0))
+    })
+
+    it('GET /uso aceita `ordem=custo` e GET /escolas a recusa com `ENTRADA_INVALIDA`', async () => {
+      const noUso = await pedir(url, 'GET', '/v1/operacao/uso?ordem=custo', sessao.token)
+      expect(noUso.status).toBe(200)
+      expect(noUso.cacheControl).toBe('no-store')
+      usoDoPainelResponseSchema.parse(noUso.corpo)
+      esperarErro(await pedir(url, 'GET', '/v1/operacao/escolas?ordem=custo', sessao.token), 400, ErrorCode.ENTRADA_INVALIDA)
+    })
+
+    it('os 12 meses de A, cada um do seu retrato, com B com retrato num mês em que A não tem (A `sem_retrato`) e o consumo de B nos mesmos meses fora da soma de A', async () => {
+      const a = await escolaDeIa({ propria: { valor: 9 * REAIS, teto: null }, alunos: 100 })
+      const b = await escolaDeIa({ propria: { valor: 1 * REAIS, teto: null }, alunos: 900 })
+      // Retratos de A: março (80 alunos, R$ 5), janeiro (sem aluno) e dezembro (sem valor); B: fevereiro e março, com números próprios.
+      await retrato(a.id, '2033-03-01', { alunos: 80, valor: 5 * REAIS, teto: 200, origem: 'escola' })
+      await retrato(a.id, '2033-01-01', { alunos: 0, valor: 5 * REAIS, teto: 200, origem: 'escola' })
+      await retrato(a.id, '2032-12-01', { alunos: 10, valor: null, teto: 200, origem: 'nenhuma' })
+      await retrato(b.id, '2033-02-01', { alunos: 900, valor: 1 * REAIS, teto: 100, origem: 'rede' })
+      await retrato(b.id, '2033-03-01', { alunos: 900, valor: 1 * REAIS, teto: 100, origem: 'rede' })
+      // O consumo de A: março com uma execução de duas linhas (a segunda, da reserva); o mês corrente, o de 13 meses atrás e o de janeiro (R$ 7, sem alunos): o corrente e o antigo de fora.
+      const execucao = await execucaoDe(a.id)
+      await chamada(a.id, '2033-03-10T10:00:00-03:00', 100 * REAIS, { execucaoId: execucao })
+      await chamada(a.id, '2033-03-10T10:00:05-03:00', 100 * REAIS, { execucaoId: execucao, reserva: true })
+      // A chamada de 23h30 do último dia de março (já 1º/04 em UTC) é de março, não de abril.
+      await chamada(a.id, '2033-03-31T23:30:00-03:00', 20 * REAIS)
+      await chamada(a.id, '2033-04-10T10:00:00-03:00', 999 * REAIS)
+      await chamada(a.id, '2032-03-31T23:30:00-03:00', 888 * REAIS)
+      await chamada(a.id, '2033-01-05T10:00:00-03:00', 7 * REAIS)
+      // O consumo de B nos mesmos meses, com outros valores.
+      await chamada(b.id, '2033-03-10T10:00:00-03:00', 700 * REAIS)
+      await chamada(b.id, '2033-02-10T10:00:00-03:00', 450 * REAIS)
+      await chamada(b.id, '2033-01-05T10:00:00-03:00', 33 * REAIS)
+
+      const dosMesesDeA = await mesesDe(a.id)
+      expect(dosMesesDeA.map((mes) => mes.mes)).toEqual(['2033-03', '2033-02', '2033-01', '2032-12', '2032-11', '2032-10', '2032-09', '2032-08', '2032-07', '2032-06', '2032-05', '2032-04'])
+      const doMes = (mes: string) => dosMesesDeA.find((item) => item.mes === mes)
+      // Março pelo retrato dele (80 alunos, R$ 5: orçamento R$ 400, R$ 220 gastos, 55%), e não pelos 100 alunos e R$ 9 de hoje.
+      expect(doMes('2033-03')).toStrictEqual({ mes: '2033-03', ...deIa(2, 3, 450, 220 * REAIS, 1), alunosAtivos: 80, valorPorAlunoMicros: 5 * REAIS, origemDoValor: 'escola', porcentagem: 55, situacao: 'definido' })
+      // Fevereiro: B tem retrato e A não, então A é `sem_retrato`, com o consumo de A (zero), e nunca o de B.
+      expect(doMes('2033-02')).toStrictEqual({ mes: '2033-02', ...ZERO_DE_IA, alunosAtivos: null, valorPorAlunoMicros: null, origemDoValor: null, porcentagem: null, situacao: 'sem_retrato' })
+      expect(doMes('2033-01')).toStrictEqual({ mes: '2033-01', ...deIa(1, 1, 150, 7 * REAIS, 0), alunosAtivos: 0, valorPorAlunoMicros: 5 * REAIS, origemDoValor: 'escola', porcentagem: null, situacao: 'sem_aluno_ativo' })
+      expect(doMes('2032-12')).toMatchObject({ ...ZERO_DE_IA, alunosAtivos: 10, valorPorAlunoMicros: null, origemDoValor: 'nenhuma', porcentagem: null, situacao: 'sem_orcamento' })
+      // O mês de 13 meses atrás não entra, nem o mês corrente: nenhum dos 12 soma R$ 888 nem R$ 999.
+      expect(dosMesesDeA.some((mes) => [888 * REAIS, 999 * REAIS].includes(mes.custoMicros))).toBe(false)
+      expect(dosMesesDeA.filter((mes) => mes.situacao === 'sem_retrato')).toHaveLength(9)
+
+      const dosMesesDeB = await mesesDe(b.id)
+      expect(dosMesesDeB).toHaveLength(12)
+      expect(dosMesesDeB.find((item) => item.mes === '2033-02')).toStrictEqual({ mes: '2033-02', ...deIa(1, 1, 150, 450 * REAIS, 0), alunosAtivos: 900, valorPorAlunoMicros: 1 * REAIS, origemDoValor: 'rede', porcentagem: 50, situacao: 'definido' })
+      expect(dosMesesDeB.find((item) => item.mes === '2033-03')).toMatchObject({ custoMicros: 700 * REAIS, porcentagem: 77 })
+      expect(dosMesesDeB.find((item) => item.mes === '2033-01')).toMatchObject({ custoMicros: 33 * REAIS, situacao: 'sem_retrato' })
+    })
+
+    it('o mês fechado não leva aviso, mesmo a 100% do orçamento: o aviso é só do mês corrente', async () => {
+      const a = await escolaDeIa({ propria: { valor: 5 * REAIS, teto: null }, alunos: 10 })
+      await retrato(a.id, '2033-03-01', { alunos: 10, valor: 5 * REAIS, teto: 200, origem: 'escola' })
+      await chamada(a.id, '2033-03-10T10:00:00-03:00', 50 * REAIS)
+      const meses = await runInContext({ requisicaoId: randomUUID(), escolaId: a.id }, () => new OrcamentoDoMesRepository(banco).usoDosMesesAnteriores(AGORA))
+      expect(meses?.find((item) => item.mes === '2033-03')?.orcamento).toMatchObject({ situacao: 'definido', porcentagem: 100, aviso: null })
+    })
+
+    it('GET /escolas/:id/uso-ia: 12 meses, do anterior ao corrente para trás, com o contrato estrito e `no-store`; o id inexistente (ou que não é UUID) responde `NAO_ENCONTRADO`', async () => {
+      const e = await escolaDeIa()
+      const resposta = await pedir(url, 'GET', `/v1/operacao/escolas/${e.id}/uso-ia`, sessao.token)
+      expect(resposta.status).toBe(200)
+      expect(resposta.cacheControl).toBe('no-store')
+      const { meses } = usoDeIaDaEscolaDoPainelResponseSchema.parse(resposta.corpo)
+      // Os 12 meses anteriores ao corrente **de São Paulo** (e não de UTC, que vira três horas antes no último dia do mês).
+      const [anoDeHoje = 0, mesDeHoje = 0] = mesDeSaoPaulo(new Date()).split('-').map(Number)
+      const esperados = Array.from({ length: 12 }, (_, indice) => {
+        const posicao = anoDeHoje * 12 + (mesDeHoje - 1) - (indice + 1)
+        return `${String(Math.floor(posicao / 12))}-${String((posicao % 12) + 1).padStart(2, '0')}`
+      })
+      expect(meses.map((mes) => mes.mes)).toEqual(esperados)
+      for (const inexistente of [randomUUID(), 'nao-e-uuid', '1']) esperarErro(await pedir(url, 'GET', `/v1/operacao/escolas/${inexistente}/uso-ia`, sessao.token), 404, ErrorCode.NAO_ENCONTRADO)
+    })
+  })
+
+  describe('I6: nenhuma resposta das rotas de leitura e de convite traz pessoa da escola, nem o operador, inclusive 400, 404, 409 e 503', () => {
     it('com sentinelas em cada tabela de pessoa: coordenação, professor, aluno, matrícula, complemento, turma e operador', async () => {
       const marca = randomUUID().slice(0, 8)
       const sentinelas = {
@@ -643,6 +924,12 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       const lidaNaLista = doItem((await lista('nome', textos)).itens, escolaId)
       expect(lidaNaLista).toMatchObject({ estado: 'pendente', conviteId: novoConvite, turmas: 1, professores: 0, alunos: 1 })
       expect(doItem((await uso('uso', textos)).itens, escolaId).dia).toEqual(periodo(12, 3, 4_096))
+      // O uso de IA (camada-ia, 5.0): `?ordem=custo` e os 12 meses da escola das sentinelas, e o 404 do id que não existe.
+      expect(doItem((await uso('custo', textos)).itens, escolaId).ia).toMatchObject({ alunosAtivos: 1, hoje: { chamadas: 0 } })
+      const dosMeses = guardar(await get(`/v1/operacao/escolas/${escolaId}/uso-ia`))
+      expect(dosMeses.status).toBe(200)
+      textos.push(dosMeses.texto)
+      esperarErro(guardar(await get(`/v1/operacao/escolas/${randomUUID()}/uso-ia`)), 404, ErrorCode.NAO_ENCONTRADO)
       for (const consulta of ['ordem=nome&escolaId=' + escolaId, 'ordem=aluno', 'pagina=0']) {
         esperarErro(guardar(await get(`/v1/operacao/escolas?${consulta}`)), 400, ErrorCode.ENTRADA_INVALIDA)
         esperarErro(guardar(await get(`/v1/operacao/uso?${consulta}`)), 400, ErrorCode.ENTRADA_INVALIDA)
@@ -695,12 +982,12 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
         await curta.app.close()
       }
 
-      // As oito rotas responderam, com cada código de erro; e nenhum texto de resposta traz uma sentinela.
+      // As rotas responderam (as do uso de IA entre elas), com cada código de erro; e nenhum texto de resposta traz uma sentinela.
       expect(new Set(respostas.map((resposta) => resposta.status))).toEqual(new Set([200, 201, 204, 400, 404, 409, 503]))
       const todas = [...respostas.map((resposta) => resposta.texto), ...textos]
       expect(todas.some((texto) => texto.includes(escolaId))).toBe(true)
       for (const texto of todas) for (const [qual, sentinela] of Object.entries(sentinelas)) expect(texto, qual).not.toContain(sentinela)
-      // Nem o log das oito rotas, inclusive o 503 do gerar, cuja consulta cortada levava o nome e o e-mail da coordenação.
+      // Nem o log dessas rotas, inclusive o 503 do gerar, cuja consulta cortada levava o nome e o e-mail da coordenação.
       expect(linhasDeLog.length).toBeGreaterThan(0)
       const todoOLog = linhasDeLog.join('\n')
       for (const [qual, sentinela] of Object.entries(sentinelas)) expect(todoOLog, qual).not.toContain(sentinela)
