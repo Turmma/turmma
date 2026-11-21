@@ -236,7 +236,11 @@ Se entrar na lista parece contrariar a regra que o teste cita, não atualize: é
 O portão só roda os que a árvore alterou. Na F2, a 8.0 trocou o contrato da lista e derrubou quatro specs de e2e que sobem a
 lista pela tela, e o teto de 100 da 16.0 quebrou o caso de 501 da 10.0, que a validação pegou. **Acrescentar também conta**:
 serviço no compose, rota, botão numa lista de ações, campo no retorno de um repository. O teste que confere o conjunto inteiro
-(o inventário) quebra com o acréscimo: `tools/ci/compose.int.test.ts` (serviços), `apps/api/test/convite.int.test.ts` (rotas com
+(o inventário) quebra com o acréscimo. Dois deles o portão já roda sozinho quando o diff toca o inventariado
+(`tools/processo/inventarios-do-portao.ts`): `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts` com qualquer arquivo de
+`packages/core/drizzle/`, e `tools/ci/compose.int.test.ts` com `infra/compose.yml`. Os outros continuam à mão: o mesmo
+`tools/ci/compose.int.test.ts` quando você mexe no que ele lê além do `infra/compose.yml` (o `.env.example` e os estágios
+`FROM … AS` dos Dockerfiles), `apps/api/test/convite.int.test.ts` (rotas com
 "convite"), `ACOES_DO_ESTADO` em `e2e/professores.spec.ts`, o `toEqual` do retorno no `*.repository.int.test.ts`. Na F2c, foram
 quatro vermelhos da esteira (1.0, 3.0, 10.0, 19.0) e a reprovação da 7.0 (cinco e2e da regra antiga). Campo novo
 obrigatório num formulário quebra quem o percorre em `e2e/support/` (`professor-flow.ts`, na 7.0 da F4); e o teste que

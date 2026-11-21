@@ -3013,10 +3013,15 @@ duas causas voltaram na F4 (3 das 6 cláusulas sem prova, e a 9.0 perdeu a 1ª r
       está no arquivo; (b) linha nova de "Recomendações sem aplicar" com destino `TODO.md` quando o `TODO.md` não mudou desde a base. Na F4, 10
       bloqueantes em 8 tarefas por documento que afirmava o que a árvore não tinha (6.0 e 8.0 pelo caso renomeado, 12.0 pelo destino). Caso de
       teste para cada lado. Guardiões: `revisor-geral`, `test-engineer`
-- [ ] (F4, retro, M2) **O portão roda o inventário quando o diff toca o inventariado.** `tools/processo/sequencia-do-portao.ts`: migration nova em
+- [x] *(feito na correção `2026-11-21-inventario-no-portao`, 21/11/2026: `tools/processo/inventarios-do-portao.ts`, a tabela num lugar só, ligada ao `alvosDoPortao`; migration em `packages/core/drizzle/` e `infra/compose.yml`)* (F4, retro, M2) **O portão roda o inventário quando o diff toca o inventariado.** `tools/processo/inventarios-do-portao.ts` (o plano dizia `sequencia-do-portao.ts`; a tabela ficou em arquivo próprio, ligada ao `alvosDoPortao`): migration nova em
       `packages/core/drizzle/` puxa `packages/core/src/db/schema/mvp/mvp-tables.int.test.ts`; `infra/compose.yml` puxa `tools/ci/compose.int.test.ts`.
       A tabela "caminho → inventário" fica num lugar só, com teste. Na F4, três vermelhos da esteira (a FK do catálogo, duas vezes na 5.0, e o
       compose). Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
+- [ ] (F4, retro, M2, resto da correção `2026-11-21-inventario-no-portao`) **A tabela `INVENTARIOS_DO_PORTAO` ainda deixa dois caminhos de fora.**
+      (a) `tools/ci/compose.int.test.ts` também lê o `.env.example` (linha 34) e os estágios `FROM … AS` dos Dockerfiles (linha 60): mexer num deles não
+      puxa o inventário. Linha nova na tabela, com caso em `inventarios-do-portao.test.ts`. (b) Arquivo de `packages/core/src/db/schema/` sem migration
+      não puxa o inventário das tabelas, e o teste atual exige que `schema/mvp/tabela.ts` fique fora de propósito: decidir na retro se o schema entra.
+      Muda os alvos do portão, por isso ficou fora da correção, que entregou os dois casos que quebraram na F4. Guardiões: `revisor-geral`, `test-engineer`, `infra-guardian`
 - [x] (F4, retro, M3) **A integração à mão recusa os workers de pé.** `tools/testes/integracao.setup.ts`: o `globalSetup` confere se há worker de pé
       no compose de teste e, havendo, recusa com a mensagem e o comando que os para (o mesmo `stop` da sequência do portão). Não derruba sozinho: o
       ambiente de pé pode ser a vitrine ou o e2e de alguém. Na F4, três vermelhos falsos, um deles na validação (menor 5 da r2). Caso de teste para
