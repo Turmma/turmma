@@ -1,33 +1,28 @@
 # Tech Spec — Camada de IA
 
 **PRD:** `tasks/prd-camada-ia/prd.md`
-**Status:** aprovada na revisão da spec (rodada 6)
+**Status:** aprovada na revisão da spec (rodada 6). No corte de 21/11/2026 (Joaquim), o provedor de reserva e a avaliação
+foram para a F5b (`tasks/prd-reserva-e-avaliacao/techspec.md`, com a mesma numeração de seções), sem mudar desenho
 
 ## 1. Resumo da abordagem
 
-A F5 estende o `LLMGateway` e o `main-worker` (X6). Preço e aprovação de modelo ficam no código (`PRECO_DOS_MODELOS`,
-`MODELOS_APROVADOS`; Joaquim, 20/11/2026). Uma linha de consumo **por chamada**, com custo e provedor. O **provedor de
-reserva** é um segundo adaptador, com resiliência e conferência próprias, e só atende tarefa e modelo aprovados. O orçamento: duas colunas na escola, duas na rede e um retrato por mês; uma função pura faz a conta.
-
-A avaliação roda à mão (`tools/ia/`); `pedagogia-reviewer` e `conformidade-reviewer` julgam, e o Joaquim confirma as
-reprovadas, as duvidosas e 10% das aprovadas (Joaquim, 20/11/2026).
+A F5a estende o `LLMGateway` e o `main-worker` (X6). O preço fica no código (`PRECO_DOS_MODELOS`; Joaquim, 20/11/2026).
+Uma linha de consumo **por chamada**, com custo e provedor. O orçamento: duas colunas na escola, duas na rede e um retrato
+por mês; uma função pura faz a conta. O provedor de reserva, a aprovação de modelo (`MODELOS_APROVADOS`) e a avaliação são
+da F5b.
 
 ## 2. Módulos afetados
 
 - `packages/core/src/ia/`: `consumo.ts` (`PRECO_DOS_MODELOS` por `provedor:modelo`, com `vigenteDesde` e `fonte`;
-  `custoDaChamada`, para cima; a estimativa), `modelos-aprovados.ts` e `orcamento-do-mes.repository.ts` (novos; a API, o
-  lote e a medida leem por ele), `llm-gateway.ts`, `soberania.ts`;
-  `config/llm-config.ts` com `LLM_RESERVA_BASE_URL`, `LLM_RESERVA_MODELO[_<PERFIL>]`, `LLM_RESERVA_CHAVE_API` (na guarda
-  de segredo), `IA_RESERVA_PROVEDOR_ID`, `LLM_RESERVA_TOKENS_POR_MINUTO`
-- `apps/api/src/ia/`: `ia-do-worker.module.ts`, `consumo.repository.ts`, `orcamento.repository.ts`,
-  `execucao.processor.ts` (motivo `orcamento`)
+  `custoDaChamada`, para cima; a estimativa), `orcamento-do-mes.repository.ts` (novo; a API, o lote e a medida leem por
+  ele), `llm-gateway.ts`; `config/llm-config.ts` (`exigePreco`)
+- `apps/api/src/ia/`: `consumo.repository.ts`, `orcamento.repository.ts`, `execucao.processor.ts` (motivo `orcamento`)
 - `packages/shared/`: `governanca/orcamento-de-ia.ts` (novo, a conta pura), `governanca/governanca.ts`, `operacao/painel.ts`
 - `apps/api/src/operacao/` (painel, escola, `OrcamentoDaRedeRepository` novo), `governanca/`, `auditoria/acoes.ts`
 - `apps/worker/src/orcamento-gauge.ts`, `infra/grafana/alertas/`, `docs/runbook.md`
 - `apps/web/src/operacao/`, `areas/coordenacao/painel/` e `governanca/`
-- `tools/ia/avaliar-modelos.ts`, `tools/ia/amostras/`
-- `docs/`: glossário ("Orçamento de IA" sem corte; "provedor de reserva", "teto de segurança", "valor de IA por aluno"),
-  avaliação, AIAs, LGPD (linha 99), modelo de dados, interface, infra 5.4
+- `docs/`: glossário ("Orçamento de IA" sem corte; "teto de segurança", "valor de IA por aluno"), LGPD (a linha do
+  orçamento), modelo de dados, interface
 
 ## 3. Modelo de dados
 
@@ -53,9 +48,9 @@ corrente a cada 5 min (`on conflict do update`); o fechado guarda o último. A `
 não saiu (disjuntor aberto, sem vaga) não é chamada: no lote não grava, como hoje; nas outras filas deixa a linha única da falha, como a do balde cheio na X6 (`tentativas = 0`, sem tokens, custo nem envio). O **código final da execução** não vive no consumo: a saída inválida seguida de repetição que não sai (prazo, disjuntor) deixa a linha da primeira chamada em `IA_SAIDA_INVALIDA`, e o motivo que encerrou a execução fica em `execucao_agente.erro` e no erro que sobe.
 
 **A estimativa** (D14: superestima custo e destino). A chamada que saiu sem voltar com uso (prazo, conexão, servidor)
-grava a entrada contada e a saída no teto. A interrompida grava os dois tetos da tarefa, uma linha por destino, ao
-preço de cada modelo: se a tarefa tem aprovação para o provedor de reserva configurado (só tarefa e provedor), o
-`registrarEstimada` grava também a dele, na varredura e na reentrega.
+grava a entrada contada e a saída no teto, com custo. A interrompida segue como a X6 a deixou (os dois tetos da tarefa,
+sem custo): o custo dela, uma linha por destino, ao preço de cada modelo, é da F5b. A coluna `pelo_provedor_de_reserva`
+nasce aqui, sempre falsa; quem a grava como verdadeira é a F5b.
 
 ## 4. API
 
@@ -77,25 +72,9 @@ O corpo do `PUT` é um `z.strictObject` com os dois campos obrigatórios: fora d
 
 ## 5. Fluxo
 
-**A aprovação.** `MODELOS_APROVADOS` lista `{ tarefa, provedorId, modelo, relatorio, sha256, aprovadoPor, aprovadoEm }`, versionada, uma por relatório aprovado
-(§8); o `sha256` é do `relatorio.md`, e a guarda o recalcula. A reserva falsa leva o id de `IA_RESERVA_PROVEDOR_ID` (`falso-reserva`), com balde,
-rótulo e disjuntor próprios e relatório sintético. A subida recusa reserva com o id do principal e, em produção, a falsa. O provedor de reserva é **elegível** para uma tarefa se configurado, conferido
-na subida e com entrada que bate no provedor e no modelo que ele usa no perfil da tarefa. Trocar o modelo
-de um perfil tira do caminho as tarefas dele até um relatório novo.
-
-**A chamada.** (1) Sem vaga no principal depois da espera e do modelo menor, vai ao provedor de reserva elegível, no
-balde `provedor:modelo` dele (`LLM_RESERVA_TOKENS_POR_MINUTO`); sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda
-do principal passa à reserva elegível, uma vez, se o sinal da execução não abortou. É queda: disjuntor aberto,
-`IA_INDISPONIVEL` de servidor ou conexão, e `IA_TEMPO_ESGOTADO`. O 429 que sobra da repetição vale como "sem vaga". (3)
-A repetição por saída inválida fica no provedor que respondeu. (4) A reserva que falha termina como hoje: interativo
-indisponível, lote adiado. Uma função só confere a elegibilidade nos dois ramos. **No máximo quatro chamadas por
-execução**, duas por provedor. A reserva passa pelo mesmo `chamarModelo`, com o rótulo `provedor` dela, e soma
-`ia.degradacao{degrau="provedor_de_reserva"}`. O Tutor nunca vai ao menor (D36).
-
-**A subida.** O principal segue como na X6. A reserva passa na mesma conferência (Brasil sempre, treinamento vedado), com as
-categorias das tarefas aprovadas para ela. Sem conferência, ela não é elegível, confere de novo a cada 5 s
-(intervalo injetado) e `ia.provedor_de_reserva.conferido = 0`. Modelo da reserva sem preço recusa a subida, e o do principal também, fora de `local` com `openai_compat` (`LLMConfig.exigePreco`; quem confere é o `createLLMGateway`, que cita `LLM_MODELO` ou `LLM_MODELO_<PERFIL>`); entrada de
-`MODELOS_APROVADOS` com tarefa fora de `TAREFAS_DE_IA` quebra o teste da constante.
+**A subida.** O principal segue como na X6. Modelo do principal sem preço recusa a subida fora de `local` com
+`openai_compat` (`LLMConfig.exigePreco`; quem confere é o `createLLMGateway`, que cita `LLM_MODELO` ou
+`LLM_MODELO_<PERFIL>`). A aprovação de modelo, a chamada que cai na reserva e a subida da reserva são da F5b (§5 de lá).
 
 **O teto de segurança.** `OrcamentoQuery` ganha `fila`; só a `lote` é conferida. Com `situacao = definido` e o custo do
 mês **acima** (`>`) de orçamento × teto ÷ 100: `IA_ORCAMENTO_ESGOTADO`, com `tenteDeNovoEmSegundos` = mín(até a virada,
@@ -125,18 +104,17 @@ rede se grava no único `@Unscoped` do `OrcamentoDaRedeRepository` (acima do ten
 | Item | Resposta |
 |---|---|
 | Campos tocados | `consumo_ia.provedor` e `aluno_id`, já existentes; nenhum novo de pessoa |
-| `docs/lgpd.md` | a linha 99 cita o provedor de reserva e a estimativa dele; entra a do orçamento de IA |
-| Log | ids, códigos e o `provedorId` (`ia.geracao.provedor_de_reserva`, `ia.provedor_de_reserva.conferencia_recusada`, `ia.lote.adiado_pelo_orcamento`); nunca a chave de API |
+| `docs/lgpd.md` | entra a linha do orçamento de IA (a linha 99, com a reserva, é da F5b) |
+| Log | ids e códigos (`ia.lote.adiado_pelo_orcamento`); nunca a chave de API |
 | Auditoria | `escola.orcamento_ia_alterado` e `rede.orcamento_ia_alterado`, com `antes`, `depois` e o operador; fora da leitura da coordenação (RF12) |
-| Envio externo | o de hoje; a reserva só recebe as tarefas aprovadas para ela; suboperador novo só depois do aviso às escolas (runbook) |
+| Envio externo | o de hoje, sem mudança |
 | Retenção, titular, DTO | sem mudança; o compartilhamento lê `consumo_ia.provedor`; DTOs da §4 estritos, a coordenação sem custo nem tokens |
 
 ## 7b. Conformidade CNE
 
-Sem função nova nem autonomia nova (D9); muda o modelo que atende, e só por aprovação versionada (§5), com as mesmas
-taxas do principal (§3 da avaliação, classificação, risco à vida). A regra fixa da D36 vem antes de qualquer provedor.
-As AIAs ganham principal, reserva, modelo menor e a suspensão do agente na reserva. Amostras por subagente em contexto limpo, sem correção de
-discursiva (D55, com guarda) nem trecho de material de terceiro. Nenhum prompt muda.
+Sem função nova nem autonomia nova (D9), e o modelo que atende não muda; nenhum prompt muda. O orçamento avisa e não corta
+(D40), e nenhum número de consumo forma indicador de professor (D45, D64). A reserva e a avaliação, que mudam quem atende,
+são da F5b (§7b de lá).
 
 ## 7c. Carga e falha (obrigatório)
 
@@ -148,19 +126,12 @@ discursiva (D55, com guarda) nem trecho de material de terceiro. Nenhum prompt m
 | Laços e índices | medida e retrato: uma soma por escola a cada 5 min; `EXPLAIN (ANALYZE, BUFFERS)` num ano da maior escola (~1,8 milhão de linhas) para o mês, `porFuncao`, os 12 meses e o `uso()` por custo |
 | Volta do código | a anterior conta linhas como execuções; web antiga: `ErrorState` |
 | Dependência fora | principal: reserva; as duas: como na X6, "Provedor de IA fora" para cada uma; Redis: o balde seguro da X6; banco: o lote adia |
-| Métrica e alerta | `ia.orcamento.uso_do_mes{escola_id}` (0,8 e 1,0), `ia.orcamento.uso_do_teto{escola_id}` (1,0; o runbook cita "Classificação do material atrasada"), `ia.provedor_de_reserva.conferido` (0 por 10 min, só com reserva configurada), com runbook |
-| Carga | fase `reserva` (`cenarios.md` §5); `LLM_RESERVA_TOKENS_POR_MINUTO` em `infra/carga.env`, o contratado em `docs/infra.md` 5.4 |
+| Métrica e alerta | `ia.orcamento.uso_do_mes{escola_id}` (0,8 e 1,0), `ia.orcamento.uso_do_teto{escola_id}` (1,0; o runbook cita "Classificação do material atrasada"), com runbook |
+| Carga | sem fase nova; a fase `reserva` e o alerta `ia.provedor_de_reserva.conferido` são da F5b. Até lá, "Dependência fora" vale sem a reserva: o principal como na X6 |
 
 ## 8. Uso de IA
 
-Nenhuma tarefa nova. A avaliação (`tools/ia/avaliar-modelos.ts`) lê `tools/ia/amostras/avaliacao-1.json` (sha256 no relatório) e grava
-`docs/avaliacao/<finalista>/<data>/` com `saidas.jsonl`, `julgamento.jsonl` e `relatorio.md`. Página, código BNCC (`medir-classificacao`) e disparo da D36 (`medir-risco-a-vida`) a máquina mede; o resto, como na
-§1.
-O relatório aprovado vira entrada em `MODELOS_APROVADOS`.
-
-Cada amostra roda pela tarefa real, num `OpenAICompatAdapter` de `AVALIACAO_*` (chave fora do repositório): ~325
-chamadas, ~R$ 30 por finalista. Nenhuma chamada nova por professor ou aluno; a
-reserva custa a diferença de preço, que o relatório traz.
+Nenhuma tarefa nova e nenhuma chamada nova: muda só o que se grava de cada chamada. A avaliação dos modelos é da F5b.
 
 ## 9. Frontend
 
@@ -179,17 +150,12 @@ para `docs/interface.md` 5.
 | Regra | Como é atendida | Desvio e justificativa | Documento que registra o desvio |
 |---|---|---|---|
 | 10, 20, 70, 80 | §6, §7, §7b, §7c | — | — |
-| 30 | perfil herdado, preço e aprovação versionados, custo por chamada, nenhum teste com provedor pago | 30.8 pede "corte suave": a F5 avisa e só segura o lote acima do teto, pela D40 | PRD §3 e esta linha |
-| PRD RF2 | tarefa a tarefa | a categoria que falte tira a reserva de todas as tarefas | esta linha |
+| 30 | perfil herdado, preço versionado, custo por chamada, nenhum teste com provedor pago | 30.8 pede "corte suave": a F5 avisa e só segura o lote acima do teto, pela D40 | PRD §3 e esta linha |
 
 ## 12. Premissas não verificadas
 
-⚠️ NÃO VERIFICADO: a Maritaca BR-SP no padrão OpenAI-compatível e o limite por minuto; a AWS Bedrock `sa-east-1`; a
-Magalu Cloud; a seção 20(d) do Google.
+As da reserva e da avaliação foram para a F5b. Nenhuma aqui.
 
 ## 13. Riscos técnicos
 
-- Sem segundo provedor no Brasil, a reserva é outro modelo da Maritaca (PRD §10)
-- A saúde da reserva só aparece quando chamada
 - A soma do mês sob demanda cabe nas dez escolas da D25; acima disso, consolidar por dia (`TODO.md`)
-- Aprovação do principal: `TODO.md`

@@ -1,9 +1,9 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` das três linhas, retomadas às 11:14 depois do reinício do PC (sessões novas, trabalho na árvore): `Implementador 2` (L2) da 6.0 (grande, partida 08:28; nenhuma rodada ainda), `Implementador` (L1) da correção `2026-11-21-rotas-do-orcamento-fora-da-lista-conferida` (1ª rodada aprovou, recomendação do título a aplicar, rodada 2) e `Implementador 3` (L3) da correção `2026-11-21-tutor-modelo-recebe-pedidos-a-mais` (1ª rodada: test-engineer reprovou, ordem r1). A 9.0 e a 12.0 esperam a pergunta do tamanho; a 8.0 parte depois da 6.0.
+- **Espero:** o `RELATÓRIO` das três linhas, retomadas às 19:07 depois da parada pedida pelo Joaquim (16:05; sessões mantidas, o Maestri reabriu às 19:03 e o CLI foi religado ao socket novo): `Implementador` (L1) da correção `2026-11-21-e2e-operacao-aviso-da-sessao-no-celular`; `Implementador 2` (L2) da 6.0 (partida 08:28), 1ª rodada às 19:45 com o `test-engineer` reprovando (2 bloqueantes de teste/e2e), ordem r1 em atendimento; `Implementador 3` (L3) da correção `2026-11-21-e2e-professores-convite-vencido-no-celular`, com a causa confirmada. A 8.0, última da F5a, parte depois da 6.0.
 - **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `544f6285`; última verde `1a291ab`; `0e85765` vermelha (44903191816: integração 1/3 e 3/3, as duas correções acima; o teto de tempo já passou)
+- **Base:** `spec/camada-ia` em `7d86caed`; última verde `1a291ab`; `7d86cae` vermelha (44915770834: só e2e 10/11, operacao.spec.ts:350 no celular; as integrações 1/3 e 3/3 passaram com as correções das rotas e do tutor-modelo); `5a90726` vermelha também em e2e 11/11 (professores.spec.ts:388 no celular)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -31,6 +31,7 @@ Contexto: `RELATÓRIO` do `Arquiteto`, 23:24; `tasks/prd-camada-ia/tasks.md`. A 
 Opções: uma spec só, com teto de 13 | F5a e F5b
 Recomendo: cortar em F5a e F5b. Numa spec só, o pouso inteiro espera a 13.0, que espera as chaves; cortada, a F5a (custo e orçamento) pousa sem depender delas. Se as chaves chegam logo, uma spec só serve.
 Segue sem depender: as correções M2 e M4 da X6 (processo) e a 1.0 em diante, que estão nas duas opções.
+**Respondida em 21/11 13:48:** cortar em F5a (1.0 a 8.0, custo e orçamento, pousa neste andar) e F5b (9.0 a 13.0, reserva e avaliação, spec seguinte). Pedido ao `Arquiteto` para aplicar o corte nos documentos.
 
 ## O que falhou
 - 21/11 ~09:50: esteira de `0e85765` (44903191816), já com a integração em três fatias, dentro do teto: caem dois testes que o estouro escondia. Integração 3/3: `ops-escola.int.test.ts`, as rotas `PUT …/orcamento-ia` da 3.0 fora da lista conferida (correção na L1). Integração 1/3: `tutor-modelo.int.test.ts:99`, o modelo falso recebe 17 pedidos em vez de 2 (correção na L3).
@@ -39,5 +40,7 @@ Segue sem depender: as correções M2 e M4 da X6 (processo) e a 1.0 em diante, q
 - 21/11: esteira de `970e37c` (44862658083) vermelha no e2e 4/11: `operacao-escolas.spec.ts:595`, o `afterEach` apaga a escola com `job_registro` dela (FK). A spec só mudou processo até aqui: defeito da develop, correção na L3. O encontro da L3 passou de 10 min (a verificação tem prazo de 540 s) e terminou bem.
 - 20/11 21:4x: o `maestri floor delete` do andar L1 da F4b deu "malformed floorLifecycleVerdictResult frame": o andar saiu da lista, mas o checkout e a branch ficaram; removi à mão (contidos na `develop`). Depois, o `recruit --replace` dos dois Arquitetos falhou pela pasta da L1: pasta vazia, replace, rmdir; `Implementador` e `Mesa` reapontados para o térreo.
 ## O que decidi sem perguntar
+- 21/11 19:46: a `Mesa 2` escalou a 6.0 por duas reprovações seguidas do `test-engineer`, mas a 1ª era da revisão das tarefas (20/11 23:21), registrada na mesma seção "Revisões" do documento, e não uma rodada da tarefa. Gravei a linha `destravado … depois da 1ª rodada dele` no `rodadas.md` da L2 e a ordem r1 seguiu como 1ª reprovação, sem diagnóstico. Para a retro: a contagem da Mesa (e do hook) inclui a revisão das tarefas.
+- 21/11 15:42: a 6.0 caiu no 3º portão pela duração de `e2e/governanca.spec.ts:63` (20 s, limite 15 s), caso alterado por ela, e o `Implementador 2` repetia o portão esperando a máquina folgar. Mandei parar o 4º e encurtar ou dividir o caso, como o portão pede (passo 7, "Máquina não é parada"); sem reinício, para não perder o contexto.
 - 21/11 ~08:1x: DIVERGÊNCIA (ordem) da 7.0, item 6 da ordem r1 (`textoDaFalha` deixa o `restos.test.ts` vermelho). Triagem do `Arquiteto` na L2: mal-entendido, o item não se aplica (homônimo do X8, só nos arquivos do mapa `10.json`); vai a "Recomendações sem aplicar", destino `TODO.md`. `PEDIDO de retomada` ao `Implementador 2`, sem reinício. Entra na observação da 7.0.
 - 21/11 ~00:4x: a 1.0 partiu na L2 sem esperar a M2 da F4 (L1). O P da retro da F4b pede antes das tarefas só a M2 e a M4 da X6; a M2 da F4 vem "logo depois". A 1.0 não cria migration, que é o caso que o inventário pega.
