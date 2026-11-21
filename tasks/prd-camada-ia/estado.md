@@ -1,13 +1,15 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da 3.0 e do `Implementador 2` (L2) da 4.0, ambas grandes, partidas 21/11 03:54, 1ª tentativa. L3 ociosa: a 6.0 não corre junto com a 3.0 (o `tasks.md` não autoriza); a 9.0 e a 12.0 esperam a pergunta do tamanho (num corte vão para a F5b).
+- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da 5.0 (grande) e do `Implementador 2` (L2) da 7.0 (pequena), partidas 21/11 05:58, 1ª tentativa. L3 ociosa: a 6.0 não corre junto com a 5.0 (o `tasks.md` não autoriza); a 9.0 e a 12.0 esperam a pergunta do tamanho (num corte vão para a F5b).
 - **Devo ainda:** antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `a545ab9f`
+- **Base:** `spec/camada-ia` em `e6e2690c`; esteira verde em `1a291ab` (44877752471)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 3.0 | `57c9182a` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `e6e2690c`; 4 divergências registradas em `cenarios.md`/`techspec.md`; o `5_task.md:43` cita VALIDACAO (o código é ENTRADA_INVALIDA), dito à 5.0 |
+| 4.0 | `5d8332d7` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `47c16e14` |
 | 2.0 | `67ea22b2` | Sonnet | 6 revisores APROVADO, na 1ª e na 2ª | encontro em `a545ab9f`; `TODO.md` "Da camada-ia, tarefa 2.0" e a 0067 na lista das migrations sem `concurrently` |
 | correção `2026-11-21-achado-com-caminho-relativo` (M5 da F4b, L1) | `628218b6` | Sonnet | 6 revisores APROVADO na 2ª | 20 mutações; encontro em `082d4d99`; o histórico já gravado em `tasks/*/achados/` segue com o caminho da máquina (entrada no `TODO.md`, decisão do Joaquim) |
 | correção `2026-11-21-limpeza-do-painel-com-job-registro` (L3, esteira 44862658083) | `185f67f8` | Sonnet | 6 revisores APROVADO na 2ª | `job_registro` e `expurgo_execucao` apagados antes da escola; 4 mutações; encontro em `59ff170b` |
