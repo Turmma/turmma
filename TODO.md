@@ -2978,10 +2978,20 @@ ainda aberta):** os workers de pé voltaram na 9.0 da X6, com 14 e 17 de 31 verm
       último encontro. A comparação por arquivo com o HEAD continua reprovando a supressão que cresce. O caso "uma supressão a menos sem baixar o
       `TETO` reprova" vira "passa, com o aviso". Na X6, com linhas em paralelo: 4 correções, 2 divergências de portão e 1 vermelho. Guardiões:
       `revisor-geral`, `test-engineer`
-- [ ] (X6, retro, M2) **A seção "Revisões" não se perde por script.** `tools/processo/hook-revisoes.ts`: a cada linha escrita, uma cópia da tabela
+- [x] *(feito na correção `2026-11-20-revisoes-nao-se-perdem-por-script`, 20/11/2026)* (X6, retro, M2) **A seção "Revisões" não se perde por script.** `tools/processo/hook-revisoes.ts`: a cada linha escrita, uma cópia da tabela
       em `.processo/` (fora de `tasks/`, sem commit); antes do commit e a cada linha nova, a linha que sumiu do documento volta e o hook avisa.
       Casos: o documento reescrito por script sem a seção, e com a seção sem uma rodada. Na X6, a 2.0, a 7.0 e a 10.0 perderam a 1ª rodada
       por `python3 … open(p,'w')` no Bash (o limite declarado da correção `write-sobre-revisoes`). Guardiões: `revisor-geral`, `test-engineer`
+- [ ] (X6, retro, M2, resto da correção `2026-11-20-revisoes-nao-se-perdem-por-script`) **O que a Mesa recomendou e a correção não aplicou.** (a) A cópia
+      da tabela devolve linha alterada à mão como a original, ao lado da alterada (limite (d) do documento da correção): comparar o veredito da
+      cópia com o do documento quando data e revisor são os mesmos e **recusar** o commit (não só avisar: REPROVADA trocada à mão por APROVADA
+      anula o veto sem rastro), e dizer a regra no `protocolo.md`; (b) centralizar a saída do `systemMessage` do `hook-revisoes.ts` quando
+      houver uma segunda chamada; (c) apagar o `.tmp` quando o `writeFileSync` do temporário falhar (`try`/`finally`) e limpar `.tmp` antigo de
+      `.processo/revisoes/`, e dar prazo à cópia, que hoje não expira (limite (e)); (d) os dois casos da trava de
+      `revisoes-nao-se-perdem.test.ts` esperam 2500 ms e dão o processo por vivo: segurar a trava até o `comTrava` desistir (10 s) e afirmar saída
+      diferente de 0 e documento intacto, para a mutação "sem trava" não sobreviver numa máquina carregada; (e) no caso em paralelo, um comentário
+      apontando para os dois casos da trava, e afirmar o que o `portao` fez (devolveu a linha ou não achou nada a devolver). (a) só entra se a
+      linha alterada à mão aparecer na retro. Guardiões: `revisor-geral`, `test-engineer`, `conformidade-reviewer`
 - [ ] (X6, retro, M3) **O gancho recusa o laço de espera com `pgrep`.** PreToolUse de Bash e de Monitor recusa (saída 2) o comando com
       `while`/`until` e `pgrep -f`, com "rode com `run_in_background` e espere o aviso do fim". Caso para o laço recusado e para o `pgrep` solto,
       que passa. Uma hora parada na 8.0 da X6, como na F4. Guardiões: `revisor-geral`, `test-engineer`

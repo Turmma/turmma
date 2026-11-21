@@ -41,8 +41,10 @@ import {
   textoDosArquivosDeMensagem,
 } from './comando-git.ts'
 import {
+  avisoDeRevisoesDevolvidas,
   formatarHora,
   lerRevisoes,
+  restaurarRevisoesComTrava,
   REVISORES_COM_VETO,
   revisoresObrigatorios,
   tipoDoDocumento,
@@ -466,6 +468,23 @@ function bloqueioDoDesvio(comando: string, papel: string | undefined): string | 
   )
 }
 
+/**
+ * A tabela "Revisões" do documento que o commit cita perdeu linha para um script (X6 retro M2): o hook as devolve ao disco e recusa
+ * esta vez, porque o `git add` que o comando faz (ou fez) levou o documento sem elas. Só o `PreToolUse` a tem: o git hook nativo lê o
+ * índice e não escreve na árvore. A segunda tentativa, com o documento preparado de novo, segue para o resto do portão.
+ *
+ * Ela **escreve no disco antes de qualquer outra recusa do portão** (restaura, depois decide): hoje só devolve linhas da cópia, mas quem
+ * lê o portão precisa saber que a árvore já mudou quando ele recusa por outro motivo. E acha o documento como o `decidirCommit` o acha,
+ * com os arquivos alterados: o commit `(tarefa N.0)` não cita a pasta `prd-`, e o `N_task.md` existe em várias delas.
+ */
+function bloqueioDeRevisoesPerdidas(mensagem: string, raiz: string, alterados: string[]): string | null {
+  const documento = documentoDaMensagem(mensagem, raiz, alterados)
+  if (!documento || 'erro' in documento) return null
+  const devolvidas = restaurarRevisoesComTrava(raiz, documento.caminho)
+  if (devolvidas.length === 0) return null
+  return `Commit bloqueado: ${avisoDeRevisoesDevolvidas(documento.caminho, devolvidas)} Prepare o documento de novo (\`git add ${documento.caminho}\`) e repita o commit.`
+}
+
 /** O commit do `PreToolUse`: lê o comando e a árvore, monta a entrada da decisão e a chama. */
 function bloqueioDoCommit(comando: string, raizDaSessao: string, cwd: string | undefined, papel: string | undefined, conferencia: ConferenciaDoDocumento): string | null {
   const raiz = arvoreDoCommit(comando, raizDaSessao, cwd)
@@ -474,6 +493,8 @@ function bloqueioDoCommit(comando: string, raizDaSessao: string, cwd: string | u
   const fora = bloqueioDoForaDoProcesso(comando, doArquivo)
   if (fora !== null) return fora
   const alterados = arquivosAlterados(raiz)
+  const perdidas = bloqueioDeRevisoesPerdidas(`${comando}\n${doArquivo}`, raiz, alterados)
+  if (perdidas !== null) return perdidas
   const entrada: EntradaDoCommit = {
     mensagem: `${comando}\n${doArquivo}`,
     arquivos: arquivosDoCommit(comando, raiz, alterados, arquivosPreparados(raiz)),

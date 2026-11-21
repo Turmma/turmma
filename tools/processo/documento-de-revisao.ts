@@ -10,7 +10,7 @@
 // A separação existe porque o arquivo único por pasta chegou a 646 KB e 158 rodadas no F1, e o
 // passo 2 do `/executar-task` manda lê-lo antes de cada tarefa: o índice é o que cabe na janela,
 // e o bloco inteiro se abre por ele.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { alteracoesDeCodigo, arquivosAlterados, chaveDaRodada, comTrava, gravarInstantaneo } from './caducidade.ts'
 
@@ -169,6 +169,92 @@ export function decidirEscrita(entrada: EntradaHook, raiz: string): string | nul
   if (!existsSync(absoluto)) return null
   const conteudo = entrada.tool_input?.content
   return recusaDeEscritaSobreRevisoes(relativo, readFileSync(absoluto, 'utf8'), typeof conteudo === 'string' ? conteudo : '')
+}
+
+/**
+ * A pasta da cópia da tabela "Revisões" de cada documento: fora de `tasks/`, e `.processo/` é ignorada pelo git (`.gitignore`), então a
+ * cópia nunca entra em commit nem em `alteracoesDeCodigo`. O `Write` tem o gancho dele (`decidirEscrita`); o script e o `>` do Bash não
+ * passam por gancho nenhum, e a cópia é de onde a linha que eles apagaram volta (X6 retro M2). Um arquivo por documento, com as linhas
+ * da tabela como `linhasDaTabelaDeRevisoes` as lê.
+ */
+export const PASTA_DAS_COPIAS = '.processo/revisoes'
+
+export function caminhoDaCopiaDasRevisoes(documento: string): string {
+  return join(PASTA_DAS_COPIAS, `${documento.replaceAll('/', '__')}.txt`)
+}
+
+/** As linhas da tabela como o hook as gravou da última vez; vazia quando o documento nunca teve rodada registrada aqui. */
+export function lerCopiaDasRevisoes(raiz: string, documento: string): string[] {
+  const caminho = join(raiz, caminhoDaCopiaDasRevisoes(documento))
+  return existsSync(caminho) ? readFileSync(caminho, 'utf8').split('\n').filter((linha) => linha.startsWith('|')) : []
+}
+
+/** Grava a tabela que o documento tem agora. Sem linha de tabela, não grava: a cópia vazia não ensinaria nada ao que voltar. */
+export function gravarCopiaDasRevisoes(raiz: string, documento: string, conteudo: string): void {
+  const linhas = linhasDaTabelaDeRevisoes(conteudo)
+  if (linhas.length === 0) return
+  const caminho = join(raiz, caminhoDaCopiaDasRevisoes(documento))
+  mkdirSync(dirname(caminho), { recursive: true })
+  // Num temporário e renomeado: o processo que cai no meio da escrita não deixa a cópia truncada, que devolveria só parte da tabela.
+  const temporario = `${caminho}.${String(process.pid)}.tmp`
+  writeFileSync(temporario, `${linhas.join('\n')}\n`)
+  renameSync(temporario, caminho)
+}
+
+const ehRodada = (linha: string): boolean => /^\| \d{4}-/.test(linha)
+
+/**
+ * O documento com as linhas da cópia que ele já não tem de volta na tabela, e quais foram. Sem a seção, ela é recriada no fim, como o hook
+ * a escreve; com a seção, só o trecho da tabela é refeito (a cópia na ordem em que foi gravada, depois a rodada que o documento tem e a
+ * cópia não), e o texto da seção e o que vem depois da tabela ficam. A ordem importa: `lerRevisoes` toma a última rodada de cada revisor.
+ * Nada perdido devolve o conteúdo como veio.
+ */
+export function devolverRevisoesPerdidas(conteudo: string, copia: string[]): { conteudo: string; devolvidas: string[] } {
+  const atuais = linhasDaTabelaDeRevisoes(conteudo)
+  const presentes = new Set(atuais)
+  const devolvidas = copia.filter((linha) => !presentes.has(linha))
+  if (devolvidas.length === 0) return { conteudo, devolvidas }
+  const daCopia = new Set(copia)
+  const tabela = [...copia, ...atuais.filter((linha) => ehRodada(linha) && !daCopia.has(linha))]
+  const base = conteudo.endsWith('\n') ? conteudo : `${conteudo}\n`
+  const titulo = `\n${TITULO_SECAO}\n`
+  const inicio = base.indexOf(titulo)
+  if (inicio === -1) return { conteudo: `${base}${titulo}\n${TEXTO_SECAO}\n\n${tabela.join('\n')}\n`, devolvidas }
+  const corte = inicio + titulo.length
+  const linhas = base.slice(corte).split('\n')
+  const marcas = linhas.map((linha) => linha.startsWith('|'))
+  const primeira = marcas.indexOf(true)
+  const antes = primeira === -1 ? [...linhas.slice(0, -1), ''] : linhas.slice(0, primeira)
+  const depois = primeira === -1 ? [''] : linhas.slice(marcas.lastIndexOf(true) + 1)
+  return { conteudo: base.slice(0, corte) + [...antes, ...tabela, ...depois].join('\n'), devolvidas }
+}
+
+/** O aviso de que o hook devolveu linhas ao documento: o que aconteceu e o que fazer, em uma mensagem. */
+export function avisoDeRevisoesDevolvidas(documento: string, devolvidas: string[]): string {
+  const rodadas = devolvidas.filter(ehRodada).length
+  const quantas = rodadas > 0 ? `${String(rodadas)} linha${rodadas === 1 ? '' : 's'} da tabela` : 'a tabela'
+  return (
+    `A seção "${TITULO_SECAO.slice(3)}" de ${documento} tinha perdido ${quantas}, e o hook devolveu o que faltava ao documento, de uma cópia em ` +
+    `${PASTA_DAS_COPIAS}/. Documento com a seção não se reescreve por script nem por \`>\`: mude-o com Edit, só no trecho que precisa mudar.`
+  )
+}
+
+/**
+ * Devolve ao documento, no disco, as linhas que a cópia tem e ele já não tem. Chamada de dentro da trava do documento (`registrar`) ou
+ * por `devolverComTrava`. Sem documento ou sem cópia, não faz nada.
+ */
+export function restaurarRevisoes(raiz: string, documento: string): string[] {
+  const caminho = join(raiz, documento)
+  const copia = lerCopiaDasRevisoes(raiz, documento)
+  if (copia.length === 0 || !existsSync(caminho)) return []
+  const { conteudo, devolvidas } = devolverRevisoesPerdidas(readFileSync(caminho, 'utf8'), copia)
+  if (devolvidas.length > 0) writeFileSync(caminho, conteudo)
+  return devolvidas
+}
+
+/** `restaurarRevisoes` com a trava do documento, para quem não a tem (o portão do commit): o `registrar` escreve nele ao mesmo tempo. */
+export function restaurarRevisoesComTrava(raiz: string, documento: string): string[] {
+  return comTrava(join(raiz, documento), () => restaurarRevisoes(raiz, documento))
 }
 
 // Os marcados no documento, mais os que toda tarefa e toda correção têm, marcados ou não.
@@ -386,7 +472,13 @@ export interface EntradaHook {
   tool_input?: { command?: string; file_path?: unknown; content?: unknown }
 }
 
-export function registrar(entrada: EntradaHook, raiz: string, agora = new Date()): string | null {
+/** Devolve ao documento a linha que um script apagou e, se devolveu, avisa. Antes de contar a rodada: senão a contagem recomeça do 1. */
+function restaurarAvisando(raiz: string, documento: string, avisar: ((texto: string) => void) | undefined): void {
+  const devolvidas = restaurarRevisoes(raiz, documento)
+  if (devolvidas.length > 0) avisar?.(avisoDeRevisoesDevolvidas(documento, devolvidas))
+}
+
+export function registrar(entrada: EntradaHook, raiz: string, agora = new Date(), avisar?: (texto: string) => void): string | null {
   if (!entrada.agent_type || !REVISORES.has(entrada.agent_type)) return null
   const transcript =
     entrada.agent_transcript_path && existsSync(entrada.agent_transcript_path)
@@ -398,6 +490,7 @@ export function registrar(entrada: EntradaHook, raiz: string, agora = new Date()
   const caminho = join(raiz, relativo)
   if (!existsSync(caminho)) return null
   comTrava(caminho, () => {
+    restaurarAvisando(raiz, relativo, avisar)
     const caminhoAchado = join(raiz, caminhoDoAchado(relativo))
     const achadosAnteriores = existsSync(caminhoAchado) ? readFileSync(caminhoAchado, 'utf8') : ''
     const atualizado = acrescentarRevisao(
@@ -413,6 +506,7 @@ export function registrar(entrada: EntradaHook, raiz: string, agora = new Date()
       achadosAnteriores,
     )
     writeFileSync(caminho, atualizado)
+    gravarCopiaDasRevisoes(raiz, relativo, atualizado)
     const revisao = lerRevisoes(atualizado).at(-1)
     // O conteúdo que esta rodada viu. Mutação com restauração (o teste de mutação que se pede ao
     // `test-engineer`) deixa o conteúdo igual, e a rodada não caduca por causa dele.
