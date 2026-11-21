@@ -2,7 +2,7 @@
 
 ## Agora
 - **Espero:** o `RELATÓRIO` do `Arquiteto` na fase `sem-prd` (pedido em 20/11 21:5x); ele para nas perguntas e na aprovação do PRD com o Joaquim. Retro da F4b FEITA (`6496c7b5`, `RELATÓRIO` do `Arquiteto 2` em 20/11 22:07), já na spec pelo merge `e9959a61`.
-- **Devo ainda:** antes das tarefas da F5 (P da retro da F4b, `TODO.md` "Da retrospectiva da F4b"), as correções da M2 e da M4 da X6, e logo depois a M2 da F4 (o inventário no portão); as M1, M3+M4 e M5 da F4b entram por correção. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. Conferir a esteira da `develop` do pouso da F4b (44845996044, em curso).
+- **Devo ainda:** antes das tarefas da F5 (P da retro da F4b, `TODO.md` "Da retrospectiva da F4b"), as correções da M2 e da M4 da X6, e logo depois a M2 da F4 (o inventário no portão); as M1, M3+M4 e M5 da F4b entram por correção. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. Esteira da `develop` do pouso da F4b (44845996044): VERDE.
 - **Base:** `spec/camada-ia` em `e9959a61`
 
 ## Concluídas
