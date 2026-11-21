@@ -2985,8 +2985,19 @@ ainda aberta):** os workers de pé voltaram na 9.0 da X6, com 14 e 17 de 31 verm
 - [ ] (X6, retro, M3) **O gancho recusa o laço de espera com `pgrep`.** PreToolUse de Bash e de Monitor recusa (saída 2) o comando com
       `while`/`until` e `pgrep -f`, com "rode com `run_in_background` e espere o aviso do fim". Caso para o laço recusado e para o `pgrep` solto,
       que passa. Uma hora parada na 8.0 da X6, como na F4. Guardiões: `revisor-geral`, `test-engineer`
-- [ ] (X6, retro, M4) **O `--faltando` junta as linhas de um `and(`/`or(` de várias linhas** antes de partir em termos (a recomendação da correção
+- [x] *(feito em 20/11/2026, correção `2026-11-20-faltando-junta-and-de-varias-linhas`)* (X6, retro, M4) **O `--faltando` junta as linhas de um `and(`/`or(` de várias linhas** antes de partir em termos (a recomendação da correção
       `faltando-termo-a-termo`, na seção da F2c abaixo). Reprovou a 9.0 da X6 (`this.#semResposta(),`). Guardiões: `test-engineer`, `revisor-geral`
+- [ ] (da correção `2026-11-20-faltando-junta-and-de-varias-linhas`, tenancy-guardian e privacy-guardian 2ª, junto do item (a) do `faltando-termo-a-termo`) **O `--faltando` casa o argumento de `and(`/`or(` de
+      várias linhas pelo texto, e o `t.escolaId === escolaId &&` partido em duas linhas escapa dele.** (1) o bloco que tira `eq(t.escolaId, escolaId),` de uma consulta cobre o igual de todas as outras do
+      arquivo: casar pela linha mais o texto quando o argumento tiver `escolaId` ou `anoLetivoId`; (2) o `&&`/`||` com os operandos em linhas diferentes, o limite (c) do passo 2 do `executar-task`, que alcança a
+      cláusula de escopo da regra 10. Os dois mudam comportamento e contrato do `--faltando`; o limite já está escrito (comentário de `argumentosDeVariasLinhas`, passo 2 do `executar-task`) (dono: Arquiteto)
+- [ ] (da correção `2026-11-20-faltando-junta-and-de-varias-linhas`, revisor-geral 2ª) **Os limites novos do `--faltando` no `task-template.md`** (linha 103, autoconferência 1): o `or(` de dentro com o primeiro
+      argumento na linha da abertura, a crase aninhada em `${}` e o bloco que casa pelo texto; o comentário de `mutacoes.ts` que remete à "autoconferência 1 do `criar-tasks`" ganha o mesmo ajuste quando o template
+      ganhar a frase. E, na próxima correção que tocar `mutacoes.ts` (revisor-geral 2ª): `itensDaLinhaDeArgumento` recebe `argumentos` à parte, igual a `nova.argumentos`, e uma fonte só basta; e uma frase no
+      comentário dela: na primeira linha de um argumento de várias linhas com condição, a condição só sai com um bloco que tire o argumento inteiro (dono: Arquiteto)
+- [ ] (da correção `2026-11-20-faltando-junta-and-de-varias-linhas`, test-engineer 2ª) **Dois blocos de mutação de cobertura que já existe em teste:** a janela de 4 caracteres do `#abrir` do leitor de
+      argumentos (`- 4` → `- 3`, e sem o `Math.max`; os casos de `argumentosDeVariasLinhas`, o `brand(` e o `and(` no começo do arquivo já a cobrem), e o `every` → `some` de `continuacao` em
+      `itensDaLinhaDeArgumento` (um caso com a linha de um grupo de dentro com vários argumentos). Entram na próxima correção que tocar `mutacoes.ts` (dono: Implementador)
 - [ ] (X6, retro, M7) **O teto de cada job da esteira, com aviso e conta,** junto da M4 da F4, na mesma correção: o `/N` do nome derivado de
       `strategy.job-total` nos três jobs com matriz (unidade, infra, e2e), e a anotação "perto do teto" no resumo de `tools/ci/unidade.ts`, como a
       de `tools/ci/e2e.ts`. Três specs seguidas com um job passando do teto sem aviso (a fatia do e2e na F2c e na F4, o infra de 45 min na F4, o

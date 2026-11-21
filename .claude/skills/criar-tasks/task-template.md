@@ -100,8 +100,8 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    teste continua verde reprova o portão: falta o teste, e não o bloco. Trava se prova pelo efeito (dois registros), não
    pela espera. Entram também as linhas sem condição que protegem — a chamada que confere antes (`#conferir`,
    `semaforo.executar`: a mutação é tirar a linha), a fiação de uma guarda, o campo de um esquema zod. O `--faltando` lista um
-   item por termo de uma condição composta e a linha de SQL ou Lua em template string (`sql`, `execute(`, `eval(`); não vê o SQL
-   sem etiqueta, o `and(`/`or(` com um argumento por linha (a `eq(t.escolaId, escolaId),` sozinha), o `&&` dentro de um `and(`, o ternário nem essas
+   item por termo de uma condição composta, um por argumento do `and(`/`or(` de várias linhas (a `eq(t.escolaId, escolaId),` sozinha) e a linha de SQL ou Lua em template string (`sql`, `execute(`, `eval(`); não vê o SQL
+   sem etiqueta, o `&&` e o `||` com os operandos em linhas diferentes, o `&&` dentro de um `and(`, o ternário nem essas
    linhas sem condição: confira esses à mão (8 reprovações na F2c, a maioria já coberta pela ferramenta).
    O bloco fica vermelho pela asserção, não por exceção: o mutante que lê propriedade de `undefined` e derruba a renderização
    não prova a cláusula (use `?.`; a 8.0 da F4b). Número (piso, teto, taxa) se prova nos dois lados da fronteira, e o bloco

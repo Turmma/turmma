@@ -891,6 +891,8 @@ export interface LinhaAcrescentada {
   modelo?: ModeloDoTemplate
   /** Com o `modelo`: a linha tem TypeScript junto do template (a que o abre, a que o fecha, a de um template de uma linha só), e continua lida como TypeScript também. */
   mista?: boolean
+  /** Só quando a linha está dentro de um `and(` ou `or(` de várias linhas (`argumentosDeVariasLinhas`): os argumentos que ela toca. */
+  argumentos?: ArgumentoDeGrupo[]
 }
 
 /** As linhas que um `git diff -U0` acrescenta, com o arquivo e o número delas no arquivo novo. Arquivo apagado não tem linha nova. */
@@ -971,6 +973,13 @@ function fimDoTextoEntreAspas(texto: string, i: number): number {
   let j = i + 1
   while (j < texto.length && texto[j] !== aspa && texto[j] !== '\n') j += texto[j] === '\\' ? 2 : 1
   return texto[j] === aspa ? j + 1 : j
+}
+
+/** O fim, depois de `i`, do modelo de texto que abre na crase de `i`: `${}` incluído, e o `\` pula o caractere seguinte. Não trata a crase aninhada dentro de `${}`: o modelo acaba na primeira de dentro. */
+function fimDoModeloDeTexto(texto: string, i: number): number {
+  let j = i + 1
+  while (j < texto.length && texto[j] !== '`') j += texto[j] === '\\' ? 2 : 1
+  return j + 1
 }
 
 /** O fim da expressão regular que começa em `i` (a barra), com a classe `[...]` e o `\` lidos. */
@@ -1160,13 +1169,203 @@ class LeitorDeTermos {
  *
  * Limites conhecidos, que a autoconferência 1 do `criar-tasks` manda conferir à mão: (1) o `and(` e o `or(` valem pelo nome, e uma
  * função sua com esse nome também é lida como tal; (2) o `&&` dentro de um `and(` vira mais um termo dele, e não um grupo próprio;
- * (3) o `and(` ou o `or(` com um argumento por linha (`.where(`, `and(`, `eq(t.escolaId, escolaId),`, cada um na sua) é lido uma
- * linha por vez, e a linha `eq(...)` sozinha não tem termo nem condição: a cláusula de escopo da regra 10 fica fora da lista;
+ * (3) o `and(` ou o `or(` com um argumento por linha (`.where(`, `and(`, `eq(t.escolaId, escolaId),`, cada um na sua) não é lido aqui, que
+ * lê uma linha por vez: quem o junta é `argumentosDeVariasLinhas`, que olha o arquivo inteiro, e o `--faltando` lista cada linha de argumento
+ * (os limites dele estão no comentário dessa função, e o bloco que tira `eq(t.escolaId, escolaId),` de uma consulta cobre o de todas as outras do arquivo);
  * (4) o ternário: `return x ? a && b : c` devolve `x ? a` e `b : c`, porque o corte tira o `? ...` do fim e não o `x ?` do começo.
  */
 export function termosDaLinha(texto: string): string[] {
   const aparada = texto.trim()
   return /^(?:\/\/|\/\*|\*)/.test(aparada) ? [] : new LeitorDeTermos(aparada).ler()
+}
+
+// ─── O and( e o or( de várias linhas (M4 da retro da X6) ───
+
+/** Um argumento de um `and(` ou de um `or(` que abre e fecha em linhas diferentes, visto pela linha do arquivo que ele toca. */
+export interface ArgumentoDeGrupo {
+  /** A primeira linha do argumento no arquivo: o que separa dois argumentos de texto igual. */
+  de: number
+  /** O texto do argumento, sem a vírgula do fim; o de várias linhas, só a primeira linha dele. */
+  termo: string
+  /** Os outros argumentos do mesmo `and(` ou `or(`, escritos do mesmo jeito, sem os iguais a este. */
+  irmaos: string[]
+}
+
+interface Argumento {
+  de: number
+  ate: number
+}
+
+interface QuadroDeArgumentos {
+  chamada: boolean
+  linhaDaAbertura: number
+  /** Onde o argumento em leitura começa (o primeiro caractere que não é espaço nem comentário) e onde o último token dele acaba. */
+  inicio: number | null
+  fim: number
+  argumentos: Argumento[]
+}
+
+/** O leitor de um arquivo inteiro: um quadro para cada parêntese, colchete ou chave aberto, e as vírgulas de um `and(`/`or(` cortam os argumentos dele. */
+class LeitorDeArgumentos {
+  readonly #texto: string
+  readonly #quadros: QuadroDeArgumentos[] = [{ chamada: false, linhaDaAbertura: 1, inicio: null, fim: 0, argumentos: [] }]
+  readonly #mapa = new Map<number, ArgumentoDeGrupo[]>()
+  readonly #inicioDeLinha: number[] = [0]
+  #i = 0
+  #recente = ''
+
+  constructor(texto: string) {
+    this.#texto = texto
+    for (let j = 0; j < texto.length; j += 1) if (texto[j] === '\n') this.#inicioDeLinha.push(j + 1)
+  }
+
+  ler(): Map<number, ArgumentoDeGrupo[]> {
+    while (this.#i < this.#texto.length) this.#passo()
+    return this.#mapa
+  }
+
+  #topo(): QuadroDeArgumentos {
+    return this.#quadros[this.#quadros.length - 1] as QuadroDeArgumentos
+  }
+
+  /** A linha (a primeira é a 1) do caractere na posição `indice`. */
+  #linhaDe(indice: number): number {
+    let de = 0
+    let ate = this.#inicioDeLinha.length - 1
+    while (de < ate) {
+      const meio = Math.ceil((de + ate) / 2)
+      if ((this.#inicioDeLinha[meio] ?? 0) <= indice) de = meio
+      else ate = meio - 1
+    }
+    return de + 1
+  }
+
+  #passo(): void {
+    const c = this.#texto[this.#i] ?? ''
+    const proximo = this.#texto[this.#i + 1]
+    if (/\s/.test(c)) this.#i += 1
+    else if (c === '/' && proximo === '/') this.#i = this.#fimDaLinha()
+    else if (c === '/' && proximo === '*') this.#i = this.#fimDoComentario()
+    else this.#simbolo(c)
+  }
+
+  /** O que não é espaço nem comentário: começa o argumento em leitura, e é vírgula, abertura, fecho ou parte de um token. */
+  #simbolo(c: string): void {
+    const quadro = this.#topo()
+    // O fecho do próprio quadro não começa argumento: a vírgula do último argumento deixa `inicio` vazio até ele.
+    if (c !== ')' && c !== ']' && c !== '}') quadro.inicio ??= this.#i
+    if (c === ',') this.#virgula(quadro)
+    else this.#agrupador(c, quadro)
+  }
+
+  #agrupador(c: string, quadro: QuadroDeArgumentos): void {
+    if (c === '(' || c === '[' || c === '{') this.#abrir(c)
+    else if (c === ')' || c === ']' || c === '}') this.#fechar(c)
+    else {
+      this.#token(c)
+      quadro.fim = this.#i
+    }
+  }
+
+  #fimDaLinha(): number {
+    const quebra = this.#texto.indexOf('\n', this.#i)
+    return quebra === -1 ? this.#texto.length : quebra
+  }
+
+  #fimDoComentario(): number {
+    const fim = this.#texto.indexOf('*/', this.#i + 2)
+    return fim === -1 ? this.#texto.length : fim + 2
+  }
+
+  /** Texto entre aspas, modelo de texto e expressão regular valem por um token só; o resto avança um caractere. */
+  #token(c: string): void {
+    if (c === "'" || c === '"') {
+      this.#i = fimDoTextoEntreAspas(this.#texto, this.#i)
+      this.#recente += "'"
+    } else if (c === '`') {
+      this.#i = fimDoModeloDeTexto(this.#texto, this.#i)
+      this.#recente += "'"
+    } else if (c === '/' && ANTES_DE_REGEX.test(this.#recente.slice(-8))) {
+      this.#i = fimDaExpressaoRegular(this.#texto, this.#i)
+      this.#recente += 'r'
+    } else {
+      this.#i += 1
+      this.#recente += c
+    }
+  }
+
+  #virgula(quadro: QuadroDeArgumentos): void {
+    if (quadro.chamada && quadro.inicio !== null) {
+      quadro.argumentos.push({ de: quadro.inicio, ate: quadro.fim })
+      quadro.inicio = null
+    }
+    this.#i += 1
+    this.#recente += ','
+  }
+
+  #abrir(c: string): void {
+    const chamada = c === '(' && /(?:^|[^\w$])(?:and|or)$/.test(this.#texto.slice(Math.max(0, this.#i - 4), this.#i))
+    this.#quadros.push({ chamada, linhaDaAbertura: this.#linhaDe(this.#i), inicio: null, fim: this.#i + 1, argumentos: [] })
+    this.#i += 1
+    this.#recente += c
+  }
+
+  #fechar(c: string): void {
+    if (this.#quadros.length > 1) {
+      const quadro = this.#quadros.pop() as QuadroDeArgumentos
+      if (quadro.chamada) {
+        if (quadro.inicio !== null) quadro.argumentos.push({ de: quadro.inicio, ate: quadro.fim })
+        if (quadro.argumentos.length >= 2 && this.#linhaDe(this.#i) !== quadro.linhaDaAbertura) this.#emitir(quadro.argumentos)
+      }
+      this.#topo().fim = this.#i + 1
+    }
+    this.#i += 1
+    this.#recente += c
+  }
+
+  /** O texto do argumento: numa linha só, ele inteiro; em várias, a primeira linha, sem o comentário do fim. */
+  #termo(argumento: Argumento, primeira: number, ultima: number): string {
+    if (primeira === ultima) return this.#texto.slice(argumento.de, argumento.ate).replace(/\s+/g, ' ').trim()
+    return this.#texto.slice(argumento.de, this.#inicioDeLinha[primeira] ?? this.#texto.length).trimEnd().replace(/\s\/\/.*$/, '').trim()
+  }
+
+  /**
+   * O `and(` ou `or(` que fechou: cada linha de cada argumento entra no mapa, menos a que um grupo de dentro já ocupou (a linha de um
+   * `or(` dentro do `and(` é do argumento do `or(`, e a do `or(` que abre e a que fecha são do argumento do `and(`). Limite: o `or(` de dentro
+   * com o primeiro argumento na linha da abertura deixa todas as linhas do argumento `or(...)` ocupadas, e esse argumento não vira item do `and(`.
+   */
+  #emitir(argumentos: Argumento[]): void {
+    const ocupadas = new Set(this.#mapa.keys())
+    const vistos = argumentos.map((argumento) => {
+      const primeira = this.#linhaDe(argumento.de)
+      const ultima = this.#linhaDe(argumento.ate - 1)
+      return { primeira, ultima, termo: this.#termo(argumento, primeira, ultima) }
+    })
+    for (const { primeira, ultima, termo } of vistos) {
+      const irmaos = [...new Set(vistos.map((outro) => outro.termo).filter((outro) => outro !== termo))]
+      for (let linha = primeira; linha <= ultima; linha += 1) {
+        if (!ocupadas.has(linha)) this.#mapa.set(linha, [...(this.#mapa.get(linha) ?? []), { de: primeira, termo, irmaos }])
+      }
+    }
+  }
+}
+
+/**
+ * Os argumentos de cada `and(` e `or(` que abre e fecha em linhas diferentes, por linha do arquivo (a primeira é a 1): a linha `eq(t.escolaId,
+ * escolaId),` de um `and(` com um argumento por linha não tem termo nem condição olhada sozinha, e é a cláusula de escopo da regra 10.
+ * A linha de um argumento de várias linhas entra com o argumento todo (o termo dele é a primeira linha), e a de um grupo de dentro com
+ * os argumentos do grupo mais interno. O `and(` e o `or(` valem pelo nome, e texto entre aspas, modelo de texto, expressão regular
+ * e comentário não contam. Um `and(` de uma linha só, ou com um argumento só, fica de fora: é o caso de `termosDaLinha`.
+ *
+ * Limites conhecidos, que a autoconferência 1 do `criar-tasks` manda conferir à mão: (1) o `or(` de dentro com o primeiro argumento na linha da
+ * abertura (`or(eq(a),` na linha de cima e `eq(b))` na de baixo) ocupa todas as linhas do argumento `or(...)` do `and(` de fora, e esse argumento nunca
+ * é listado como item do `and(`; (2) o modelo de texto com crase aninhada dentro de `${}` (`` `a ${x ? `b` : `c`} z` ``) acaba na primeira crase de dentro
+ * (`fimDoModeloDeTexto`), e o resto da linha é lido como código; (3) o bloco casa o argumento pelo **texto** (`blocoTiraOArgumento`, como o `blocoTiraOTermo` casa o
+ * termo): o que tira o `eq(t.escolaId, escolaId),` de uma consulta tira da lista o argumento igual de todas as outras do mesmo arquivo, e o `and(` com o
+ * escopo de tenant da regra 10 pede um bloco por consulta, conferido à mão.
+ */
+export function argumentosDeVariasLinhas(fonte: string): Map<number, ArgumentoDeGrupo[]> {
+  return new LeitorDeArgumentos(fonte).ler()
 }
 
 // ─── SQL e Lua em template string (M1 da retro da F2c) ───
@@ -1377,10 +1576,32 @@ function ehCodigoDoTemplate(texto: string): boolean {
   return !/^(?:end|else|then|do)[\s,;)]*$/i.test(aparada)
 }
 
+/** O bloco tira este argumento do `and(` ou do `or(` e deixa os irmãos? Os irmãos moram em outras linhas, e o bloco só não pode tirar nenhum que cite. */
+function blocoTiraOArgumento(mutacao: Mutacao, argumento: ArgumentoDeGrupo): boolean {
+  const cita = (linhas: readonly string[], texto: string) => linhas.some((linha) => contemOTermo(linha, texto))
+  if (!cita(mutacao.antes, argumento.termo) || cita(mutacao.depois, argumento.termo)) return false
+  return argumento.irmaos.every((irmao) => !cita(mutacao.antes, irmao) || cita(mutacao.depois, irmao))
+}
+
 interface ContextoDoFaltando {
   citadas: ReadonlyMap<string, ReadonlySet<string>>
   mutacoes: readonly Mutacao[]
   cobertoPorMotivo: (termo: string) => boolean
+  /** Os argumentos de `and(`/`or(` de várias linhas que já tiveram a vez (`arquivo`, primeira linha e termo): o de várias linhas é um item só. */
+  argumentosVistos: Set<string>
+}
+
+/** Um item por argumento que a linha toca num `and(`/`or(` de várias linhas e que nem um bloco do mesmo arquivo nem um motivo alcança. */
+function itensDosArgumentos(nova: LinhaAcrescentada, condicoes: string[], contexto: ContextoDoFaltando): LinhaSemBloco[] {
+  const doArquivo = contexto.mutacoes.filter((mutacao) => mutacao.arquivo === nova.arquivo)
+  return (nova.argumentos ?? [])
+    .filter((argumento) => {
+      const chave = `${nova.arquivo}:${String(argumento.de)}:${argumento.termo}`
+      const novo = !contexto.argumentosVistos.has(chave)
+      contexto.argumentosVistos.add(chave)
+      return novo && !contexto.cobertoPorMotivo(argumento.termo) && !doArquivo.some((mutacao) => blocoTiraOArgumento(mutacao, argumento))
+    })
+    .map((argumento) => ({ ...nova, condicoes: condicoes.length > 0 ? condicoes : ['termos'], termo: argumento.termo }))
 }
 
 /** Um item por termo que nem um bloco do mesmo arquivo nem um motivo alcança. */
@@ -1389,6 +1610,21 @@ function itensPorTermo(nova: LinhaAcrescentada, condicoes: string[], termos: rea
   return termos
     .filter((termo) => !contexto.cobertoPorMotivo(termo) && !doArquivo.some((mutacao) => blocoTiraOTermo(mutacao, termo, termos)))
     .map((termo) => ({ ...nova, condicoes, termo }))
+}
+
+/** A linha com vários termos: um item por argumento de `and(`/`or(` de várias linhas que ela toca, e um por termo dela. */
+function itensDeVariosTermos(nova: LinhaAcrescentada, condicoes: string[], termos: readonly string[], contexto: ContextoDoFaltando): LinhaSemBloco[] {
+  return [...itensDosArgumentos(nova, condicoes, contexto), ...itensPorTermo(nova, condicoes.length > 0 ? condicoes : ['termos'], termos, contexto)]
+}
+
+/**
+ * A linha dentro de um `and(`/`or(` de várias linhas: os argumentos que ela toca e, quando ela só continua um argumento que começou antes
+ * (`ids ?? [],` dentro de um `inArray(` quebrado), a condição dela também, como a ferramenta listava antes de juntar as linhas.
+ */
+function itensDaLinhaDeArgumento(nova: LinhaAcrescentada, argumentos: readonly ArgumentoDeGrupo[], condicoes: string[], alcancada: boolean, contexto: ContextoDoFaltando): LinhaSemBloco[] {
+  const doArgumento = itensDosArgumentos(nova, condicoes, contexto)
+  const continuacao = argumentos.every((argumento) => argumento.de !== nova.linha)
+  return continuacao && condicoes.length > 0 && !alcancada ? [...doArgumento, { ...nova, condicoes }] : doArgumento
 }
 
 /** As condições da linha nova: as de TypeScript, e o modelo quando ela traz um template de SQL ou de Lua junto. */
@@ -1404,7 +1640,8 @@ function itensDaLinha(nova: LinhaAcrescentada, contexto: ContextoDoFaltando): Li
   }
   const condicoes = condicoesDaLinhaNova(nova)
   const termos = [...new Set(termosDaLinha(nova.texto))]
-  if (termos.length >= 2) return itensPorTermo(nova, condicoes.length > 0 ? condicoes : ['termos'], termos, contexto)
+  if (termos.length >= 2) return itensDeVariosTermos(nova, condicoes, termos, contexto)
+  if (nova.argumentos !== undefined) return itensDaLinhaDeArgumento(nova, nova.argumentos, condicoes, alcancada, contexto)
   return condicoes.length > 0 && !alcancada ? [{ ...nova, condicoes }] : []
 }
 
@@ -1419,6 +1656,9 @@ function itensDaLinha(nova: LinhaAcrescentada, contexto: ContextoDoFaltando): Li
  * ou um nome maior (`podeEditarTudo` não cobre `podeEditar`) não cobre termo nenhum. A linha de
  * dentro de um template de SQL ou de Lua (`LinhaAcrescentada.modelo`) é listada sem condição de TypeScript, e a mesma regra do bloco
  * a tira da lista; a que tem TypeScript junto (`mista`) é lida também como TypeScript, e leva o modelo entre as condições.
+ *
+ * A linha de um argumento de `and(`/`or(` de várias linhas (`LinhaAcrescentada.argumentos`) é um item por argumento, o de várias linhas um
+ * item só (`blocoTiraOArgumento`): o bloco tira o argumento e não tira nenhum irmão que cite, e os irmãos podem estar em outras linhas.
  */
 export function linhasSemBloco(novas: readonly LinhaAcrescentada[], mutacoes: readonly Mutacao[], prosa = ''): LinhaSemBloco[] {
   const citadas = new Map<string, Set<string>>()
@@ -1432,6 +1672,7 @@ export function linhasSemBloco(novas: readonly LinhaAcrescentada[], mutacoes: re
     citadas,
     mutacoes,
     cobertoPorMotivo: (termo) => termo.length >= MENOR_TERMO_COM_MOTIVO && emCrases.has(termo),
+    argumentosVistos: new Set<string>(),
   }
   return novas
     .filter((nova) => ehArquivoDoFaltando(nova.arquivo))
@@ -1453,12 +1694,18 @@ export function linhasNovasDaArvore(raiz: string): LinhaAcrescentada[] {
     linhas.forEach((texto, indice) => novas.push({ arquivo, linha: indice + 1, texto }))
   }
   const doFaltando = novas.filter((nova) => ehArquivoDoFaltando(nova.arquivo))
-  const templates = new Map(
-    [...new Set(doFaltando.map((nova) => nova.arquivo))].map((arquivo) => [arquivo, linhasDeTemplateComScript(readFileSync(join(raiz, arquivo), 'utf8'))] as const),
+  const lidos = new Map(
+    [...new Set(doFaltando.map((nova) => nova.arquivo))].map((arquivo) => {
+      const fonte = readFileSync(join(raiz, arquivo), 'utf8')
+      return [arquivo, { templates: linhasDeTemplateComScript(fonte), argumentos: argumentosDeVariasLinhas(fonte) }] as const
+    }),
   )
   return doFaltando.map((nova) => {
-    const doTemplate = templates.get(nova.arquivo)?.get(nova.linha)
-    return doTemplate === undefined ? nova : { ...nova, modelo: doTemplate.modelo, mista: doTemplate.mista }
+    const doArquivo = lidos.get(nova.arquivo)
+    const doTemplate = doArquivo?.templates.get(nova.linha)
+    const argumentos = doArquivo?.argumentos.get(nova.linha)
+    const comTemplate = doTemplate === undefined ? nova : { ...nova, modelo: doTemplate.modelo, mista: doTemplate.mista }
+    return argumentos === undefined ? comTemplate : { ...comTemplate, argumentos }
   })
 }
 
