@@ -24,7 +24,11 @@ const raiz = process.env['CLAUDE_PROJECT_DIR'] ?? entrada.cwd ?? process.cwd()
 if (modo === 'registrar') {
   // Falha ao registrar nunca derruba o revisor: sem registro, o portão bloqueia o commit.
   try {
-    registrar(entrada, raiz)
+    // A linha que um script apagou volta ao documento, e o aviso chega a quem o vê (`systemMessage` vale para todo hook).
+    registrar(entrada, raiz, new Date(), (aviso) => {
+      process.stderr.write(`revisoes: ${aviso}\n`)
+      process.stdout.write(JSON.stringify({ systemMessage: aviso }))
+    })
   } catch (erro) {
     process.stderr.write(`revisoes: não foi possível registrar (${(erro as Error).message})\n`)
   }

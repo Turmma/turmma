@@ -1218,6 +1218,9 @@ describe('achados separados por documento, com índice', { timeout: 60_000 }, ()
     rodada(raiz, documento, 'revisor-geral', 'VEREDITO: REPROVADO\n\nBloqueantes:\n- falta o caso das duas turmas', '2026-09-13T10:00:00')
     // O Implementador reescreve o documento inteiro (Write): a seção "Revisões" some.
     writeFileSync(join(raiz, documento), `# ${documento}\n\n**Subagentes obrigatórios:** \`revisor-geral\`\n`)
+    // Sem a cópia da tabela (`.processo/` apagada, ou outra máquina): é a segunda fonte, os achados, que segura a contagem. Com a cópia, a
+    // linha perdida volta ao documento (`revisoes-nao-se-perdem.test.ts`).
+    rmSync(join(raiz, '.processo'), { recursive: true, force: true })
     rodada(raiz, documento, 'revisor-geral', 'VEREDITO: APROVADO\n\nBloqueantes: nenhum\nRecomendações: nenhuma', '2026-09-13T11:00:00')
 
     const revisoes = lerRevisoes(readFileSync(join(raiz, documento), 'utf8'))
