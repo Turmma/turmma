@@ -1,7 +1,7 @@
 # Tech Spec — Camada de IA
 
 **PRD:** `tasks/prd-camada-ia/prd.md`
-**Status:** aprovada na revisão da spec (rodada 6). No corte de 21/11/2026 (Joaquim), o provedor de reserva e a avaliação
+**Status:** implementada em 22/11/2026 (aprovada na revisão da spec, rodada 6). No corte de 21/11/2026 (Joaquim), o provedor de reserva e a avaliação
 foram para a F5b (`tasks/prd-reserva-e-avaliacao/techspec.md`, com a mesma numeração de seções), sem mudar desenho
 
 ## 1. Resumo da abordagem

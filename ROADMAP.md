@@ -608,7 +608,8 @@ habilidade é revista nela.
 **Pronto quando:** o material é classificado por habilidade da BNCC e a geração usa isso; a coordenação corrige e a correção vence;
 e a coordenação vê as habilidades da série sem material.
 
-## F5a — `camada-ia` [~]
+## F5a — `camada-ia` [x]
+Concluída em 22/11/2026, validada em tasks/prd-camada-ia/validacao.md.
 **Depende de:** F0 · **paralelo com F1–F4**; o gateway vem da X6
 
 Conferido contra o código em 24/10/2026. **Já existe** (A2, X5): a porta `LLMProvider`; o adaptador OpenAI-compatível, que atende o Ollama e o

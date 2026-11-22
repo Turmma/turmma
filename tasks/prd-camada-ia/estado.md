@@ -1,9 +1,9 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** (L1) o `RELATÓRIO` do `Implementador` da correção `2026-11-22-e2e-operacao-perto-do-prazo` (censo da execução 44977538314: `e2e/operacao.spec.ts:45`, 22–23 s de 30, e `:125`, 63–67 s de 90, nos dois projetos; só e2e, sem tirar asserção: não pede validação nova). O `Arquiteto` fez os dois ajustes antes do pouso (`24b23d06`: a corrida do retrato no `2_task.md`, o RF11 do `cenarios.md`). Validação APROVADA em 22/11 sobre `5899c8cc`; esteira verde em `5899c8c`.
-- **Devo ainda:** para a retro, `tools/processo/revisoes-nao-se-perdem.test.ts` caiu sob carga no portão da L1 e passou isolado (3/3). No fechamento: as 25 recomendações da 6.0 e da 7.0 ao `TODO.md` (1º menor da validação), os outros menores da seção 4 e, como dívida da `develop`, os 11 casos do censo fora da spec (`alocacao.spec.ts:85` a 84%, `escola-e-vinculos.spec.ts:211` e `:271`, `titulo-da-tela.spec.ts:138`, `pedidos-do-titular.spec.ts:338`, `operacao-convite.spec.ts:95`), nenhum acima de 90%. Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 (F5b) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `bb6e5fc4` (8.0 `2dee369e` encontrada); esteira verde em `eba2ddf` (44967701318); a de `bb6e5fc4` roda e é conferida no fechamento
+- **Espero:** a palavra do Joaquim para o pouso da F5a (`aguardando-pouso`). Validação APROVADA (22/11, `5899c8cc`); correção do censo `d45c532b` encontrada; esteira verde em `12432adf` (44983774591); fechamento commitado. L1, L2 e L3 ociosas; depois do pouso, `maestri floor delete` de cada uma.
+- **Devo ainda:** para a retro, `tools/processo/revisoes-nao-se-perdem.test.ts` caiu sob carga no portão da L1 e passou isolado (3/3). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 (F5b) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
+- **Base:** `spec/camada-ia` em `12432adf` + o commit de fechamento; esteira verde em `12432adf`
 
 ## Concluídas
 - 8.0 (`2dee369e`, encontro 21/11 em `bb6e5fc4`; os sete revisores APROVADO na 2ª rodada; 10 itens sem aplicar no `8_task.md`, o "Tentar de novo" do MesesDeIa e mais 5 no `TODO.md`).
@@ -36,6 +36,8 @@ Segue sem depender: as correções M2 e M4 da X6 (processo) e a 1.0 em diante, q
 **Respondida em 21/11 13:48:** cortar em F5a (1.0 a 8.0, custo e orçamento, pousa neste andar) e F5b (9.0 a 13.0, reserva e avaliação, spec seguinte). Pedido ao `Arquiteto` para aplicar o corte nos documentos.
 
 ## O que falhou
+- 22/11 ~03:4x: esteira de `24b23d06` (44980435969, só documento) vermelha no e2e 5/11: `professor-inicio.spec.ts:83` e `professor-introducao.spec.ts:63` (chromebook). Mesmo código de `5899c8c` e `12432adf`, verdes: intermitente, linha no `TODO.md`, sem correção agora.
+- 22/11: censo do e2e (44977538314) com `e2e/operacao.spec.ts:45` e `:125` acima de dois terços do prazo: correção `2026-11-22-e2e-operacao-perto-do-prazo` na L1 (`d45c532b`); no censo seguinte, nenhum caso da spec.
 - 21/11 8.0: DIVERGÊNCIA de desenho, o item do Uso não trazia rede nem orçamento para o diálogo da 7.0; o `Arquiteto` escolheu acrescentá-los (techspec §4 e §9), sem mudar critério do PRD.
 - 21/11 ~09:50: esteira de `0e85765` (44903191816), já com a integração em três fatias, dentro do teto: caem dois testes que o estouro escondia. Integração 3/3: `ops-escola.int.test.ts`, as rotas `PUT …/orcamento-ia` da 3.0 fora da lista conferida (correção na L1). Integração 1/3: `tutor-modelo.int.test.ts:99`, o modelo falso recebe 17 pedidos em vez de 2 (correção na L3).
 - 21/11 ~08:40: o PC foi desligado com as três linhas trabalhando; às 09:11 o time voltou com sessões novas e o Docker parado (aberto daqui). Na L1, 16 arquivos rastreados ficaram com 0 byte (os que o merge `cc6e316c` tinha escrito): restaurados do commit; `git fsck` limpo, nenhum outro checkout afetado.
