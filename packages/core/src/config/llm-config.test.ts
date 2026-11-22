@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  IDENTIDADE_DA_RESERVA_FALSA,
   loadLLMConfig,
   MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO,
   MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO,
@@ -12,8 +13,17 @@ import {
   MOTIVO_PROCESSAMENTO_LOCAL_EM_ENDERECO_DE_FORA,
   MOTIVO_PROVEDOR_ID_DE_EXEMPLO,
   MOTIVO_RECUO_MAIOR_QUE_O_PRAZO,
+  MOTIVO_RESERVA_COM_A_IDENTIDADE_DO_PRINCIPAL,
+  MOTIVO_RESERVA_COM_IDENTIDADE_FALSA_EM_PRODUCAO,
+  MOTIVO_RESERVA_COM_MODELO_DO_PRINCIPAL,
+  MOTIVO_RESERVA_FALSA_EM_PRODUCAO,
+  MOTIVO_RESERVA_SEM_ADAPTADOR,
+  MOTIVO_RESERVA_SEM_ENDERECO,
+  MOTIVO_RESERVA_SEM_MODELO,
+  MOTIVO_RESERVA_SEM_PROVEDOR_ID,
   MOTIVO_SEM_PROVEDOR_ID,
   MOTIVO_SEM_TOKENS_POR_MINUTO,
+  MOTIVO_SEM_TOKENS_POR_MINUTO_DA_RESERVA,
 } from './llm-config.js'
 import { InvalidConfigError } from './validate-config.js'
 
@@ -338,5 +348,161 @@ describe('loadLLMConfig', () => {
     expect(Number(exemplo['LLM_TOKENS_POR_MINUTO'])).toBeGreaterThanOrEqual(1_000)
     const compose = readFileSync(`${raiz}infra/compose.yml`, 'utf8')
     expect(compose.match(/LLM_TOKENS_POR_MINUTO: \$\{LLM_TOKENS_POR_MINUTO:\?/g)).toHaveLength(2)
+  })
+})
+
+/** A reserva de verdade: outro provedor, com o endereço, o modelo e a identidade dela. Cada variável sai uma vez nos casos de reserva meio configurada. */
+const RESERVA = { IA_RESERVA_ADAPTADOR: 'openai_compat', LLM_RESERVA_BASE_URL: 'https://reserva.provedor.test/v1', LLM_RESERVA_MODELO: 'modelo-da-reserva', IA_RESERVA_PROVEDOR_ID: 'provedor-de-reserva' }
+const TOKENS_DA_RESERVA = { LLM_RESERVA_TOKENS_POR_MINUTO: '1500000' }
+/** O principal em produção, com o contratado dele: o único defeito de cada caso é o da reserva. */
+const PRINCIPAL_EM_PRODUCAO = { ...LLAMA, ...TOKENS, AMBIENTE: 'producao' }
+
+describe('loadLLMConfig: o provedor de reserva (reserva-e-avaliacao, 1.0)', () => {
+  it('sem IA_RESERVA_ADAPTADOR não há reserva, e variável vazia (como o compose entrega) vale como ausente', () => {
+    expect(loadLLMConfig(LOCAL)).not.toHaveProperty('reserva')
+    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: '', LLM_RESERVA_BASE_URL: '', IA_RESERVA_PROVEDOR_ID: '' })).not.toHaveProperty('reserva')
+  })
+
+  it('a reserva falsa assume a identidade `falso-reserva`, a menos que IA_RESERVA_PROVEDOR_ID diga outra, e não tem modelo nem preço exigido', () => {
+    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso' }).reserva).toEqual({ adaptador: 'falso', identidade: IDENTIDADE_DA_RESERVA_FALSA })
+    expect(IDENTIDADE_DA_RESERVA_FALSA).toBe('falso-reserva')
+    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso', IA_RESERVA_PROVEDOR_ID: 'outra-falsa' }).reserva).toMatchObject({ identidade: 'outra-falsa' })
+    expect(loadLLMConfig({ ...LOCAL, ...TOKENS, AMBIENTE: 'staging', IA_RESERVA_ADAPTADOR: 'falso', ...TOKENS_DA_RESERVA }).reserva).not.toHaveProperty('exigePreco')
+  })
+
+  it('a reserva `openai_compat` leva endereço, modelo de cada perfil (e de qual variável), chave e a identidade como provedor: é sempre envio externo', () => {
+    const { reserva } = loadLLMConfig({ ...LOCAL, ...RESERVA, LLM_RESERVA_MODELO_RAPIDO: 'rapido-da-reserva', LLM_RESERVA_CHAVE_API: 'chave-sintetica-da-reserva' })
+    expect(reserva).toEqual({
+      adaptador: 'openai_compat',
+      identidade: 'provedor-de-reserva',
+      modelo: {
+        baseUrl: 'https://reserva.provedor.test/v1',
+        modelos: { rapido: 'rapido-da-reserva', padrao: 'modelo-da-reserva', complexo: 'modelo-da-reserva', visao: 'modelo-da-reserva' },
+        variaveisDosModelos: { rapido: 'LLM_RESERVA_MODELO_RAPIDO', padrao: 'LLM_RESERVA_MODELO', complexo: 'LLM_RESERVA_MODELO', visao: 'LLM_RESERVA_MODELO' },
+        chaveApi: 'chave-sintetica-da-reserva',
+        processamentoLocal: false,
+        provedorId: 'provedor-de-reserva',
+      },
+    })
+    expect(loadLLMConfig({ ...LOCAL, ...RESERVA }).reserva?.modelo).not.toHaveProperty('chaveApi')
+  })
+
+  it('o preço da reserva só é exigido fora de `local` e com `openai_compat`, como o do principal', () => {
+    for (const ambiente of ['staging', 'producao']) {
+      expect(loadLLMConfig({ ...PRINCIPAL_EM_PRODUCAO, AMBIENTE: ambiente, ...RESERVA, ...TOKENS_DA_RESERVA }).reserva, ambiente).toHaveProperty('exigePreco', true)
+    }
+    expect(loadLLMConfig({ ...LOCAL, ...RESERVA }).reserva).not.toHaveProperty('exigePreco')
+  })
+
+  it('reserva meio configurada recusa citando a variável que falta, uma por vez', () => {
+    expect(erroDe({ ...LOCAL, ...RESERVA, LLM_RESERVA_BASE_URL: undefined })).toMatchObject({ variaveis: ['LLM_RESERVA_BASE_URL'], motivos: [MOTIVO_RESERVA_SEM_ENDERECO] })
+    expect(erroDe({ ...LOCAL, ...RESERVA, LLM_RESERVA_BASE_URL: 'reserva' }).variaveis).toEqual(['LLM_RESERVA_BASE_URL'])
+    // Só http e https: o endereço que não é do padrão não chega ao adaptador.
+    expect(erroDe({ ...LOCAL, ...RESERVA, LLM_RESERVA_BASE_URL: 'ftp://reserva.provedor.test/v1' }).variaveis).toEqual(['LLM_RESERVA_BASE_URL'])
+    expect(erroDe({ ...LOCAL, ...RESERVA, IA_RESERVA_PROVEDOR_ID: undefined })).toMatchObject({ variaveis: ['IA_RESERVA_PROVEDOR_ID'], motivos: [MOTIVO_RESERVA_SEM_PROVEDOR_ID] })
+    expect(erroDe({ ...LOCAL, ...RESERVA, LLM_RESERVA_MODELO: undefined })).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO'], motivos: [MOTIVO_RESERVA_SEM_MODELO] })
+    // Sem o comum, os quatro perfis têm de estar declarados.
+    const porPerfil = { LLM_RESERVA_MODELO_RAPIDO: 'a', LLM_RESERVA_MODELO_PADRAO: 'b', LLM_RESERVA_MODELO_COMPLEXO: 'c', LLM_RESERVA_MODELO_VISAO: 'd' }
+    expect(loadLLMConfig({ ...LOCAL, ...RESERVA, LLM_RESERVA_MODELO: undefined, ...porPerfil }).reserva?.modelo?.modelos).toEqual({ rapido: 'a', padrao: 'b', complexo: 'c', visao: 'd' })
+    expect(erroDe({ ...LOCAL, ...RESERVA, LLM_RESERVA_MODELO: undefined, ...porPerfil, LLM_RESERVA_MODELO_VISAO: undefined }).variaveis).toEqual(['LLM_RESERVA_MODELO'])
+  })
+
+  it('variável da reserva sem IA_RESERVA_ADAPTADOR recusa citando-o: a reserva que parece ligada e não está não passa', () => {
+    for (const definida of [{ LLM_RESERVA_BASE_URL: RESERVA.LLM_RESERVA_BASE_URL }, { LLM_RESERVA_MODELO: 'm' }, { LLM_RESERVA_MODELO_PADRAO: 'm' }, { LLM_RESERVA_CHAVE_API: 'k' }, { IA_RESERVA_PROVEDOR_ID: 'provedor-x' }, TOKENS_DA_RESERVA]) {
+      expect(erroDe({ ...LOCAL, ...definida }), JSON.stringify(Object.keys(definida))).toMatchObject({ variaveis: ['IA_RESERVA_ADAPTADOR'], motivos: [MOTIVO_RESERVA_SEM_ADAPTADOR] })
+    }
+  })
+
+  it('em produção a reserva falsa é recusada, e a identidade `falso-reserva` sobre `openai_compat` também; fora dela, as duas sobem', () => {
+    expect(erroDe({ ...PRINCIPAL_EM_PRODUCAO, IA_RESERVA_ADAPTADOR: 'falso', ...TOKENS_DA_RESERVA })).toMatchObject({ variaveis: ['IA_RESERVA_ADAPTADOR'], motivos: [MOTIVO_RESERVA_FALSA_EM_PRODUCAO] })
+    expect(erroDe({ ...PRINCIPAL_EM_PRODUCAO, ...RESERVA, IA_RESERVA_PROVEDOR_ID: IDENTIDADE_DA_RESERVA_FALSA, ...TOKENS_DA_RESERVA })).toMatchObject({
+      variaveis: ['IA_RESERVA_PROVEDOR_ID'],
+      motivos: [MOTIVO_RESERVA_COM_IDENTIDADE_FALSA_EM_PRODUCAO],
+    })
+    expect(loadLLMConfig({ ...PRINCIPAL_EM_PRODUCAO, ...RESERVA, ...TOKENS_DA_RESERVA }).reserva?.identidade).toBe('provedor-de-reserva')
+    for (const ambiente of ['local', 'staging']) {
+      expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: ambiente, IA_RESERVA_ADAPTADOR: 'falso', ...TOKENS_DA_RESERVA }).reserva?.identidade, ambiente).toBe(IDENTIDADE_DA_RESERVA_FALSA)
+      expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: ambiente, ...RESERVA, IA_RESERVA_PROVEDOR_ID: IDENTIDADE_DA_RESERVA_FALSA, ...TOKENS_DA_RESERVA }).reserva?.identidade, ambiente).toBe(IDENTIDADE_DA_RESERVA_FALSA)
+    }
+  })
+
+  it('a mesma identidade do principal recusa em qualquer ambiente: no falso, no `openai_compat` com outro adaptador na reserva, e no modelo local, cuja identidade é a origem', () => {
+    expect(erroDe({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso', IA_RESERVA_PROVEDOR_ID: 'falso' })).toMatchObject({ variaveis: ['IA_RESERVA_PROVEDOR_ID'], motivos: [MOTIVO_RESERVA_COM_A_IDENTIDADE_DO_PRINCIPAL] })
+    // O principal falso e a reserva `openai_compat` que se chama `falso`: a mesma identidade, e só `openai_compat` nos dois a deixa passar.
+    expect(erroDe({ ...LOCAL, ...RESERVA, IA_RESERVA_PROVEDOR_ID: 'falso' }).variaveis).toEqual(['IA_RESERVA_PROVEDOR_ID'])
+    // O principal `openai_compat` e a reserva falsa com o id dele: a mesma identidade, e o falso na reserva não é "outro modelo do mesmo provedor".
+    expect(erroDe({ ...LLAMA, IA_RESERVA_ADAPTADOR: 'falso', IA_RESERVA_PROVEDOR_ID: 'provedor-de-teste' }).variaveis).toEqual(['IA_RESERVA_PROVEDOR_ID'])
+    // O processamento local não tem provedor: a identidade do principal é `openai_compat`, mesmo com IA_PROVEDOR_ID definido, e é a que a reserva não pode ter.
+    const local = { ...LLAMA, LLM_PROCESSAMENTO_LOCAL: 'true' }
+    expect(erroDe({ ...local, IA_RESERVA_ADAPTADOR: 'falso', IA_RESERVA_PROVEDOR_ID: 'openai_compat' }).variaveis).toEqual(['IA_RESERVA_PROVEDOR_ID'])
+    // Em staging e em produção também: a mesma identidade e o mesmo modelo recusam, e no staging a reserva falsa com a identidade do principal falso também.
+    for (const ambiente of ['staging', 'producao']) {
+      const mesmoProvedor = { ...PRINCIPAL_EM_PRODUCAO, AMBIENTE: ambiente, ...RESERVA, ...TOKENS_DA_RESERVA, IA_RESERVA_PROVEDOR_ID: 'provedor-de-teste', LLM_RESERVA_MODELO: 'qwen3-8b' }
+      expect(erroDe(mesmoProvedor).variaveis, ambiente).toEqual(['LLM_RESERVA_MODELO'])
+      expect(loadLLMConfig({ ...mesmoProvedor, LLM_RESERVA_MODELO: 'outro-modelo' }).reserva?.identidade, ambiente).toBe('provedor-de-teste')
+    }
+    expect(erroDe({ ...LOCAL, AMBIENTE: 'staging', ...TOKENS, ...TOKENS_DA_RESERVA, IA_RESERVA_ADAPTADOR: 'falso', IA_RESERVA_PROVEDOR_ID: 'falso' }).variaveis).toEqual(['IA_RESERVA_PROVEDOR_ID'])
+    expect(loadLLMConfig({ ...local, ...RESERVA, IA_RESERVA_PROVEDOR_ID: 'provedor-de-teste' }).reserva?.identidade).toBe('provedor-de-teste')
+    // O principal que se chama como a reserva falsa (`falso-reserva`): a reserva falsa sem id própria assume essa identidade, e é a mesma do principal.
+    expect(erroDe({ ...LLAMA, IA_PROVEDOR_ID: IDENTIDADE_DA_RESERVA_FALSA, IA_RESERVA_ADAPTADOR: 'falso' })).toMatchObject({ variaveis: ['IA_RESERVA_PROVEDOR_ID'], motivos: [MOTIVO_RESERVA_COM_A_IDENTIDADE_DO_PRINCIPAL] })
+  })
+
+  it('a reserva falsa ignora o endereço que sobrou no ambiente: não tem modelo, e a configuração não o carrega', () => {
+    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso', LLM_RESERVA_BASE_URL: RESERVA.LLM_RESERVA_BASE_URL }).reserva).toEqual({ adaptador: 'falso', identidade: IDENTIDADE_DA_RESERVA_FALSA })
+  })
+
+  it('`openai_compat` nos dois e nenhum modelo da reserva igual a um do principal: a reserva "outro modelo do mesmo provedor" sobe', () => {
+    const mesmoProvedor = { ...LLAMA, ...RESERVA, IA_RESERVA_PROVEDOR_ID: 'provedor-de-teste' }
+    expect(loadLLMConfig({ ...mesmoProvedor, LLM_RESERVA_MODELO: 'outro-modelo' }).reserva).toMatchObject({ adaptador: 'openai_compat', identidade: 'provedor-de-teste' })
+    // Mesmo provedor com o menor do principal declarado e diferente: continua subindo.
+    expect(loadLLMConfig({ ...mesmoProvedor, LLM_RESERVA_MODELO: 'outro-modelo', LLM_MODELO_MENOR_RAPIDO: 'menor-do-principal' }).reserva?.identidade).toBe('provedor-de-teste')
+  })
+
+  it('com a mesma identidade, modelo repetido recusa citando a variável do perfil: o mesmo perfil, o perfil cruzado e o menor do principal', () => {
+    const mesmoProvedor = { ...LLAMA, ...RESERVA, IA_RESERVA_PROVEDOR_ID: 'provedor-de-teste', LLM_RESERVA_MODELO: 'outro-modelo' }
+    // Um perfil igual (o comum do principal, `qwen3-8b`, no `complexo` da reserva).
+    expect(erroDe({ ...mesmoProvedor, LLM_RESERVA_MODELO_COMPLEXO: 'qwen3-8b' })).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO_COMPLEXO'], motivos: [MOTIVO_RESERVA_COM_MODELO_DO_PRINCIPAL] })
+    // Todos os perfis iguais, pelo comum: a variável citada é a comum.
+    expect(erroDe({ ...mesmoProvedor, LLM_RESERVA_MODELO: 'qwen3-8b' }).variaveis).toEqual(['LLM_RESERVA_MODELO'])
+    // O `rapido` da reserva igual ao `padrao` do principal: o cruzamento de perfis também vale.
+    expect(erroDe({ ...mesmoProvedor, LLM_MODELO_PADRAO: 'so-do-padrao', LLM_RESERVA_MODELO_RAPIDO: 'so-do-padrao' }).variaveis).toEqual(['LLM_RESERVA_MODELO_RAPIDO'])
+    // Um igual ao modelo menor do principal.
+    expect(erroDe({ ...mesmoProvedor, LLM_MODELO_MENOR_PADRAO: 'menor-do-padrao', LLM_RESERVA_MODELO_VISAO: 'menor-do-padrao' }).variaveis).toEqual(['LLM_RESERVA_MODELO_VISAO'])
+    // Dois perfis repetidos: os dois são citados.
+    expect(erroDe({ ...mesmoProvedor, LLM_RESERVA_MODELO_RAPIDO: 'qwen3-8b', LLM_RESERVA_MODELO_PADRAO: 'qwen3-8b' }).variaveis).toEqual(['LLM_RESERVA_MODELO_PADRAO', 'LLM_RESERVA_MODELO_RAPIDO'])
+  })
+
+  it('com outra identidade o mesmo modelo é permitido: o outro provedor pode ter o mesmo id de modelo', () => {
+    expect(loadLLMConfig({ ...LLAMA, ...RESERVA, LLM_RESERVA_MODELO: 'qwen3-8b' }).reserva?.identidade).toBe('provedor-de-reserva')
+  })
+
+  it('LLM_RESERVA_TOKENS_POR_MINUTO é obrigatória fora de `local` com a reserva configurada, e no `local` a reserva sobe sem ela', () => {
+    for (const ambiente of ['staging', 'producao']) {
+      expect(erroDe({ ...PRINCIPAL_EM_PRODUCAO, AMBIENTE: ambiente, ...RESERVA }), ambiente).toMatchObject({ variaveis: ['LLM_RESERVA_TOKENS_POR_MINUTO'], motivos: [MOTIVO_SEM_TOKENS_POR_MINUTO_DA_RESERVA] })
+      expect(erroDe({ ...PRINCIPAL_EM_PRODUCAO, AMBIENTE: ambiente, ...RESERVA, LLM_RESERVA_TOKENS_POR_MINUTO: '' }).variaveis, ambiente).toEqual(['LLM_RESERVA_TOKENS_POR_MINUTO'])
+      expect(loadLLMConfig({ ...PRINCIPAL_EM_PRODUCAO, AMBIENTE: ambiente, ...RESERVA, ...TOKENS_DA_RESERVA }).reserva?.tokensPorMinuto, ambiente).toBe(1_500_000)
+    }
+    expect(loadLLMConfig({ ...LOCAL, ...RESERVA }).reserva).not.toHaveProperty('tokensPorMinuto')
+    // Sem reserva, o contratado dela não é exigido: o principal sobe como antes.
+    expect(loadLLMConfig(PRINCIPAL_EM_PRODUCAO)).not.toHaveProperty('reserva')
+    expect(erroDe({ ...LOCAL, LLM_RESERVA_TOKENS_POR_MINUTO: '999', IA_RESERVA_ADAPTADOR: 'falso' }).variaveis).toEqual(['LLM_RESERVA_TOKENS_POR_MINUTO'])
+  })
+
+  it('a chave da reserva entra na configuração e nunca na mensagem de erro', () => {
+    const chave = 'chave-sintetica-da-reserva-que-nao-pode-vazar'
+    expect(loadLLMConfig({ ...LOCAL, ...RESERVA, LLM_RESERVA_CHAVE_API: chave }).reserva?.modelo?.chaveApi).toBe(chave)
+    const erro = erroDe({ ...LOCAL, ...RESERVA, LLM_RESERVA_CHAVE_API: chave, LLM_RESERVA_BASE_URL: undefined, LLM_RESERVA_MODELO: undefined, IA_RESERVA_PROVEDOR_ID: undefined })
+    expect(erro.variaveis).toEqual(['IA_RESERVA_PROVEDOR_ID', 'LLM_RESERVA_BASE_URL', 'LLM_RESERVA_MODELO'])
+    expect(`${erro.message} ${JSON.stringify(erro.motivos)} ${JSON.stringify(erro.variaveis)}`).not.toContain(chave)
+    const comIdentidadeRepetida = erroDe({ ...LLAMA, ...RESERVA, IA_RESERVA_PROVEDOR_ID: 'provedor-de-teste', LLM_RESERVA_MODELO: 'qwen3-8b', LLM_RESERVA_CHAVE_API: chave })
+    expect(`${comIdentidadeRepetida.message} ${JSON.stringify(comIdentidadeRepetida.motivos)}`).not.toContain(chave)
+  })
+
+  it('o .env.example não liga a reserva e a carga liga a falsa, `falso-reserva`, com o contratado próprio', () => {
+    const raiz = fileURLToPath(new URL('../../../../', import.meta.url))
+    const exemplo = parseEnv(readFileSync(`${raiz}.env.example`, 'utf8'))
+    const carga = parseEnv(readFileSync(`${raiz}infra/carga.env`, 'utf8'))
+    expect(loadLLMConfig(exemplo)).not.toHaveProperty('reserva')
+    expect(loadLLMConfig({ ...exemplo, ...carga }).reserva).toEqual({ adaptador: 'falso', identidade: 'falso-reserva', tokensPorMinuto: 1_950_000 })
   })
 })

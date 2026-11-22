@@ -570,6 +570,7 @@ describe('camada de IA na API', () => {
       class Roteirizado implements ModelAdapter {
         readonly origem = 'openai_compat'
         readonly envio = { envioExterno: true, provedorId: PROVEDOR } as const
+        readonly identidade = PROVEDOR
         chamadas = 0
         constructor(private readonly roteiro: readonly (string | Error)[]) {}
         modeloDoPerfil(_perfil: Perfil): string {

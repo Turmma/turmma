@@ -106,6 +106,7 @@ function traduzir(erro: unknown): unknown {
 export class ResilientAdapter implements ModelAdapter {
   readonly origem: ModelAdapter['origem']
   readonly envio: EnvioDaChamada
+  readonly identidade: string
   private readonly politicas = new Map<string, Resiliencia>()
   private readonly estados = new Map<string, EstadoDoDisjuntor>()
 
@@ -115,7 +116,8 @@ export class ResilientAdapter implements ModelAdapter {
   ) {
     this.origem = interno.origem
     this.envio = interno.envio
-    const provedor = interno.envio.provedorId ?? interno.origem
+    this.identidade = interno.identidade
+    const provedor = interno.identidade
     politica.medidor?.createObservableGauge(METRICS.disjuntorDeIaAberto, { description: '1 enquanto o disjuntor do modelo e do perfil não está fechado, por provedor, modelo e perfil' }).addCallback((observador) => {
       for (const estado of this.estados.values()) observador.observe(estado.aberto, { provedor, modelo: estado.modelo, perfil: estado.perfil })
     })

@@ -17,12 +17,16 @@ export class ScriptedAdapter implements ModelAdapter {
   readonly modelosPedidos: (string | undefined)[] = []
 
   readonly envio: EnvioDaChamada
+  readonly identidade: string
 
+  /** `provedorId` é o de cada instância: o principal e a reserva da bancada são dois, cada um com o seu. Sem envio externo a identidade é a origem, como no adaptador de verdade. */
   constructor(
     private readonly roteiro: readonly (string | Error)[],
     envioExterno = true,
+    provedorId = PROVEDOR_ROTEIRIZADO,
   ) {
-    this.envio = envioExterno ? { envioExterno: true, provedorId: PROVEDOR_ROTEIRIZADO } : SEM_ENVIO_EXTERNO
+    this.envio = envioExterno ? { envioExterno: true, provedorId } : SEM_ENVIO_EXTERNO
+    this.identidade = this.envio.provedorId ?? this.origem
   }
 
   get chamadas(): number {

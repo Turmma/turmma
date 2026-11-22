@@ -45,14 +45,17 @@ sem `@Unscoped` novo; uma que falha desfaz as duas e o encerramento.
 
 **`pelo_provedor_de_reserva`** é verdadeira só na linha de chamada que saiu para a reserva (a atendida e a que falhou depois de
 sair); a estimada da interrompida leva o provedor da reserva e a coluna falsa. Assim a Operação (`chamadasPeloProvedorDeReserva`,
-sem mudança de consulta) conta as chamadas **enviadas** à reserva. Com a reserva falsa, `provedor` nulo e a coluna verdadeira.
+sem mudança de consulta) conta as chamadas **enviadas** à reserva. Com a reserva falsa, `provedor` nulo e a coluna verdadeira. A coluna entra com o destino
+por chamada (`ConsumoDeIa.peloProvedorDeReserva`, 4.0) e é gravada no banco na 5.0; a 1.0 prova só a identidade da reserva falsa (balde, rótulo, disjuntor, preço e `provedor` nulo).
 
 ## 5. Fluxo
 
 **A aprovação.** `MODELOS_APROVADOS` lista `{ tarefa, provedorId, modelo, relatorio, sha256, aprovadoPor, aprovadoEm }`, versionada, uma por relatório aprovado
 (§8); o `sha256` é do `relatorio.md`, e a guarda o recalcula. O provedor de reserva é **elegível** para uma tarefa se configurado, conferido
 na subida e com entrada que bate no provedor e no modelo que ele usa no perfil da tarefa. Trocar o modelo
-de um perfil tira do caminho as tarefas dele até um relatório novo.
+de um perfil tira do caminho as tarefas dele até um relatório novo. A função é `reservaElegivel(tarefa, { reserva, soberania, ambiente, aprovados })`:
+a reserva configurada (identidade e modelo de cada perfil), a conferência da D62 dela por porta (a 2.0 liga; sem ela, não elegível), o ambiente (a entrada
+de `falso-reserva` não vale em `producao`) e a constante, injetável no teste.
 
 **A identidade.** Todo adaptador ganha `identidade`: o `provedorId` do envio no `openai_compat`; no falso, `falso` no principal e o
 `IA_RESERVA_PROVEDOR_ID` (`falso-reserva`) na reserva. Balde, rótulo `provedor` das medidas, disjuntor,

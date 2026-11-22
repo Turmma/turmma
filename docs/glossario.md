@@ -243,6 +243,10 @@ Tutor e a ferramenta com o professor esperando nunca param por ele.
 **Provedor de reserva** — O segundo provedor de modelo, com contrato e conferência próprios, que atende a chamada quando
 o principal cai (D29). Só atende tarefa e modelo aprovados para ele, e nunca leva texto de aluno para fora do Brasil (D62).
 
+**Identidade do adaptador** — O nome que diz qual provedor atende: o `IA_PROVEDOR_ID` de quem envia para fora, `falso` no
+adaptador falso do principal e `falso-reserva` no da reserva. É dela que saem o balde de tokens, o rótulo das medidas, o
+disjuntor, o preço e a aprovação do modelo; a linha de consumo continua guardando o `provedor` (nulo quando nada saiu).
+
 **Adaptação necessária** — O que precisa mudar numa prova ou atividade para um aluno:
 linguagem direta, resposta escrita no lugar da oral, fonte ampliada, tempo extra, enunciado
 simplificado. Registrada pela coordenação, sempre como tipo de adaptação. Nunca o diagnóstico,

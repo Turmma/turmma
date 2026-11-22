@@ -142,6 +142,14 @@ describe('AdaptadorOpenAICompat: resposta boa', () => {
     expect(new OpenAICompatAdapter({ ...base, processamentoLocal: true }).envio).toEqual({ envioExterno: false, provedorId: null })
   })
 
+  it('a identidade é o provedor que recebe o conteúdo, e a origem onde nada sai: a que o balde, o rótulo, o disjuntor e o preço leem', () => {
+    const base = { baseUrl: 'https://provedor.example/v1', modelos: MODELOS }
+    expect(new OpenAICompatAdapter({ ...base, processamentoLocal: false, provedorId: 'provedor-de-reserva' }).identidade).toBe('provedor-de-reserva')
+    expect(new OpenAICompatAdapter({ ...base, processamentoLocal: true }).identidade).toBe('openai_compat')
+    // O processamento local não tem provedor, mesmo com o id declarado: o envio é nulo, e a identidade é a origem.
+    expect(new OpenAICompatAdapter({ ...base, processamentoLocal: true, provedorId: 'provedor-de-reserva' }).identidade).toBe('openai_compat')
+  })
+
   it('sem contagem do servidor, os tokens são estimados em vez de ficarem zerados', async () => {
     const { ia } = await montar(() => ({ corpo: chatResponse(TEXTO_BOM) }))
     const { medicao } = await gerarAtividade(ia)

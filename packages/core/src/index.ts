@@ -354,6 +354,7 @@ export type { DatabaseExecutor, RecusaDeMaterialContada, RegistroAuditado } from
 // Camada de IA (regra 30): o domínio importa a porta, as tarefas e os erros; adaptador é detalhe daqui.
 export {
   ADAPTADORES_DE_IA,
+  IDENTIDADE_DA_RESERVA_FALSA,
   llmEnvSchema,
   loadLLMConfig,
   MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO,
@@ -362,7 +363,7 @@ export {
   MOTIVO_PROCESSAMENTO_LOCAL_EM_ENDERECO_DE_FORA,
   MOTIVO_RECUO_MAIOR_QUE_O_PRAZO,
 } from './config/llm-config.js'
-export type { LLMAdapterKind, LLMConfig, ModelConfig } from './config/llm-config.js'
+export type { LLMAdapterKind, LLMConfig, ModelConfig, ReservaConfig } from './config/llm-config.js'
 export type { Perfil } from './ia/perfis.js'
 export { LLM_ERROR_CODES, LLMError } from './ia/errors.js'
 export type { LLMErrorCode } from './ia/errors.js'
@@ -374,11 +375,13 @@ export type { PrecoDoModelo, TabelaDePrecos, VigenciaDePreco, OrcamentoCode, Orc
 export { exigirFuncaoAtiva, InMemorySuspensoes } from './ia/suspensao.js'
 export type { SuspensaoDeFuncao } from './ia/suspensao.js'
 export { MEIO_ABRE_O_DISJUNTOR_EM_MS } from './ia/resilient-adapter.js'
-export { createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway } from './ia/llm-gateway.js'
+export { adaptadorDaReserva, createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway } from './ia/llm-gateway.js'
 export type { LLMGatewayDependencies, LLMGatewayPorts, LLMLogger } from './ia/llm-gateway.js'
-export { categoriasEnviadasPelasTarefas, INTERVALO_DA_NOVA_CONFERENCIA_MS, motivosDaD62, SoberaniaNaSubida } from './ia/soberania.js'
+export { categoriasDasTarefas, categoriasEnviadasPelasTarefas, INTERVALO_DA_NOVA_CONFERENCIA_MS, motivosDaD62, SoberaniaNaSubida } from './ia/soberania.js'
 export type { MotivoDaD62, SoberaniaNaSubidaOpcoes } from './ia/soberania.js'
 export { FakeAdapter, MODELO_FALSO, MODELO_FALSO_MENOR } from './ia/fake-adapter.js'
+export { aprovadaParaAReserva, MODELOS_APROVADOS, problemasDosModelosAprovados, reservaElegivel, tarefasAprovadasParaAReserva } from './ia/modelos-aprovados.js'
+export type { ContextoDaReserva, ModeloAprovado, ReservaDoGateway, TarefaDaReserva } from './ia/modelos-aprovados.js'
 export { TokenLimiter } from './ia/token-limiter.js'
 export type { FilaDeTokens, LimiteDeTokens, ReservaDeTokens, ResultadoDaReserva, TokenLimiterOptions } from './ia/token-limiter.js'
 export { OpenAICompatAdapter } from './ia/openai-compat-adapter.js'

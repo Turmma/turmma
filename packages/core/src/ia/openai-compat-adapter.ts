@@ -89,6 +89,7 @@ function esperaSugerida(resposta: Response): number | undefined {
 export class OpenAICompatAdapter implements ModelAdapter {
   readonly origem = 'openai_compat'
   readonly envio: EnvioDaChamada
+  readonly identidade: string
   private readonly endereco: string
 
   /** Fora da nossa rede o provedor tem de ter id: a subida já o exige (`IA_PROVEDOR_ID`), e quem monta a configuração à mão não escapa. */
@@ -96,6 +97,8 @@ export class OpenAICompatAdapter implements ModelAdapter {
     if (config.processamentoLocal) this.envio = SEM_ENVIO_EXTERNO
     else if (config.provedorId === undefined) throw new InvalidConfigError(['IA_PROVEDOR_ID'], [MOTIVO_SEM_PROVEDOR_ID])
     else this.envio = { envioExterno: true, provedorId: config.provedorId }
+    // O provedor que recebe o conteúdo, ou a origem onde nada sai (o modelo local não tem provedor).
+    this.identidade = this.envio.provedorId ?? this.origem
     this.endereco = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
   }
 

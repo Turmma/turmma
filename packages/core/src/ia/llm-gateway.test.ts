@@ -8,12 +8,12 @@ import { withEscolaContextOfRequest } from './__fixtures__/escola-context.js'
 import { ALUNO_1, ALUNO_2, atividadeDeEstequiometria, entradaDeAtividade, entradaDoAssistente, entradaDoRelatorio, entradaDoTutor, ESCOLA_A, ESCOLA_B } from './__fixtures__/inputs.js'
 import type { ModelAdapter, ModelCall, ModelResponse } from './adapter.js'
 import { FakeAdapter, MODELO_FALSO } from './fake-adapter.js'
-import { chaveDoPreco, custoDaChamada, InMemoryConsumo, InMemoryOrcamento, type OrcamentoQuery, type ConsumoDeIa, type OrcamentoDeIa, type RegistroDeConsumo, type TabelaDePrecos } from './consumo.js'
+import { chaveDoPreco, custoDaChamada, InMemoryConsumo, precoDoModelo, InMemoryOrcamento, type OrcamentoQuery, type ConsumoDeIa, type OrcamentoDeIa, type RegistroDeConsumo, type TabelaDePrecos } from './consumo.js'
 import { loadLLMConfig, type LLMConfig } from '../config/llm-config.js'
 import { HTTP_STATUS_BY_CODE } from '../error/domain.exception.js'
 import { LLM_ERROR_CODES, LLMError } from './errors.js'
 import type { DeclaracaoDeSoberania, EnvioDaChamada, GenerationMeasurement } from './port.js'
-import { createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway, type LLMGatewayDependencies, type LLMLogger } from './llm-gateway.js'
+import { adaptadorDaReserva, createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_DA_RESERVA_SEM_PRECO, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway, type LLMGatewayDependencies, type LLMLogger } from './llm-gateway.js'
 import type { FilaDeTokens, LimiteDeTokens, ResultadoDaReserva } from './token-limiter.js'
 import { InvalidConfigError } from '../config/validate-config.js'
 import { RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO } from './tasks/propor-ferramenta.js'
@@ -26,6 +26,9 @@ import { relatorioDaCorrecao } from './tasks/relatorio-da-correcao.js'
 import { turnoDoTutor } from './tasks/turno-do-tutor.js'
 import { classificarSecoes } from './tasks/classificar-secoes.js'
 import { PROMPT_CLASSIFICAR_SECOES } from './prompts/classificar-secoes.js'
+import { ResilientAdapter } from './resilient-adapter.js'
+import { METRICS } from '../telemetry/metrics.js'
+import { OpenAICompatAdapter } from './openai-compat-adapter.js'
 
 const EXECUCAO = '1d2e3f4a-5b6c-4d7e-8f90-a1b2c3d4e5f6'
 const PRAZOS = { rapido: 5_000, padrao: 5_000, complexo: 5_000, visao: 5_000 } as const
@@ -1624,5 +1627,186 @@ describe('createLLMGateway: fora de `local`, o modelo do principal precisa de pr
   it('o principal e o menor sem preço juntos: as duas variáveis e os dois motivos, em ordem', () => {
     const erro = recusa({ LLM_MODELO: 'modelo-sem-preco', LLM_MODELO_MENOR_PADRAO: 'menor-sem-preco' }, {})
     expect(erro).toMatchObject({ variaveis: ['LLM_MODELO', 'LLM_MODELO_MENOR_PADRAO'], motivos: [MOTIVO_MODELO_SEM_PRECO, MOTIVO_MODELO_MENOR_SEM_PRECO] })
+  })
+})
+
+describe('createLLMGateway: fora de `local`, o modelo da reserva precisa de preço, na identidade dela (reserva-e-avaliacao, 1.0; RF6)', () => {
+  const PORTAS = { registro: new InMemoryConsumo(), orcamento: SEMPRE, suspensao: new InMemorySuspensoes() }
+  const VIGENTE = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_300, saidaMicrosPorMilTokens: 5_200 }
+  const AMBIENTE = {
+    AMBIENTE: 'producao',
+    IA_ADAPTADOR: 'openai_compat',
+    LLM_BASE_URL: 'https://api.provedor.example/v1',
+    IA_PROVEDOR_ID: 'provedor-de-teste',
+    LLM_TOKENS_POR_MINUTO: '2500000',
+    LLM_MODELO: 'modelo-comum',
+    IA_RESERVA_ADAPTADOR: 'openai_compat',
+    LLM_RESERVA_BASE_URL: 'https://reserva.provedor.example/v1',
+    IA_RESERVA_PROVEDOR_ID: 'provedor-de-reserva',
+    LLM_RESERVA_TOKENS_POR_MINUTO: '1500000',
+    LLM_RESERVA_MODELO: 'modelo-da-reserva',
+  }
+  /** Os preços que o teste dá, por `provedor:modelo`: o principal já tem o dele, e cada caso diz o que a reserva tem. */
+  const precosDe = (...chaves: [string, string][]): TabelaDePrecos => Object.fromEntries([['provedor-de-teste', 'modelo-comum'], ...chaves].map(([provedor, modelo]) => [chaveDoPreco(provedor as string, modelo as string), [VIGENTE]]))
+  const subir = (ambiente: Record<string, string | undefined>, precos: TabelaDePrecos): void => {
+    createLLMGateway(loadLLMConfig({ ...AMBIENTE, ...ambiente }), { ...PORTAS, precos })
+  }
+  const recusa = (ambiente: Record<string, string | undefined>, precos: TabelaDePrecos): InvalidConfigError => {
+    try {
+      subir(ambiente, precos)
+    } catch (erro) {
+      if (erro instanceof InvalidConfigError) return erro
+      throw erro
+    }
+    throw new Error('a subida deveria ter sido recusada')
+  }
+
+  it('`LLM_RESERVA_MODELO` sem preço recusa citando a variável, nunca o valor; com o preço dela, sobe', () => {
+    const erro = recusa({}, precosDe())
+    expect(erro).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO'], motivos: [MOTIVO_MODELO_DA_RESERVA_SEM_PRECO] })
+    expect(JSON.stringify(erro)).not.toContain('modelo-da-reserva')
+    expect(() => subir({}, precosDe(['provedor-de-reserva', 'modelo-da-reserva']))).not.toThrow()
+  })
+
+  it('o perfil da reserva com modelo próprio sem preço cita a variável dele, e só a dele; o que tem preço não entra', () => {
+    const precos = precosDe(['provedor-de-reserva', 'modelo-da-reserva'])
+    expect(recusa({ LLM_RESERVA_MODELO_RAPIDO: 'rapido-sem-preco', LLM_RESERVA_MODELO_VISAO: 'visao-sem-preco' }, precos)).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO_RAPIDO', 'LLM_RESERVA_MODELO_VISAO'], motivos: [MOTIVO_MODELO_DA_RESERVA_SEM_PRECO] })
+    // O comum sem preço e um perfil com preço: o comum ainda atende os outros três, e é o único citado.
+    expect(recusa({ LLM_RESERVA_MODELO_RAPIDO: 'rapido-com-preco' }, precosDe(['provedor-de-reserva', 'rapido-com-preco']))).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO'] })
+    expect(() => subir({ LLM_RESERVA_MODELO_RAPIDO: 'rapido-com-preco' }, precosDe(['provedor-de-reserva', 'modelo-da-reserva'], ['provedor-de-reserva', 'rapido-com-preco']))).not.toThrow()
+  })
+
+  it('o preço é da identidade da reserva: o preço do mesmo modelo no principal, ou em outro provedor, não vale', () => {
+    expect(recusa({}, precosDe(['provedor-de-teste', 'modelo-da-reserva']))).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO'] })
+    expect(recusa({}, precosDe(['outro-provedor', 'modelo-da-reserva']))).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO'] })
+  })
+
+  it('o staging também exige, e o `local` dispensa; a reserva falsa não exige preço (o dela é zero em `PRECO_DOS_MODELOS`)', () => {
+    expect(recusa({ AMBIENTE: 'staging' }, precosDe())).toMatchObject({ variaveis: ['LLM_RESERVA_MODELO'] })
+    expect(() => subir({ AMBIENTE: 'local' }, precosDe())).not.toThrow()
+    expect(() => subir({ AMBIENTE: 'staging', IA_RESERVA_ADAPTADOR: 'falso', LLM_RESERVA_BASE_URL: undefined, LLM_RESERVA_MODELO: undefined, IA_RESERVA_PROVEDOR_ID: undefined }, precosDe())).not.toThrow()
+  })
+
+  it('o principal, o menor e a reserva sem preço juntos: as três variáveis e os três motivos, em ordem', () => {
+    const erro = recusa({ LLM_MODELO: 'modelo-sem-preco', LLM_MODELO_MENOR_PADRAO: 'menor-sem-preco' }, {})
+    expect(erro).toMatchObject({ variaveis: ['LLM_MODELO', 'LLM_MODELO_MENOR_PADRAO', 'LLM_RESERVA_MODELO'], motivos: [MOTIVO_MODELO_SEM_PRECO, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_DA_RESERVA_SEM_PRECO] })
+  })
+
+  it('sem reserva configurada a subida é a de antes: o principal com preço sobe, sem exigir nada da reserva', () => {
+    expect(() => subir({ IA_RESERVA_ADAPTADOR: undefined, LLM_RESERVA_BASE_URL: undefined, IA_RESERVA_PROVEDOR_ID: undefined, LLM_RESERVA_TOKENS_POR_MINUTO: undefined, LLM_RESERVA_MODELO: undefined }, precosDe())).not.toThrow()
+  })
+})
+
+describe('a identidade do adaptador: a reserva falsa é outro provedor para o balde, o rótulo, o disjuntor e o preço (reserva-e-avaliacao, 1.0)', () => {
+  const TOKENS = { entrada: 100, saida: 20 }
+  const CONFIG: LLMConfig = { adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 100, replicas: 1, tokensFalsos: TOKENS, reserva: { adaptador: 'falso', identidade: 'falso-reserva' } }
+  const PRECO = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_000, saidaMicrosPorMilTokens: 1_000 }
+  /** Os dois falsos têm o mesmo modelo, e o preço que o teste injeta é diferente para cada identidade. */
+  const PRECOS: TabelaDePrecos = {
+    [chaveDoPreco('falso', MODELO_FALSO)]: [PRECO],
+    [chaveDoPreco('falso-reserva', MODELO_FALSO)]: [{ ...PRECO, entradaMicrosPorMilTokens: 2_000, saidaMicrosPorMilTokens: 2_000 }],
+  }
+
+  /** Uma chamada da ferramenta por um gateway cujo único adaptador é o dado, com o limitador, as métricas e os preços do teste. */
+  async function chamarCom(adaptador: ModelAdapter) {
+    const leitor = new MedidorDeTeste()
+    const limite = new LimiteDeMentira()
+    const resiliente = new ResilientAdapter(adaptador, { prazosMs: PRAZOS, recuoMs: 100, aleatorio: () => 1, medidor: leitor.medidor })
+    const { ia, consumo } = montar({ adaptador: resiliente, limiteDeTokens: limite, medidor: leitor.medidor, precos: PRECOS })
+    const { medicao } = await ia.generate(pedidoDaFerramenta())
+    const provedorDe = async (metrica: string): Promise<unknown[]> => (await leitor.pontos(metrica)).map((ponto) => ponto.atributos['provedor'])
+    const lido = { baldes: limite.modelosPedidos, duracao: await provedorDe(METRICS.duracaoDaChamadaDeIa), disjuntor: await provedorDe(METRICS.disjuntorDeIaAberto), linhas: consumo.registros, medicao }
+    await leitor.encerrar()
+    return lido
+  }
+
+  it('o balde, o rótulo `provedor` das medidas, o disjuntor e a chave do preço são os do falso do principal: `falso`', async () => {
+    const lido = await chamarCom(new FakeAdapter({ tokens: TOKENS }))
+    expect(lido.baldes).toEqual([`falso:${MODELO_FALSO}`])
+    expect(lido.duracao).toEqual(['falso'])
+    expect(lido.disjuntor).toEqual(['falso'])
+    // (100 × 1.000 + 20 × 1.000) ÷ 1.000: o preço da chave `falso:falso-deterministico`.
+    expect(lido.linhas).toMatchObject([{ envioExterno: false, provedorId: null, custoMicros: 120 }])
+  })
+
+  it('o mesmo falso com a identidade da reserva: tudo é `falso-reserva`, o preço é o dela, e na linha o provedor continua nulo (nada saiu)', async () => {
+    const reserva = adaptadorDaReserva(CONFIG)
+    if (reserva === undefined) throw new Error('a reserva deveria ter sido montada')
+    expect(reserva.modeloDoPerfil('padrao')).toBe(MODELO_FALSO)
+    const lido = await chamarCom(reserva)
+    expect(lido.baldes).toEqual([`falso-reserva:${MODELO_FALSO}`])
+    expect(lido.duracao).toEqual(['falso-reserva'])
+    expect(lido.disjuntor).toEqual(['falso-reserva'])
+    expect(lido.linhas).toMatchObject([{ envioExterno: false, provedorId: null, custoMicros: 240 }])
+    expect(lido.medicao).toMatchObject({ origem: 'falso', envioExterno: false, provedorId: null })
+  })
+
+  it('cada identidade lê o preço da chave dela: sem o preço da reserva falsa na tabela, a linha dela sai sem custo, e a do principal não muda', async () => {
+    const reserva = adaptadorDaReserva(CONFIG)
+    if (reserva === undefined) throw new Error('a reserva deveria ter sido montada')
+    const { ia, consumo } = montar({ adaptador: reserva, precos: { [chaveDoPreco('falso', MODELO_FALSO)]: [PRECO] } })
+    await ia.generate(pedidoDaFerramenta())
+    expect(consumo.registros).toMatchObject([{ custoMicros: 0 }])
+  })
+
+  it('o falso da reserva está em `PRECO_DOS_MODELOS`, com preço zero, e o gateway real o usa', async () => {
+    const reserva = adaptadorDaReserva(CONFIG)
+    if (reserva === undefined) throw new Error('a reserva deveria ter sido montada')
+    expect(precoDoModelo(chaveDoPreco('falso-reserva', MODELO_FALSO), new Date('2026-11-22T12:00:00Z'))).toMatchObject({ entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 })
+    const { ia, consumo } = montar({ adaptador: reserva })
+    await ia.generate(pedidoDaFerramenta())
+    expect(consumo.registros).toMatchObject([{ envioExterno: false, provedorId: null, custoMicros: 0 }])
+  })
+
+  it('o balde e a linha do adaptador com envio externo leem a identidade de cada instância, e não um provedor fixo', async () => {
+    const limite = new LimiteDeMentira()
+    const { ia, consumo } = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()], true, 'provedor-a'), limiteDeTokens: limite })
+    await ia.generate(pedidoDaFerramenta())
+    expect(limite.modelosPedidos).toEqual(['provedor-a:roteirizado-padrao'])
+    expect(consumo.registros).toMatchObject([{ envioExterno: true, provedorId: 'provedor-a' }])
+    // O `provedorId` por instância: duas bancadas com o mesmo modelo e provedores diferentes têm baldes e linhas diferentes.
+    const outro = new LimiteDeMentira()
+    const segunda = montar({ adaptador: new ScriptedAdapter([saidaDeAtividade()], true, 'provedor-b'), limiteDeTokens: outro })
+    await segunda.ia.generate(pedidoDaFerramenta())
+    expect(outro.modelosPedidos).toEqual(['provedor-b:roteirizado-padrao'])
+    expect(segunda.consumo.registros).toMatchObject([{ provedorId: 'provedor-b' }])
+  })
+
+  it('o adaptador da reserva: nenhum sem configuração, o falso com a identidade dela, e o `openai_compat` com o endereço, o modelo de cada perfil e o provedor dela', () => {
+    expect(adaptadorDaReserva({ adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 100, replicas: 1 })).toBeUndefined()
+    expect(adaptadorDaReserva(CONFIG)).toMatchObject({ origem: 'falso', identidade: 'falso-reserva', envio: { envioExterno: false, provedorId: null } })
+    const configuracao = loadLLMConfig({
+      AMBIENTE: 'local',
+      IA_RESERVA_ADAPTADOR: 'openai_compat',
+      LLM_RESERVA_BASE_URL: 'https://reserva.provedor.example/v1',
+      IA_RESERVA_PROVEDOR_ID: 'provedor-de-reserva',
+      LLM_RESERVA_MODELO: 'modelo-da-reserva',
+      LLM_RESERVA_MODELO_RAPIDO: 'rapido-da-reserva',
+    })
+    const reserva = adaptadorDaReserva(configuracao)
+    expect(reserva).toBeInstanceOf(OpenAICompatAdapter)
+    expect(reserva).toMatchObject({ origem: 'openai_compat', identidade: 'provedor-de-reserva', envio: { envioExterno: true, provedorId: 'provedor-de-reserva' } })
+    expect(reserva?.modeloDoPerfil('rapido')).toBe('rapido-da-reserva')
+    expect(reserva?.modeloDoPerfil('padrao')).toBe('modelo-da-reserva')
+    // O principal da mesma configuração segue falso, com a identidade de sempre.
+    expect(destinoDoAdaptador(configuracao)).toMatchObject({ origem: 'falso', identidade: 'falso' })
+  })
+
+  it('a reserva falsa herda do falso a espera e os tokens que ele informa, e só leva a identidade a mais', async () => {
+    const reserva = adaptadorDaReserva({ ...CONFIG, latenciaFalsaMs: 0, tokensFalsos: { entrada: 7, saida: 3 } })
+    if (reserva === undefined) throw new Error('a reserva deveria ter sido montada')
+    const resposta = await reserva.chamar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), sinal: new AbortController().signal })
+    expect(resposta).toMatchObject({ modelo: MODELO_FALSO, tokensDeEntrada: 7, tokensDeSaida: 3 })
+  })
+
+  it('a reserva falsa herda a espera simulada, a geral e a do `padrao`: a chamada que passa do sinal termina com o prazo esgotado, e sem espera responde', async () => {
+    for (const espera of [{ latenciaFalsaMs: 5_000 }, { latenciaFalsaMsPadrao: 5_000 }]) {
+      const reserva = adaptadorDaReserva({ ...CONFIG, ...espera })
+      if (reserva === undefined) throw new Error('a reserva deveria ter sido montada')
+      const chamada = reserva.chamar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), sinal: AbortSignal.timeout(50) })
+      await expect(chamada, JSON.stringify(espera)).rejects.toMatchObject({ codigoDeIa: 'IA_TEMPO_ESGOTADO' })
+    }
+    const semEspera = adaptadorDaReserva(CONFIG)
+    await expect(semEspera?.chamar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), sinal: AbortSignal.timeout(50) })).resolves.toMatchObject({ modelo: MODELO_FALSO })
   })
 })

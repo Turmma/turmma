@@ -21,6 +21,7 @@ const MENORES = { padrao: 'menor-padrao', rapido: 'menor-rapido' } as const
 class LentoAdapter implements ModelAdapter {
   readonly origem = 'falso'
   readonly envio = SEM_ENVIO_EXTERNO
+  readonly identidade = 'falso'
   readonly chamadasDe: { modelo: string; em: number }[] = []
 
   constructor(
