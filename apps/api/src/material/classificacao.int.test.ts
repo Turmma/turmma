@@ -670,7 +670,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
 
       const esperando = await execucaoDaRotina(b)
       await enfileirar(fila, b.escolaId, esperando)
-      await new VarreduraDeExecucoes(fila.banco, fila.log.logger, fila.destino, medidor.medidor).varrer()
+      await new VarreduraDeExecucoes(fila.banco, fila.log.logger, fila.destinos, medidor.medidor).varrer()
       expect((await execucaoDe(esperando)).estado).toBe('pendente')
     })
   })
@@ -684,7 +684,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       expect((adiado as JobAdiadoError).motivo).toBe('janela')
       // `ativo` é o estado do job vivo que a varredura procura (o adiamento da janela o devolve à fila e o worker o pega de novo): o teste o fixa à mão, porque o adiamento de verdade só o deixa assim por instantes.
       await sql("update job_registro set estado = 'ativo' where tipo = 'ia.executar-lote' and dados ->> 'execucaoId' = $1", [esperando])
-      const varredura = new VarreduraDeExecucoes(fila.banco, fila.log.logger, fila.destino, medidor.medidor)
+      const varredura = new VarreduraDeExecucoes(fila.banco, fila.log.logger, fila.destinos, medidor.medidor)
       await varredura.varrer()
       expect((await execucaoDe(esperando)).estado).toBe('pendente')
       // O job termina (concluído ou falho): a `pendente` fica sem dono e a varredura a encerra.
@@ -848,7 +848,7 @@ describe('o processador da classificação, com o instante e o provedor escolhid
       expect(await execucaoDe(esgotada)).toMatchObject({ estado: 'falhou', erro: ErrorCode.IA_TEMPO_ESGOTADO })
 
       // O worker morreu no meio: a execução ficou `rodando` há mais do que o limite, e a varredura a encerra. Um segundo antes do limite ela ainda vale; um depois, não.
-      const varredura = new VarreduraDeExecucoes(fila.banco, fila.log.logger, fila.destino, medidor.medidor)
+      const varredura = new VarreduraDeExecucoes(fila.banco, fila.log.logger, fila.destinos, medidor.medidor)
       const rodandoHa = async (segundos: number) => {
         const id = await execucaoDaRotina(a)
         await sql("update execucao_agente set estado = 'rodando', iniciada_em = now() - make_interval(secs => $2) where id = $1", [id, segundos])

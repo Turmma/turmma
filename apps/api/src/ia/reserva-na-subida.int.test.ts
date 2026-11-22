@@ -33,6 +33,8 @@ const FILAS_DA_IA = ['interativa', 'ferramenta', 'normal'] as const
 const CHAVES_SEMEADAS: string[] = []
 const ARQUIVOS_DE_BATIMENTO: string[] = []
 const A_FECHAR: (() => Promise<void>)[] = []
+/** As escolas em que o teste semeou execução e linha de consumo (8.0): saem delas antes de a bancada apagar a escola. */
+const ESCOLAS_COM_EXECUCAO: string[] = []
 const CHAVE_DA_RESERVA = 'chave-secreta-da-reserva-0123456789'
 const MODELO_DA_RESERVA = 'modelo-da-reserva'
 const SERIE = 'ia.provedor_de_reserva.conferido'
@@ -89,6 +91,10 @@ beforeAll(() => {
 
 afterEach(async () => {
   for (const fechar of A_FECHAR.splice(0)) await fechar()
+  for (const escolaId of ESCOLAS_COM_EXECUCAO.splice(0)) {
+    await sql('delete from consumo_ia where escola_id = $1', [escolaId])
+    await sql('delete from execucao_agente where escola_id = $1', [escolaId])
+  }
   for (const arquivo of ARQUIVOS_DE_BATIMENTO.splice(0)) rmSync(arquivo, { force: true })
   await limparCadastros()
 })
@@ -172,6 +178,30 @@ async function conferidoDe(medidor: MedidorDeTeste, provedor: string): Promise<(
 /** O `codigo` da recusa da reserva no log, o que o operador procura no runbook. */
 const motivoDaRecusaDaReserva = (linhas: string[]): string | undefined =>
   linhas.map((linha) => JSON.parse(linha) as { evento?: string; codigo?: string }).find((linha) => linha.evento === 'ia.provedor_de_reserva.conferencia_recusada')?.codigo
+
+/**
+ * Uma execução da classificação do material `rodando` há três dias, numa escola nova (F5b, 8.0): a que a varredura da subida do `main-worker` encerra, com a linha estimada de cada destino que a configuração tem.
+ * A classificação roda pela rotina: sem ano letivo e sem pessoa (`execucao_agente_ano_so_nulo_na_classificacao`).
+ */
+async function semearExecucaoInterrompida(): Promise<{ escolaId: string; execucaoId: string }> {
+  const escolaId = await bancada.escola()
+  ESCOLAS_COM_EXECUCAO.push(escolaId)
+  const { rows } = await sql(
+    `insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada) values ($1, null, 'classificacao_do_material', 'classificar_secoes', null, $2, '{"tarefa":"classificar_secoes"}') returning id`,
+    [escolaId, randomUUID()],
+  )
+  const execucaoId = String((rows[0] as { id: string }).id)
+  await sql(`update execucao_agente set estado = 'rodando', iniciada_em = now() - interval '3 days' where id = $1`, [execucaoId])
+  return { escolaId, execucaoId }
+}
+
+/** As linhas estimadas que a varredura da subida deixou na execução: espera a execução ser encerrada (a varredura roda na subida, logo depois de a D62 do principal ser conferida). */
+async function linhasDaVarreduraDaSubida(execucaoId: string): Promise<{ provedor: string | null; modelo: string; pelo_provedor_de_reserva: boolean; codigo_de_erro: string | null }[]> {
+  await expect
+    .poll(async () => String(((await sql('select estado from execucao_agente where id = $1', [execucaoId])).rows[0] as { estado: string }).estado), { timeout: 15_000 })
+    .toBe('falhou')
+  return (await sql('select provedor, modelo, pelo_provedor_de_reserva, codigo_de_erro from consumo_ia where execucao_id = $1 order by modelo', [execucaoId])).rows as { provedor: string | null; modelo: string; pelo_provedor_de_reserva: boolean; codigo_de_erro: string | null }[]
+}
 
 describe('o main-worker sobe com a reserva sem suboperador vigente: o principal passa e consome, a reserva fica fora do caminho (RF1)', () => {
   it('reserva sem suboperador vigente: o worker consome as filas e bate o batimento, o principal passa, `conferido = 0`, e o log não leva a chave nem o contrato', async () => {
@@ -268,6 +298,21 @@ describe('o main-worker sobe com a reserva sem suboperador vigente: o principal 
     expect(elegivel()).toBe(true)
   })
 
+  it('a execução interrompida que a varredura da subida encerra deixa as duas linhas estimadas, a do principal e a da reserva aprovada para a tarefa (F5b, 8.0)', async () => {
+    // O principal externo e a reserva falsa (nasce conferida, e `MODELOS_APROVADOS` a aprova em todas as tarefas): cada linha leva o modelo e o provedor do seu destino, e só a do principal tem provedor.
+    const principal = chaveNova()
+    await cadastrar(principal)
+    const { execucaoId } = await semearExecucaoInterrompida()
+    await subirWorker(configDoWorker({ ...principalExterno(principal), IA_RESERVA_ADAPTADOR: 'falso' }))
+    const linhas = await linhasDaVarreduraDaSubida(execucaoId)
+    // Em ordem de modelo: o da reserva falsa (`falso-deterministico`) e o do principal (`modelo-de-teste`). As duas são estimativas, e a coluna da Operação (as chamadas enviadas) é falsa em cada uma.
+    expect(linhas).toMatchObject([
+      { provedor: null, modelo: MODELO_FALSO, codigo_de_erro: 'EXECUCAO_INTERROMPIDA', pelo_provedor_de_reserva: false },
+      { provedor: principal, modelo: 'modelo-de-teste', codigo_de_erro: 'EXECUCAO_INTERROMPIDA', pelo_provedor_de_reserva: false },
+    ])
+    expect(linhas).toHaveLength(2)
+  })
+
   it('a reserva falsa não envia nada para fora: nasce conferida, e a série vale 1 sem ler o cadastro', async () => {
     const medidor = new MedidorDeTeste()
     A_FECHAR.push(() => medidor.encerrar())
@@ -289,5 +334,14 @@ describe('sem reserva configurada nada muda (RF1)', () => {
     expect(worker.principal.conferida).toBe(true)
     await expect.poll(consumidores, { timeout: 10_000 }).toBe(FILAS_DA_IA.length)
     expect(await medidor.pontos(SERIE)).toEqual([])
+  })
+
+  it('a execução interrompida que a varredura da subida encerra deixa uma linha só, a do principal: não há destino de reserva (F5b, 8.0)', async () => {
+    const principal = chaveNova()
+    await cadastrar(principal)
+    const { execucaoId } = await semearExecucaoInterrompida()
+    await subirWorker(configDoWorker(principalExterno(principal)))
+    const linhas = await linhasDaVarreduraDaSubida(execucaoId)
+    expect(linhas).toMatchObject([{ provedor: principal, modelo: 'modelo-de-teste', codigo_de_erro: 'EXECUCAO_INTERROMPIDA', pelo_provedor_de_reserva: false }])
   })
 })

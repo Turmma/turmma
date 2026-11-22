@@ -43,8 +43,10 @@ preço de cada modelo: se a tarefa tem aprovação para o provedor de reserva co
 `registrarEstimada(execucao, destinos, precos)`, com a tabela de preços por porta. As linhas saem do mesmo `InterrompidaEncerrada` (a escola do `returning`), na transação do encerramento,
 sem `@Unscoped` novo; uma que falha desfaz as duas e o encerramento.
 
+Quem decide os destinos é `destinosDaInterrompida(tarefa, configurados)`, em `consumo.ts`: o principal sempre e a reserva configurada se `MODELOS_APROVADOS` tem entrada da tarefa para o `provedorId` dela (sem comparar o modelo nem a conferência). Os `configurados` (`DestinosConfigurados`: `principal`, `reserva` opcional e `aprovados`, injetável no teste) chegam à `VarreduraDeExecucoes` e ao `ExecucaoProcessor` no lugar do `destino` de antes, junto da tabela de preços (`precos`, `PRECO_DOS_MODELOS` por padrão); o `IaDoWorkerModule` ganha o `DESTINO_DA_RESERVA` (nulo sem reserva), que o `CicloDoWorkerDeIa` junta ao `DESTINO_DO_ADAPTADOR`.
+
 **`pelo_provedor_de_reserva`** é verdadeira só na linha de chamada que saiu para a reserva (a atendida e a que falhou depois de
-sair); a estimada da interrompida leva o provedor da reserva e a coluna falsa. Assim a Operação (`chamadasPeloProvedorDeReserva`,
+sair); cada linha da estimada da interrompida leva o provedor do seu destino e a coluna falsa, também a da reserva. Assim a Operação (`chamadasPeloProvedorDeReserva`,
 sem mudança de consulta) conta as chamadas **enviadas** à reserva. Com a reserva falsa, `provedor` nulo e a coluna verdadeira. A coluna entra com o destino
 por chamada (`ConsumoDeIa.peloProvedorDeReserva`, 4.0) e é gravada no banco na 5.0; a 1.0 prova só a identidade da reserva falsa (balde, rótulo, disjuntor, preço e `provedor` nulo).
 

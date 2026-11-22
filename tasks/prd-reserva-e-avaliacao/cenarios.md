@@ -71,7 +71,7 @@
 | RF | Cenário | Camada e arquivo | Mutação que o derruba |
 |---|---|---|---|
 | RF6 | `AMBIENTE=producao`, `openai_compat`: `LLM_RESERVA_MODELO` sem preço, `LLM_RESERVA_MODELO_<PERFIL>` sem preço: cada um recusa a subida citando a variável (o do principal é da F5a) | `llm-config.test.ts`/`llm-gateway.test.ts` | exigir preço só do principal |
-| RF6 | A interrompida grava uma linha por destino, cada uma com os **dois tetos** da tarefa ao preço do seu modelo (preços diferentes nos dois), custo > 0 | `consumo.test.ts` | custo zero na estimada; preço do principal na linha da reserva; entrada contada na interrompida |
+| RF6 | A interrompida grava uma linha por destino (`destinosDaInterrompida`), cada uma com os **dois tetos** da tarefa ao preço do seu modelo (preços diferentes nos dois), custo > 0 | `consumo.test.ts` | custo zero na estimada; preço do principal na linha da reserva; entrada contada na interrompida |
 | RF1, o alerta | O alerta de `ia.provedor_de_reserva.conferido` dispara com 0 por 10 min, com o parágrafo do runbook | `infra/test/alertas.test.ts`, `tools/guardas/alerta-tem-runbook.test.ts` | — |
 | RF1, o alerta | Worker sem reserva configurada: a série `ia.provedor_de_reserva.conferido` não é publicada e o alerta não dispara; com a reserva configurada e recusada, publica 0 e dispara em 10 min | a subida do `main-worker`, em `apps/api` (a medida da conferência), `infra/test/alertas.test.ts` | série publicada com 0 sem reserva; alerta por `absent()` |
 

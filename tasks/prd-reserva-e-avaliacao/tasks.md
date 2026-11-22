@@ -62,11 +62,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [ ] 7.3 O alerta dos tokens; `docs/infra.md` 5.4
   - [ ] 7.4 Testes
 
-- [ ] **8.0 — A execução interrompida grava a estimada de cada destino, com custo**
-  - [ ] 8.1 `destinosDaInterrompida`
-  - [ ] 8.2 Os dois tetos ao preço de cada destino
-  - [ ] 8.3 `registrarEstimada(execucao, destinos, precos)` na varredura e na reentrega
-  - [ ] 8.4 Testes
+- [x] **8.0 — A execução interrompida grava a estimada de cada destino, com custo**
+  - [x] 8.1 `destinosDaInterrompida`
+  - [x] 8.2 Os dois tetos ao preço de cada destino
+  - [x] 8.3 `registrarEstimada(execucao, destinos, precos)` na varredura e na reentrega
+  - [x] 8.4 Testes
 
 - [ ] **9.0 — A fase `reserva` da carga prova a queda do principal**
   - [ ] 9.1 A fase e o cenário k6

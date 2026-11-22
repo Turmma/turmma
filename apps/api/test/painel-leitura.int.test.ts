@@ -1,4 +1,4 @@
-import { createDatabase, createPool, OrcamentoDoMesRepository, runInContext, type Database, type DatabasePool } from '@educa/core'
+import { chaveDoPreco, createDatabase, createPool, OrcamentoDoMesRepository, runInContext, type Database, type DatabasePool, type DestinoDoAdaptador, type TabelaDePrecos } from '@educa/core'
 import {
   ErrorCode,
   ESCOLAS_POR_PAGINA,
@@ -18,6 +18,7 @@ import type { INestApplication } from '@nestjs/common'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../../tools/testes/integracao.setup.ts'
+import { ConsumoRepository } from '../src/ia/consumo.repository.js'
 import { PainelService } from '../src/operacao/painel/painel.service.js'
 import { esperarErro, nomeQueVemPrimeiro, pedir, PRAZO_DAS_CONSULTAS_MS, subirApiDoPainel, todasAsPaginas, type Resposta } from './painel.fixture.js'
 import { OperadorFixtures, type TestOperadorSessao } from './operador-session.fixture.js'
@@ -721,6 +722,31 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       const { ia } = doItem(await usoPorCusto(), e.id)
       expect(ia.hoje).toStrictEqual(deIa(1, 2, 300, 5 * REAIS, 1))
       expect(ia.mes).toStrictEqual(deIa(4, 5, 750, 8 * REAIS, 2))
+    })
+
+    it('a interrompida com a reserva grava as duas estimadas, e a Operação conta só a chamada desviada de verdade: `chamadasPeloProvedorDeReserva` é 1, com as duas na mesma escola (F5b, 8.0)', async () => {
+      const e = await escolaDeIa({ alunos: 3 })
+      const interrompida = await execucaoDe(e.id)
+      const desviada = await execucaoDe(e.id)
+      const destino = (id: string): DestinoDoAdaptador => ({ origem: 'openai_compat', envio: { envioExterno: true, provedorId: id }, identidade: id, modeloDoPerfil: (perfil) => `${id}-${perfil}` })
+      const vigencia = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste' }
+      const precos: TabelaDePrecos = {
+        [chaveDoPreco('principal-op', 'principal-op-rapido')]: [{ ...vigencia, entradaMicrosPorMilTokens: 1_300, saidaMicrosPorMilTokens: 5_200 }],
+        [chaveDoPreco('reserva-op', 'reserva-op-rapido')]: [{ ...vigencia, entradaMicrosPorMilTokens: 2_000, saidaMicrosPorMilTokens: 8_000 }],
+      }
+      // A estimada da execução interrompida, gravada pelo repository do produto com o principal e a reserva: os tetos da classificação (121.600 de entrada e 800 de saída) a cada preço.
+      await new ConsumoRepository(banco).registrarEstimada({ id: interrompida, escolaId: e.id, tarefa: 'classificar_secoes', duracaoMs: 301_000 }, [destino('principal-op'), destino('reserva-op')], precos)
+      // A linha do repository leva o instante de agora: o teste a põe no dia do relógio falso, que é o que a consulta lê.
+      await pool.query(`update consumo_ia set em = '2033-04-30T10:00:00-03:00'::timestamptz where execucao_id = $1`, [interrompida])
+      // A chamada que saiu de verdade para a reserva, na outra execução (a que o gateway grava com a coluna verdadeira).
+      await chamada(e.id, '2033-04-30T10:00:05-03:00', 3 * REAIS, { execucaoId: desviada, reserva: true })
+      const { rows } = await pool.query<{ pelo_provedor_de_reserva: boolean }>('select pelo_provedor_de_reserva from consumo_ia where execucao_id = $1', [interrompida])
+      expect(rows.map((linha) => linha.pelo_provedor_de_reserva)).toEqual([false, false])
+      const { ia } = doItem(await usoPorCusto(), e.id)
+      // 121.600 × 1.300 + 800 × 5.200 = 162.240.000 ÷ 1.000; 121.600 × 2.000 + 800 × 8.000 = 249.600.000 ÷ 1.000. Três linhas e duas execuções; tokens: 2 × 122.400 + 150.
+      const esperado = deIa(2, 3, 244_950, 162_240 + 249_600 + 3 * REAIS, 1)
+      expect(ia.hoje).toStrictEqual(esperado)
+      expect(ia.mes).toStrictEqual(esperado)
     })
 
     it('sem valor nem na rede: `sem_orcamento`, origem `nenhuma` e porcentagem nula, com os alunos e os reais à vista; a rede com valor e a escola sem: vale a da rede', async () => {
