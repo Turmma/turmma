@@ -43,7 +43,7 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 4.4 `IA_FALHA_FALSA`
   - [x] 4.5 Testes
 
-- [ ] **5.0 — A chamada da reserva chega ao banco e ao compartilhamento do aluno, e o worker só a chama conferida**
+- [x] **5.0 — A chamada da reserva chega ao banco e ao compartilhamento do aluno, e o worker só a chama conferida**
   - [ ] 5.1 O `ConsumoRepository` grava a coluna
   - [ ] 5.2 A bancada com principal e reserva
   - [ ] 5.3 `docs/lgpd.md` linha 99, os comentários, o glossário e `docs/mvp-contratos.md`

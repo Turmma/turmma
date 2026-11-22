@@ -87,7 +87,7 @@ não chega a nenhum provedor (a suspensão vem antes, como hoje).
 
 **O destino por chamada.** `ChamadaEnviada` e o `Gasto` guardam o destino de cada chamada (origem, envio, identidade e
 `peloProvedorDeReserva`); o preço, o rótulo, o balde, a linha de consumo e a `medicao` devolvida leem o destino da chamada, e
-a `medicao` é a do provedor que respondeu. `ConsumoDeIa` ganha `peloProvedorDeReserva` (opcional no tipo, e a falta vale `false`: o `ConsumoDeIa` também é construído fora do gateway, e o campo obrigatório é da 5.0; a linha que o gateway entrega sempre o traz preenchido), e o `ConsumoRepository` o grava.
+a `medicao` é a do provedor que respondeu. `ConsumoDeIa` ganha `peloProvedorDeReserva` (opcional no tipo, e a falta vale `false`: o `ConsumoDeIa` também é construído fora do gateway, e o campo obrigatório é da 5.0; a linha que o gateway entrega sempre o traz preenchido), e o `ConsumoRepository` o grava (`?? false`). **A 5.0 o manteve opcional** (tarefa 5.0, divergência): a estimada da interrompida (`consumoEstimadoDaInterrompida`, da 8.0) também constrói `ConsumoDeIa` e leva a coluna falsa, e tornar o campo obrigatório quebraria esse construtor sem ganho para a linha do gateway.
 A reserva soma `ia.degradacao{degrau="provedor_de_reserva"}` (o degrau entra em `DEGRAUS`, nascendo em zero) e loga
 `ia.geracao.provedor_de_reserva`. `usosDoTeto` e `ia.tokens.uso_do_teto` passam a ser por `provedor:modelo`.
 
@@ -108,7 +108,12 @@ categorias das tarefas que `tarefasAprovadasParaAReserva` devolve para a reserva
 
 **A bancada.** `fila-de-ia.fixture.ts` ganha a montagem do gateway real com principal e reserva (`ScriptedAdapter` com envio
 externo, `provedorId` e suboperador próprios). Os cenários de roteamento e de compartilhamento usam essa montagem, e não
-`comModelo`, que troca o gateway inteiro.
+`comModelo`, que troca o gateway inteiro. A montagem é a opção `gateway` de `FilaDeIa.subir` (o `LLMGateway` real, com o
+`ConsumoRepository`, o processador e o worker do produto) e `fila.roteirizar(...)` a refaz entre um caso e outro, com os
+roteiros e o contador de chamadas de cada adaptador em zero (`fila.adaptadores`); a conferência da reserva pode ser a
+`SoberaniaNaSubida` de verdade (`conferenciaDaReserva`), para provar a reconferência sem reiniciar. Os casos moram em
+`fila-de-ia.int.test.ts` (a linha de cada chamada e a foto do compartilhamento) e `arquivo-do-titular.int.test.ts` (o arquivo, o
+contador fora dele e o isolamento).
 
 ## 7. Dado pessoal (obrigatório)
 
