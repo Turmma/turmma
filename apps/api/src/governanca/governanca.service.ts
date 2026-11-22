@@ -1,4 +1,4 @@
-import { diaDeUso, DomainException, limitesDoMes, AuditoriaRecorder, systemClock, type Database, type Clock } from '@educa/core'
+import { DomainException, limitesDoMes, AuditoriaRecorder, OrcamentoDoMesRepository, systemClock, type Database, type Clock } from '@educa/core'
 import {
   CHAVES_DE_FUNCAO,
   ErrorCode,
@@ -7,12 +7,13 @@ import {
   funcoesDaGovernancaResponseSchema,
   resumoDaGovernancaResponseSchema,
   buildTime,
+  mesDeSaoPaulo,
+  parteDosTokens,
   TROCAS_POR_DIA_PADRAO_DO_TUTOR,
   TROCAS_POR_MES_PADRAO_DO_TUTOR,
   type ChaveDeFuncao,
   type ConsumoQuery,
   type ResumoDaGovernancaQuery,
-  type ConsumoSomado,
   type FuncaoDaGovernanca,
   type SuspenderFuncaoRequest,
   type ConsumoResponse,
@@ -32,8 +33,6 @@ function primeiroDiaDoMesSeguinte(mes: string): string {
   return dia.toISOString().slice(0, 10)
 }
 
-const SEM_CONSUMO: ConsumoSomado = { execucoes: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 }
-
 /**
  * A governança de IA da coordenação (MVP, A5; D9, D14, D45, D60, D64; regra 70, itens 5, 6, 8 e 9).
  *
@@ -45,7 +44,7 @@ const SEM_CONSUMO: ConsumoSomado = { execucoes: 0, tokensDeEntrada: 0, tokensDeS
  *   confere é o `ExecucaoScheduler`, o `LLMProvider` e a `FuncaoSuspensionCheck`). Não apaga nada, e a entrega pendente
  *   continua decidível pelo professor. Suspender a que já está suspensa devolve a vigente, sem segunda linha e sem
  *   segunda auditoria. **Retomar** fecha a vigente e audita; sem vigente, `NAO_ENCONTRADO`.
- * - **O consumo** é somado por função e por mês. Não abre por origem, por aluno nem por pessoa.
+ * - **O consumo** é somado por função e por mês, e sai como a `parte` de cada função e o orçamento do mês (`situacao`, `porcentagem`, `aviso`): **sem token e sem custo** (RF12, D40). Não abre por origem, por aluno nem por pessoa.
  */
 export class GovernancaService {
   constructor(
@@ -121,29 +120,23 @@ export class GovernancaService {
 
   async consumo(consulta: ConsumoQuery): Promise<ConsumoResponse> {
     const governanca = new GovernancaRepository(this.banco)
-    // Sem o mês na consulta, o mês corrente, que vira no fuso do uso como o freio do Tutor.
-    const mes = consulta.mes ?? diaDeUso(this.relogio.agora()).slice(0, 7)
+    const agora = this.relogio.agora()
+    // Sem o mês na consulta, o mês corrente de São Paulo: o do freio do Tutor e o do orçamento viram no mesmo fuso.
+    const mes = consulta.mes ?? mesDeSaoPaulo(agora)
     const desde = `${mes}-01`
     const ate = primeiroDiaDoMesSeguinte(mes)
     const linhas = await governanca.consumoPorFuncao(desde, ate)
     // Na ordem do catálogo, e só as funções que gastaram no mês.
-    const porFuncao = CHAVES_DE_FUNCAO.flatMap((funcao) => linhas.filter((linha) => linha.funcao === funcao))
-    const total = porFuncao.reduce<ConsumoSomado>(
-      (soma, linha) => ({
-        execucoes: soma.execucoes + linha.execucoes,
-        tokensDeEntrada: soma.tokensDeEntrada + linha.tokensDeEntrada,
-        tokensDeSaida: soma.tokensDeSaida + linha.tokensDeSaida,
-        custoMicros: soma.custoMicros + linha.custoMicros,
-        comEnvioExterno: soma.comEnvioExterno + linha.comEnvioExterno,
-      }),
-      SEM_CONSUMO,
-    )
+    const gastaram = CHAVES_DE_FUNCAO.flatMap((funcao) => linhas.filter((linha) => linha.funcao === funcao))
+    const tokensDoMes = gastaram.reduce((soma, linha) => soma + linha.tokensDeEntrada + linha.tokensDeSaida, 0)
+    // O orçamento e a porcentagem são a conta do servidor (`orcamentoDoMes`); o custo e os tokens ficam aqui dentro: a coordenação não os lê (RF12, D40).
+    const { situacao, porcentagem, aviso } = await new OrcamentoDoMesRepository(this.banco).doMes(mes, agora)
     const pacote = await governanca.pacoteDoTutor()
     const trocasPorMesPorAluno = pacote.porMes ?? TROCAS_POR_MES_PADRAO_DO_TUTOR
     return consumoResponseSchema.parse({
       mes,
-      total,
-      porFuncao,
+      orcamento: { situacao, porcentagem, aviso },
+      porFuncao: gastaram.map((linha) => ({ funcao: linha.funcao, parte: parteDosTokens(linha.tokensDeEntrada + linha.tokensDeSaida, tokensDoMes), execucoes: linha.execucoes })),
       tutor: {
         trocasNoMes: await governanca.trocasComOTutor(desde, ate),
         pacoteDoMes: trocasPorMesPorAluno * pacote.alunos,

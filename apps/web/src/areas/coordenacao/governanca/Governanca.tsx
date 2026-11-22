@@ -8,6 +8,7 @@ import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { Button } from '../../../components/ui/Button'
 import { SECONDARY_LINK_CLASSES } from '../../../components/ui/button-variants'
 import { LoadingState, ErrorState, EmptyState } from '../../../components/states/index'
+import { FalhaDoConsumo, OrcamentoDoMes } from './OrcamentoDoMes'
 import { ApprovalLine } from '../../../components/ui/ai/ApprovalLine'
 import { StatCard } from '../../../components/ui/StatCard'
 import { SegmentedControl } from '../../../components/ui/fields/SegmentedControl'
@@ -24,8 +25,7 @@ import {
   nomeDaFuncao,
   O_QUE_CHEGA_AO_ALUNO,
   OPCOES_DO_ESTADO,
-  textoDoConsumo,
-  textoDoCusto,
+  textoDaParte,
   textoDoPacoteDoTutor,
   VAZIO_DO_FILTRO,
 } from './textos-da-governanca'
@@ -154,38 +154,38 @@ export default function Governanca() {
   )
 }
 
-/** O consumo do mês por função, em barras neutras: o valor está no texto. Por função, nunca por pessoa (D64). */
+/**
+ * O orçamento do mês e o consumo por função, em barras neutras: a `parte` de cada função está escrita (camada-ia 6.0; RF12, D40). Por função, nunca por pessoa (D64). **Nenhum token e nenhum real**: a coordenação lê
+ * a porcentagem do previsto e a fatia de cada função, e a Operação lê o resto.
+ */
 function Consumo() {
   const consumo = useQuery(consumoQueryOptions)
   return (
     <section className="flex min-w-0 flex-col gap-3" aria-labelledby="titulo-consumo">
       <SectionHeader id="titulo-consumo" titulo="Consumo do mês por função" apoio="Quanto cada função da IA trabalhou neste mês. É somado por função: não existe consumo por professor nem por aluno." />
       {consumo.isPending && <LoadingState rotulo="Carregando o consumo…" />}
-      {consumo.isError && <ErrorState erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch({ cancelRefetch: false })} />}
-      {consumo.data !== undefined &&
-        (consumo.data.porFuncao.length === 0 ? (
-          <EmptyState titulo="Nenhuma função trabalhou neste mês" descricao="Quando um professor conversar com o Assistente, gerar uma atividade ou um aluno usar o Tutor, o consumo de cada função aparece aqui." />
-        ) : (
-          <div className="flex min-w-0 flex-col gap-4 rounded-cartao border border-linha bg-superficie p-4 lg:p-5">
-            {consumo.data.porFuncao.map((linha) => (
+      {consumo.isError && <FalhaDoConsumo erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch({ cancelRefetch: false })} />}
+      {consumo.data !== undefined ? (
+        <>
+          <OrcamentoDoMes orcamento={consumo.data.orcamento} />
+          {consumo.data.porFuncao.length === 0 ? (
+            <EmptyState titulo="Nenhuma função trabalhou neste mês" descricao="Quando um professor conversar com o Assistente, gerar uma atividade ou um aluno usar o Tutor, o consumo de cada função aparece aqui." />
+          ) : (
+            <div className="flex min-w-0 flex-col gap-4 rounded-cartao border border-linha bg-superficie p-4 lg:p-5">
+              {consumo.data.porFuncao.map((linha) => (
+                <ProgressBar key={linha.funcao} rotulo={nomeDaFuncao(linha.funcao)} valor={linha.parte} texto={textoDaParte(linha)} />
+              ))}
               <ProgressBar
-                key={linha.funcao}
-                rotulo={nomeDaFuncao(linha.funcao)}
-                valor={linha.tokensDeEntrada + linha.tokensDeSaida}
-                maximo={Math.max(1, consumo.data.total.tokensDeEntrada + consumo.data.total.tokensDeSaida)}
-                texto={textoDoConsumo(linha)}
+                rotulo="Trocas dos alunos com o Tutor"
+                valor={consumo.data.tutor.trocasNoMes}
+                maximo={Math.max(1, consumo.data.tutor.pacoteDoMes)}
+                texto={textoDoPacoteDoTutor(consumo.data.tutor)}
+                detalhe={`Pacote do mês: ${String(consumo.data.tutor.trocasPorMesPorAluno)} trocas por aluno, com freio de ${String(consumo.data.tutor.trocasPorDiaPorAluno)} por dia`}
               />
-            ))}
-            <ProgressBar
-              rotulo="Trocas dos alunos com o Tutor"
-              valor={consumo.data.tutor.trocasNoMes}
-              maximo={Math.max(1, consumo.data.tutor.pacoteDoMes)}
-              texto={textoDoPacoteDoTutor(consumo.data.tutor)}
-              detalhe={`Pacote do mês: ${String(consumo.data.tutor.trocasPorMesPorAluno)} trocas por aluno, com freio de ${String(consumo.data.tutor.trocasPorDiaPorAluno)} por dia`}
-            />
-            <p className="text-sm text-sutil">{textoDoCusto(consumo.data.total)}</p>
-          </div>
-        ))}
+            </div>
+          )}
+        </>
+      ) : null}
     </section>
   )
 }

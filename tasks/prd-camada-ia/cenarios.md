@@ -149,6 +149,7 @@ Textos a fixar em `docs/interface.md` 5 na tarefa da tela. Os da coordenação s
     com vocês se isso se repetir."
   - `sem_orcamento`: "O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês."
   - `sem_aluno_ativo`: "A porcentagem aparece quando a escola tiver aluno ativo."
+  - `sem_retrato` (o `?mes=` de um mês que fechou antes de a medição existir): "Este mês fechou antes de o previsto de IA ser medido, por isso não há porcentagem."
 - **Governança, por função:** "Assistente de ensino: 41% do que a IA trabalhou no mês · 128 execuções".
 - **Operação, Uso:**
   - o grupo "IA" tem o título "IA (hoje, até agora, e mês)"; a infra segue "último dia fechado", e a tela diz;
@@ -164,7 +165,7 @@ Textos a fixar em `docs/interface.md` 5 na tarefa da tela. Os da coordenação s
     orçamento de 3 escolas que usam o valor da rede.";
   - o botão "Salvar orçamento"; o resultado: "Orçamento salvo."; o 429 diz em quantos minutos tentar de novo;
   - valor fora do intervalo: "Use um valor entre R$ 0,01 e R$ 100,00." / "Use de 100% a 1000%."
-- **Erro** de toda tela: "Não foi possível carregar. Tentar de novo"; a web antiga com a API nova: "Atualize a página".
+- **Erro** de toda tela: "Não foi possível carregar. Tentar de novo"; a web antiga com a API nova (`RespostaForaDoContrato`): "Atualize a página", sem "Tentar de novo", que traria a mesma resposta.
 
 Estados de toda tela: carregando, vazio, erro, com dado. R$ com vírgula; datas em pt-BR.
 

@@ -20,7 +20,8 @@ import { usePageTitle } from '../../../document-title'
 import { NO_AUTO_REFETCH, useFilaDaCoordenacao } from './fila-da-coordenacao'
 import { O_MIOLO_SEM_ABAS_QUE_ROLA } from '../comum/miolo-que-rola'
 import { oQueFaltaDaEscola, PARA_O_ANO, passosDoRoteiro, type PassoDoRoteiro } from '../estrutura/o-que-falta-da-escola'
-import { nomeDaFuncao, textoDoConsumo, textoDoPacoteDoTutor } from '../governanca/textos-da-governanca'
+import { FalhaDoConsumo, OrcamentoDoMes } from '../governanca/OrcamentoDoMes'
+import { nomeDaFuncao, textoDoPacoteDoTutor } from '../governanca/textos-da-governanca'
 
 /**
  * Painel (telas da coordenação, 2.0; RF6 e RF7; Tech Spec seções 5, 7c e 9): é onde a coordenação vê, numa tela só, os
@@ -142,21 +143,24 @@ function OsQuatroNumeros() {
   )
 }
 
-/** O consumo do mês numa linha: somado, nunca por função, por professor nem por aluno (D64). */
+/**
+ * "IA do mês: N% do previsto", com o aviso de 80% e de 100% (camada-ia 6.0; RF9 e RF12; D40), e as trocas dos alunos com o Tutor contra o pacote: somado, nunca por função, por professor nem por aluno (D64). Nenhum token e nenhum
+ * real. Sem valor, sem aluno ou sem retrato, a linha diz por que não há porcentagem.
+ */
 function OConsumoDoMes() {
   const consumo = useQuery(semLeituraSozinha(consumoQueryOptions))
   if (consumo.data === undefined) {
     return consumo.isError ? (
-      <ErrorState erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch()} />
+      <FalhaDoConsumo erro={consumo.error} tentando={consumo.isFetching} aoTentarDeNovo={() => void consumo.refetch()} />
     ) : (
       <LoadingState rotulo="Carregando o consumo do mês…" />
     )
   }
-  if (consumo.data.porFuncao.length === 0) return <p className="t-apoio text-sutil">Nenhuma função da IA trabalhou neste mês.</p>
   return (
-    <p className="t-apoio text-apoio">
-      Consumo do mês: {textoDoConsumo(consumo.data.total)}. Trocas dos alunos com o Tutor: {textoDoPacoteDoTutor(consumo.data.tutor)}.
-    </p>
+    <div className="flex min-w-0 flex-col gap-2">
+      <OrcamentoDoMes orcamento={consumo.data.orcamento} />
+      <p className="t-apoio text-apoio">Trocas dos alunos com o Tutor: {textoDoPacoteDoTutor(consumo.data.tutor)}.</p>
+    </div>
   )
 }
 

@@ -19,8 +19,8 @@ import {
   type OrcamentoDeIaRequest,
 } from '@educa/shared'
 import { keepPreviousData, mutationOptions, queryOptions } from '@tanstack/react-query'
-import { EMPTY_BODY, type ResponseSchema } from '../../api/client'
-import { RespostaForaDoContrato } from '../textos'
+import { EMPTY_BODY } from '../../api/client'
+import { lidoPeloContrato } from '../../api/contrato/resposta-fora-do-contrato'
 import { operadorAuthedRequest } from './sessao'
 
 /**
@@ -88,21 +88,6 @@ export function doUsoQueryOptions(consulta: PainelQuery) {
 /** Quantas páginas de 25 o total dá, e ao menos uma: é o "Página N de M" da lista e do uso. */
 export function paginasDoTotal(total: number): number {
   return Math.max(1, Math.ceil(total / ESCOLAS_POR_PAGINA))
-}
-
-/**
- * O esquema que, ao recusar a resposta, diz que foi o contrato: a web antiga lendo a API nova (camada-ia, 7.0). O erro
- * continua sendo o `ERRO_INTERNO` (`RespostaForaDoContrato`), e a tela diz "Atualize a página". Valem por ele a lista de redes
- * (`dasRedesQueryOptions`, que o diálogo Orçamento de IA e o Nova escola leem: o Nova escola passa a dizer o mesmo) e o `PUT` do orçamento.
- */
-function lidoPeloContrato<T>(esquema: ResponseSchema<T>): ResponseSchema<T> {
-  return {
-    safeParse: (valor) => {
-      const lido = esquema.safeParse(valor)
-      if (!lido.success) throw new RespostaForaDoContrato()
-      return lido
-    },
-  }
 }
 
 /** `GET /v1/operacao/redes`: as redes do diálogo Nova escola e do Orçamento de IA, por nome, com o orçamento de cada uma. */

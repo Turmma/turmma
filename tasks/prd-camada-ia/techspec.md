@@ -146,7 +146,7 @@ discursiva (D55, com guarda) nem trecho de material de terceiro. Nenhum prompt m
 | Fila e rate limit | herdados; o `PUT` no limitador do operador |
 | Corridas | dois `PUT` do mesmo alvo: `for update` (§5) |
 | Laços e índices | medida e retrato: uma soma por escola a cada 5 min; `EXPLAIN (ANALYZE, BUFFERS)` num ano da maior escola (~1,8 milhão de linhas) para o mês, `porFuncao`, os 12 meses e o `uso()` por custo |
-| Volta do código | a anterior conta linhas como execuções; web antiga: `ErrorState` |
+| Volta do código | a anterior conta linhas como execuções; web antiga: `RespostaForaDoContrato` (o `ERRO_INTERNO`, em `apps/web/src/api/contrato/resposta-fora-do-contrato.ts`), com "Atualize a página" e sem "Tentar de novo", que traria a mesma resposta (`cenarios.md` §4) |
 | Dependência fora | principal: reserva; as duas: como na X6, "Provedor de IA fora" para cada uma; Redis: o balde seguro da X6; banco: o lote adia |
 | Métrica e alerta | `ia.orcamento.uso_do_mes{escola_id}` (0,8 e 1,0), `ia.orcamento.uso_do_teto{escola_id}` (1,0; o runbook cita "Classificação do material atrasada"), `ia.provedor_de_reserva.conferido` (0 por 10 min, só com reserva configurada), com runbook |
 | Carga | fase `reserva` (`cenarios.md` §5); `LLM_RESERVA_TOKENS_POR_MINUTO` em `infra/carga.env`, o contratado em `docs/infra.md` 5.4 |

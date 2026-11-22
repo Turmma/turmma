@@ -9,10 +9,11 @@ import {
   NOMES_DOS_AGENTES,
   type AlertaDoAnalista,
   type ChaveDeFuncao,
-  type ConsumoSomado,
+  type ConsumoDaFuncaoDoMes,
   type EstadoDeEntrega,
   type Etapa,
   type ItemDaGovernanca,
+  type OrcamentoDoConsumo,
   type NivelDeAutonomia,
   type TipoDeEntrega,
 } from '@educa/shared'
@@ -99,20 +100,32 @@ export function acertoPercentual(acertos: number, total: number): number {
   return total <= 0 ? 0 : (acertos * 100) / total
 }
 
-/** "12.340 tokens · 8 execuções": o que a função gastou, em texto. */
-export function textoDoConsumo(consumo: Pick<ConsumoSomado, 'execucoes' | 'tokensDeEntrada' | 'tokensDeSaida'>): string {
-  return `${formatQuantity(consumo.tokensDeEntrada + consumo.tokensDeSaida, 'token', 'tokens')} · ${formatQuantity(consumo.execucoes, 'execução', 'execuções')}`
+/** "41% do que a IA trabalhou no mês · 128 execuções": a parte da função, escrita, ao lado do nome dela. Sem token e sem real (RF12, D40). */
+export function textoDaParte(consumo: Pick<ConsumoDaFuncaoDoMes, 'parte' | 'execucoes'>): string {
+  return `${formatNumber(consumo.parte)}% do que a IA trabalhou no mês · ${formatQuantity(consumo.execucoes, 'execução', 'execuções')}`
 }
 
-const reais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+/** O que o Painel e a Governança dizem quando o orçamento do mês não tem porcentagem (RF9, D40; `docs/interface.md` 3). */
+const SEM_PORCENTAGEM: Readonly<Record<'sem_orcamento' | 'sem_aluno_ativo' | 'sem_retrato', string>> = {
+  sem_orcamento: 'O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.',
+  sem_aluno_ativo: 'A porcentagem aparece quando a escola tiver aluno ativo.',
+  // O mês que fechou antes de a medição existir (`?mes=` de antes da camada-ia): o retrato dele nunca foi guardado, e a tela não inventa um número.
+  sem_retrato: 'Este mês fechou antes de o previsto de IA ser medido, por isso não há porcentagem.',
+}
+
+/** O aviso de cada limiar já cruzado no mês: a escola é avisada, e **nada é cortado** (D40). */
+const AVISO_DO_ORCAMENTO: Readonly<Record<80 | 100, string>> = {
+  80: 'A escola já usou 80% do previsto para a IA neste mês. Nada é cortado.',
+  100: 'A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir.',
+}
 
 /**
- * O custo do mês. **Com zero medido, a tela não escreve "R$ 0,00"**: o adaptador falso e o modelo local não têm preço, e
- * mostrar zero em reais seria afirmar que a IA não custou nada.
+ * A linha do orçamento do mês e o aviso, escritos: "IA do mês: 62% do previsto." e, se o limiar de 80% ou de 100% já foi cruzado, o aviso. Sem valor, sem aluno ou sem retrato, só a frase que diz por que não há número.
+ * **Nenhum real e nenhum token** (RF12, D40): a porcentagem vem pronta do servidor, e a tela não calcula nada.
  */
-export function textoDoCusto(total: Pick<ConsumoSomado, 'custoMicros'>): string {
-  if (total.custoMicros <= 0) return 'O custo em reais ainda não é medido nesta versão: o que aparece aqui são os tokens que cada função gastou.'
-  return `Custo do mês: ${reais.format(total.custoMicros / 1_000_000)}.`
+export function textoDoOrcamento({ situacao, porcentagem, aviso }: OrcamentoDoConsumo): { readonly linha: string; readonly aviso: string | null } {
+  if (situacao === 'definido' && porcentagem !== null) return { linha: `IA do mês: ${formatNumber(porcentagem)}% do previsto.`, aviso: aviso === null ? null : AVISO_DO_ORCAMENTO[aviso] }
+  return { linha: SEM_PORCENTAGEM[situacao === 'definido' ? 'sem_retrato' : situacao], aviso: null }
 }
 
 /** "12 de 9.600 trocas": o uso do Tutor no mês contra o pacote da escola. */

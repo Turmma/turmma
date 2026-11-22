@@ -52,14 +52,14 @@ teto de palavras. São 13, uma acima do teto de 12. O corte possível é em duas
   - [x] 5.4 Contrato estrito e `ROTAS_DO_PAINEL`
   - [x] 5.5 Testes
 
-- [ ] **6.0 — A coordenação vê "IA do mês: N% do previsto" no Painel e na Governança, sem reais nem tokens**
-  - [ ] 6.1 Contrato estrito de `governanca/consumo`
-  - [ ] 6.2 O serviço pelo `OrcamentoDoMesRepository`
-  - [ ] 6.3 A auditoria de orçamento fora da leitura da coordenação
-  - [ ] 6.4 Governança: a `parte` por função
-  - [ ] 6.5 Painel: a linha "IA do mês" e o aviso
-  - [ ] 6.6 `docs/interface.md` e o roteiro da demonstração
-  - [ ] 6.7 Testes
+- [x] **6.0 — A coordenação vê "IA do mês: N% do previsto" no Painel e na Governança, sem reais nem tokens**
+  - [x] 6.1 Contrato estrito de `governanca/consumo`
+  - [x] 6.2 O serviço pelo `OrcamentoDoMesRepository`
+  - [x] 6.3 A auditoria de orçamento fora da leitura da coordenação
+  - [x] 6.4 Governança: a `parte` por função
+  - [x] 6.5 Painel: a linha "IA do mês" e o aviso
+  - [x] 6.6 `docs/interface.md` e o roteiro da demonstração
+  - [x] 6.7 Testes
 
 - [x] **7.0 — A Operação define o orçamento de IA num diálogo, vendo o antes e o depois**
   - [x] 7.1 O diálogo "Orçamento de IA"
