@@ -65,6 +65,12 @@ andou enquanto a spec corria (o Gabriel integra lá): traga-a para o térreo
 (`git -C <andar> merge develop`, o único commit seu que leva código), e a esteira do push desse
 merge tem de ficar verde antes do pouso. Conflito em qualquer um desses merges, ou no pouso, é parada: diga os arquivos.
 
+Se o `maestri floor land` não responder (22/11, F5a: timeout de 10 s, duas vezes, a `develop` intacta), pouse por git, no
+térreo: `git merge --ff-only spec/<funcionalidade>` (a `develop` não andou: a conferência acima), `git push origin develop`.
+O `maestri floor delete` de cada andar pode responder timeout ou "malformed floorLifecycleVerdictResult frame" e apagar
+assim mesmo (20/11 e 22/11): confira com `git worktree list` e `git branch`, e o que ficou, contido na `develop`, sai com
+`git worktree remove` e `git branch -d`.
+
 **Enquanto existir `tools/renomear/mapas/`** (a spec renomeia por onda, X8), o merge da `develop` na spec pode trazer
 nome antigo: arquivo novo, import novo, teste novo escrito com o nome de antes. Esse merge vira uma correção (`corrigir`)
 que roda `node tools/renomear/reaplicar.ts` e, quando existirem (são da tarefa 2.0 da X8), `node tools/renomear/conferir.ts` e

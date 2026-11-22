@@ -2952,6 +2952,21 @@ repetem aqui.
       retro pendente na árvore, o próximo passo diz "trazer a develop com a retro antes do criar-tasks". Casos novos em
       `tools/processo/estado.test.ts`. Não trava nada: o texto do `/seguir` já cobre. Guardiões: `revisor-geral`, `test-engineer`
 
+## Da retrospectiva da F5a (camada-ia, 22/11/2026)
+
+`tasks/prd-camada-ia/retro.md`. Aceitas pelo Joaquim em 22/11/2026 ("aprovo"). Os cinco avisos, a M1 e a M2 já aplicados; M3 e M4 mudam
+código de processo: entram por correção, a M4 quando uma linha estiver ociosa.
+
+- [ ] (F5a, retro, M3) **O portão puxa a lista de rotas quando o diff toca um controller.** `tools/processo/inventarios-do-portao.ts`: uma linha
+      nova em `INVENTARIOS_DO_PORTAO`, `apps/api/src/**/*.controller.ts` → `apps/api/test/ops-escola.int.test.ts` (`ROTAS_PERMITIDAS`) e
+      `apps/api/test/operacao-isolamento.int.test.ts` (`ROTAS_COM_SESSAO_DE_OPERADOR`). Caso: o diff com um controller alterado alcança os dois
+      inventários. Na F5a, as rotas `PUT …/orcamento-ia` da 3.0 ficaram quatro horas escondidas atrás do teto da integração e custaram uma
+      correção; é a família da M2 da F4. Guardiões: `revisor-geral`, `test-engineer` e os que o `portao-local.ts revisores` pedir
+- [ ] (F5a, retro, M4) **O teste da trava da seção "Revisões" não depende da máquina calma.** É o item (d) do resto da M2 da X6, abaixo:
+      os dois casos da trava de `tools/processo/revisoes-nao-se-perdem.test.ts` seguram até o `comTrava` desistir (10 s) e afirmam saída diferente
+      de 0 e o documento intacto, em vez de esperar 2.500 ms e dar o processo por vivo. Caiu uma vez sob carga, no portão da L1 (22/11). Correção
+      de teste intermitente. Guardiões: `revisor-geral`, `test-engineer`, `conformidade-reviewer`
+
 ## Da retrospectiva da F4b (classificacao-bncc, 20/11/2026)
 
 `tasks/prd-classificacao-bncc/retro.md`. Aceitas pelo Joaquim em 20/11/2026 ("aprovo"). Os cinco avisos, a M2 e a M6 já aplicados; M1, M3, M4 e

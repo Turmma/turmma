@@ -38,16 +38,20 @@ Spec e do PRD ele lê só o que estiver apontado aqui, pelo número:
 
 Definidos com o `test-engineer`. Não improvise aqui.
 
-| Cenário | Tipo | O que prova | Caso |
-|---|---|---|---|
-| caminho feliz | integração | | |
-| borda: [caso do domínio] | integração | | |
-| permissão: quem não pode | integração | | |
-| isolamento entre escolas | integração | | |
-| concorrência: [as duas chamadas ao mesmo tempo, com `Promise.all`] | integração | | |
-| estados da tela: [carregando, erro, vazio, com dado; o vazio e o "falta" só com a leitura terminada e sem erro; o foco depois de cada ação que troca o que aparece] | e2e | | |
-| recomeço da tela: [a segunda pessoa na mesma aba, sem reload; a mesma entrada de novo — mesmo link, mesmo token; a resposta atrasada da entrada anterior, com a resposta segurada no teste (`page.route` ou `page.clock.pauseAt`); a lista recarregada ou a falha com o diálogo aberto] | e2e | | |
-| log novo: [a linha capturada] | integração | não leva nome, e-mail, matrícula, token, senha nem código (regra 20, item 9) | |
+| Cenário | Tipo | O que prova | O que distingue | Caso |
+|---|---|---|---|---|
+| caminho feliz | integração | | | |
+| borda: [caso do domínio] | integração | | | |
+| permissão: quem não pode | integração | | | |
+| isolamento entre escolas | integração | | | |
+| concorrência: [as duas chamadas ao mesmo tempo, com `Promise.all`] | integração | | | |
+| estados da tela: [carregando, erro, vazio, com dado; o vazio e o "falta" só com a leitura terminada e sem erro; o foco depois de cada ação que troca o que aparece] | e2e | | | |
+| recomeço da tela: [a segunda pessoa na mesma aba, sem reload; a mesma entrada de novo — mesmo link, mesmo token; a resposta atrasada da entrada anterior, com a resposta segurada no teste (`page.route` ou `page.clock.pauseAt`); a lista recarregada ou a falha com o diálogo aberto] | e2e | | | |
+| log novo: [a linha capturada] | integração | não leva nome, e-mail, matrícula, token, senha nem código (regra 20, item 9) | | |
+
+O que distingue: o dado sem o qual a regra apagada passa igual — duas redes e a da escola não é a primeira (7.0 da
+F5a); custos diferentes, semeados fora da ordem esperada (8.0); duas na trava, não uma (4.0); a asserção que o nome do
+caso promete (6.0). Linha sem esse dado é a que o `test-engineer` devolve na conferência das tarefas.
 
 A coluna "Caso" é de quem implementa, preenchida antes da Mesa: `arquivo › nome do caso`, um por comportamento
 da linha. Na X4, 7 das 14 reprovações foram linha sem caso, ou com caso para metade dela.
@@ -109,7 +113,7 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    (`disabled={motivo !== undefined}`, 8.0 e 11.0), o `.for('update')` e o `update` sem condição (7.0).
 2. **O texto que você põe na tela já aparece nela?** Procure o texto novo em `e2e/` (`grep -rln '<texto>' e2e/`) e rode
    isolados os specs que o contam (`toHaveCount`, `nth`): o portão só puxa os specs que citam texto **removido**.
-3. **O cenário tem o segundo dado que torna a cláusula observável?** Se o repository filtra por turma, aluno em **duas**
+3. **A coluna "O que distingue" está no teste? O cenário tem o segundo dado que torna a cláusula observável?** Se o repository filtra por turma, aluno em **duas**
    turmas; se filtra por estado, vínculo em cada estado; se lê `inatividadeMin`, escola com valor **diferente** do padrão.
    Apagar a cláusula tem de deixar algo vermelho.
 4. **Alguma checagem anterior responde antes da regra sob teste?** A rota cai em `requireAnoEmCurso()`, o e-mail não acha
@@ -131,6 +135,9 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    compartilhado filtra pelo id do outro lado, e não conta com o banco vazio (5.0); o repository que soma ou junta não é
    espiado (regra 40; 12.0); e o `EXPLAIN` roda o `.toSQL()` da consulta do repository, uma por consulta nova no caminho
    quente, como `apps/api/test/semana-itens.int.test.ts` (`consultasDosItens`), nunca um SQL escrito no teste (5.0, 10.0).
+   E o toque e o salto do relógio (`page.clock.fastForward`) esperam a tela parar: toda leitura que a tela disparou
+   respondeu e o texto que ela traz está na tela. No celular a folha de baixo cresce com o conteúdo e o botão sobe (o W4),
+   e o salto com uma leitura no ar estoura o prazo dela, que repete e conta como uso (o E3): duas correções na F5a.
 6. **A guarda nova (regra de lint, teste estrutural, trava de pasta) tem fixture de quem a contorna, e falha quando o alvo
    some?** Uma fixture e o teste vermelho para cada forma de escrever o mesmo que a regra conhece (reexportação,
    `import *`, `import()` e `require`, o caminho como texto em outra posição, alias). A cerca sobre arquivo que mudou de

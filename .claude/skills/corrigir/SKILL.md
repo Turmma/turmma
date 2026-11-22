@@ -101,6 +101,10 @@ inválido, rode o portão com as suítes que a mensagem pede: a Mesa não chama 
 inválido. Na A1, três rodadas do `revisor-geral` reprovaram só ou também pelo carimbo, que é uma
 conferência de um comando.
 
+Depois do `conferir`, rode `node tools/processo/portao-local.ts revisores tasks/correcoes/<AAAA-MM-DD>-<slug>.md`. Quem a
+linha "Revisores obrigatórios" traz e a "Subagentes obrigatórios" não, acrescente com Edit: é o caminho que pede, não
+escolha sua. O bloco "Atenção" tem de sair vazio. Na F5a, onze rodadas foram devolvidas por um dos dois.
+
 ## 6. Commit e push
 
 Na branch do andar (D78). A esteira roda em todo push de `spec/**` e de `correcao/**` (D79), e quem lê o
