@@ -3,7 +3,7 @@ import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
 import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerrarSessoesDoOperador, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
 import { criarEquipeComSenha } from './support/seed.ts'
 import { esperarNovaConversa } from './support/casca.ts'
-import { expect, test } from './support/profiles.ts'
+import { expect, loadUnthrottled, test } from './support/profiles.ts'
 import { activate, entrarNaOperacao, esperarAListaDeEscolas, esperarCasca, SIGN_IN_TIMEOUT_MS } from './support/operacao-screen.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
@@ -42,11 +42,14 @@ test.afterEach(async () => {
 })
 
 test.describe('área do operador Turmma', () => {
-  test('entra por e-mail, senha e código, chega à casca da operação e sai a um clique', async ({ page, hasTouch }) => {
+  test('entra por e-mail, senha e código e chega à casca da operação', async ({ page, hasTouch }) => {
     const operador = await criarOperadorComSegundoFator()
 
-    await page.goto('/operacao/entrar')
-    await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    // O caso afirma a tela de entrada e o que vem depois dela, e não quanto a primeira carga leva na rede lenta do perfil.
+    await loadUnthrottled(page, async () => {
+      await page.goto('/operacao/entrar')
+      await expect(page.getByRole('heading', { name: 'Entrar na operação' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    })
     await expect(page).toHaveTitle('Entrar · Operação Turmma')
     // A faixa diz que ali é a operação, para ninguém confundir com a tela de uma escola.
     await expect(page.getByRole('banner')).toContainText('Operação Turmma')
@@ -91,6 +94,12 @@ test.describe('área do operador Turmma', () => {
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
     await semNadaGuardadoNoNavegador(page)
+  })
+
+  test('na casca da operação, o "Sair" está à vista, com o anel de foco do sistema, e sai a um clique', async ({ page, hasTouch }) => {
+    const operador = await criarOperadorComSegundoFator()
+    // A entrada pela tela tem o caso acima; aqui ela é só o caminho até a casca, sem a rede lenta do perfil na primeira carga.
+    await loadUnthrottled(page, () => entrarNaOperacao(page, operador, hasTouch))
 
     // O "Sair" está à vista na barra de topo clara, sem abrir nada, com alvo de toque de 44 px, e o anel de foco dele é o
     // `foco` de 3 px, o mesmo de toda peça, sobre o `fundo` claro. Aqui na casca de verdade, e não numa face montada pelo
@@ -100,7 +109,9 @@ test.describe('área do operador Turmma', () => {
     expect(caixaDoSair?.height ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     expect(caixaDoSair?.width ?? 0).toBeGreaterThanOrEqual(ALVO_DE_TOQUE_PRINCIPAL_PX)
     if (!hasTouch) {
-      for (let tecla = 0; tecla < 10 && !(await sair.evaluate((elemento) => elemento === document.activeElement)); tecla++) await page.keyboard.press('Tab')
+      // O foco parte do que `entrarNaOperacao` deixa, e o "Sair" tem de estar a no máximo 10 `Tab` dele: com mais focáveis da
+      // casca antes dele, o caso cai na asserção do anel abaixo (`visivel: false`), e o limite de 10 é a causa a olhar.
+      for (let tecla = 0; tecla < 10 &&!(await sair.evaluate((elemento) => elemento === document.activeElement)); tecla++) await page.keyboard.press('Tab')
       const anel = await sair.evaluate((elemento) => {
         const estilo = getComputedStyle(elemento)
         return { visivel: elemento.matches(':focus-visible'), estilo: estilo.outlineStyle, largura: estilo.outlineWidth, cor: estilo.outlineColor }
@@ -122,25 +133,27 @@ test.describe('área do operador Turmma', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
-  test('a barra de topo é clara e tem a marca à vista na entrada, no segundo fator e no convite, a 360 e a 1366 px', async ({ page }) => {
-    // Cada recarga custa a rede lenta do celular, e são doze: o prazo é o do caso do escuro de `aparencia.spec.ts`.
-    test.setTimeout(90_000)
-    const telas = [
-      { endereco: '/operacao/entrar', titulo: 'Entrar na operação' },
-      { endereco: '/operacao/mfa', titulo: 'Segundo fator' },
-      { endereco: '/operacao/convite', titulo: 'Convite para a operação' },
-    ]
-    // Fora da sessão: a mesma barra, sem "Sair" e sem navegação, no fundo do tema (A60, A63), e no escuro sem violação
-    // grave do axe: é onde o contraste da barra e do título muda de cor.
-    for (const esquema of ['light', 'dark'] as const) {
-      await page.emulateMedia({ colorScheme: esquema })
-      for (const largura of [1366, 360]) {
+  for (const esquema of ['light', 'dark'] as const) {
+    for (const largura of [1366, 360]) {
+      test(`a barra de topo é clara e tem a marca à vista na entrada, no segundo fator e no convite, a ${String(largura)} px, no tema ${esquema === 'light' ? 'claro' : 'escuro'}`, async ({ page }) => {
+        const telas = [
+          { endereco: '/operacao/entrar', titulo: 'Entrar na operação' },
+          { endereco: '/operacao/mfa', titulo: 'Segundo fator' },
+          { endereco: '/operacao/convite', titulo: 'Convite para a operação' },
+        ]
+        // Fora da sessão: a mesma barra, sem "Sair" e sem navegação, no fundo do tema (A60, A63), e no escuro sem violação
+        // grave do axe: é onde o contraste da barra e do título muda de cor.
+        await page.emulateMedia({ colorScheme: esquema })
         await page.setViewportSize({ width: largura, height: 800 })
         for (const { endereco, titulo } of telas) {
           const onde = `${endereco} a ${String(largura)} px, ${esquema}`
-          await page.goto(endereco)
-          // O título fixa a tela: um redirecionamento à entrada não passaria por "Segundo fator" nem pelo convite.
-          await expect(page.getByRole('heading', { level: 1, name: titulo }), onde).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+          // O caso afirma a barra, e não quanto a tela leva para baixar: cada recarga corre sem a rede do perfil. A CPU do perfil
+          // continua, e a rede volta ao fim de cada uma.
+          await loadUnthrottled(page, async () => {
+            await page.goto(endereco)
+            // O título fixa a tela: um redirecionamento à entrada não passaria por "Segundo fator" nem pelo convite.
+            await expect(page.getByRole('heading', { level: 1, name: titulo }), onde).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+          })
           const banner = page.getByRole('banner')
           await expect(banner, onde).toContainText('Operação Turmma')
           await expect(banner.getByRole('button', { name: 'Sair' }), onde).toHaveCount(0)
@@ -149,9 +162,9 @@ test.describe('área do operador Turmma', () => {
           expect(await horizontalOverflow(page), onde).toBe(0)
           if (esquema === 'dark') expect(await seriousViolations(page), onde).toEqual([])
         }
-      }
+      })
     }
-  })
+  }
 
   test('a barra de topo é clara e tem a marca e o "Sair" à vista em Escolas e em Uso, a 360 e a 1366 px, nos dois temas', async ({ page, hasTouch }) => {
     const operador = await criarOperadorComSegundoFator()
