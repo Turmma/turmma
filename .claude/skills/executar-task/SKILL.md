@@ -301,7 +301,8 @@ ficou no `achados/`.
 Antes de pedir, para cada linha de "Divergências resolvidas", procure a palavra do código no `techspec.md` e no
 `cenarios.md` (`grep -n`). Não achou: a decisão entra lá agora, na seção que a coluna "Onde está na spec" cita (o aviso
 crítico do passo 2). Na F2, a 3.0, a 5.0, a 8.0 (quatro linhas) e a 10.0 reprovaram no `revisor-geral` por divergência que só
-existia no documento da tarefa.
+existia no documento da tarefa. A linha nova da `techspec.md` entra fora de qualquer tabela, com linha em branco antes e
+depois (a 3.0 da F5a tirou uma rota da tabela da §4).
 
 Essa conferência vale **antes de cada rodada**, a primeira e as seguintes, com mais três:
 
@@ -311,6 +312,10 @@ Essa conferência vale **antes de cada rodada**, a primeira e as seguintes, com 
   5.0, a 7.0 e a 9.0 deixaram o trabalho para o Orquestrador);
 - a rodada que mudou o desenho procura o termo antigo em `docs/` (`lgpd.md`, `runbook.md`, `infra.md`) e nos comentários do
   código (na F4, a 1.0 e a 2.0).
+
+Rode `node tools/processo/portao-local.ts revisores <documento>`. Quem a linha "Revisores obrigatórios" traz e a
+"Subagentes obrigatórios" não, acrescente com Edit: é o caminho que pede, não escolha sua. O bloco "Atenção" tem de sair
+vazio. Na F5a, onze rodadas foram devolvidas por um dos dois.
 
 Com o portão local verde, peça a rodada e **encerre o turno**
 (`.claude/skills/seguir/protocolo.md`, item 2). O nome da Mesa veio no pedido do Orquestrador:
@@ -326,7 +331,9 @@ Orquestrador: <o nome que veio no pedido dele>
 
 - **`RELATÓRIO` com "APROVADO por todos":** a aprovação é final. Se a linha "Sem aplicar" aponta um
   arquivo, copie a tabela dele para "Recomendações sem aplicar" do `N_task.md`, como está, junto da seção "Sem aplicar" de
-  **cada** ordem anterior deste documento (`.processo/ordens/<documento>-r<n>.md`), e siga
+  **cada** ordem anterior deste documento (`.processo/ordens/<documento>-r<n>.md`), e cada linha com destino `TODO.md`
+  vai agora ao `TODO.md`, na seção "Da <funcionalidade>, tarefa N.0", no mesmo commit: a conferência antes de cada rodada
+  não alcança a tabela que chega com a aprovação (na F5a, a 6.0 e a 7.0 deixaram 25 linhas de fora). Depois siga
   para o passo 6. Quem decide o que se aplica e o destino do resto é a Mesa, não você.
 - **`ORDEM DE CORREÇÃO` só com recomendações:** os revisores aprovaram, e a Mesa escolheu as
   recomendações baratas a aplicar. Aplique como qualquer ordem, rode o portão da tarefa e peça rodada

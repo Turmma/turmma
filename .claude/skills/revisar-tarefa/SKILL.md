@@ -22,16 +22,18 @@ Documento: `$ARGUMENTS`
 ## 1. Antes de chamar alguém
 
 1. Leia o documento: a linha "Subagentes obrigatórios" e a seção "Revisões".
-2. **Em correção, confira a linha "Subagentes obrigatórios" contra os arquivos alterados**
-   (`git status --short`): a natureza de cada arquivo está na tabela de `.claude/skills/criar-tasks/SKILL.md`
-   e o caminho, em `tools/processo/guardioes-por-caminho.ts`. Mais de 5 arquivos fora de `tasks/`, ou
-   `.github/`, `tools/ci/` e `tools/processo/`, pede `revisor-geral`. Faltou um: é `DEVOLUÇÃO`, dizendo
-   qual acrescentar.
+2. **Em correção, confira a linha "Subagentes obrigatórios" contra o que o caminho não sabe**
+   (`git status --short`; a natureza de cada arquivo está na tabela de `.claude/skills/criar-tasks/SKILL.md`): o
+   `frontend-reviewer` na tela, o `llm-integrator` na IA, o `pedagogia-reviewer` no conteúdo, e o `revisor-geral` acima
+   de 5 arquivos fora de `tasks/`. Faltou um desses: é `DEVOLUÇÃO`, dizendo qual acrescentar. Os quatro guardiões e o
+   `revisor-geral` que o caminho pede (`tools/processo/guardioes-por-caminho.ts`) vêm na linha "Revisores obrigatórios"
+   do item 3, e o hook os cobra no commit (RF15): chame-os e acrescente-os à linha com Edit, sem devolução. Na F5a, dez
+   devoluções foram por um desses, sem proteger nada.
    **Correção no meio de uma tarefa:** o documento da correção traz a seção "Fora desta correção",
    com os arquivos da tarefa em curso. Eles não contam aqui, não entram em "Arquivos alterados" do
    prompt, e o prompt diz ao revisor que as outras mudanças da árvore são da tarefa em curso e não
    estão em revisão.
-   Quem implementa não escolhe quem o audita, e o hook só cobra o que está escrito na linha.
+   Quem implementa não escolhe quem o audita: quem escolhe é o caminho.
 3. Pergunte ao portão o que ainda falta, pela mesma conta do hook do commit:
 
    ```bash
@@ -183,7 +185,9 @@ direto para "Sem aplicar", com destino. Na 5.0 do F3 um ciclo inteiro foi gasto 
 recomendação depois de tudo aprovado.
 
 Antes de enviar, conte as reprovações **seguidas** do mesmo revisor neste documento, pelas últimas
-rodadas dele na seção "Revisões". Se `.processo/ordens/rodadas.md` tem uma linha
+rodadas dele na seção "Revisões". Rodada que começou antes do commit das tarefas
+(`git log --reverse --format=%ci -- tasks/prd-<funcionalidade>/tasks.md | head -1`, o primeiro) é da conferência das
+tarefas, não desta: não conta (na F5a, a 6.0 foi escalada por uma delas). Se `.processo/ordens/rodadas.md` tem uma linha
 `<documento> | destravado | <revisor> | depois da <n>ª rodada dele`, conte só as rodadas depois dessa:
 
 | Seguidas | O que você faz |
