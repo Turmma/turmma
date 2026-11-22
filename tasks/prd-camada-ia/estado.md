@@ -27,6 +27,11 @@
 | correção `2026-11-20-revisoes-nao-se-perdem-por-script` (M2 da X6, L1) | `bdcef966` | Sonnet | 6 revisores APROVADO na 2ª | 29 casos, 22 mutações; `TODO.md`: M2 marcada e uma linha para a retro |
 
 ## Esperando o Joaquim
+## 22/11 — F5a camada-ia, o pouso, no meu terminal
+Decisão: pousar a F5a na `develop` (o `land` do andar e o push da `develop`, que leva também a retro da F4b, `6496c7b5`).
+Contexto: `tasks/prd-camada-ia/validacao.md` (APROVADA, 8 de 8 RF, 0 crítico, 0 maior); esteira verde em `12432adf`; fechamento `5eb0a74d`; a `develop` do GitHub não andou; nenhum commit `Fora do processo:`.
+Opções: pousar agora | esperar
+Recomendo: pousar agora; depois, a esteira da `develop`, a F5b (`reserva-e-avaliacao`) e a retro da F5a, juntas.
 ## 20/11 23:28 — F5 camada-ia, o tamanho da spec, no meu terminal
 Decisão: 13 tarefas, uma acima do teto de 12: seguir com uma spec só ou cortar em F5a (1.0 a 8.0, custo e orçamento) e F5b (9.0 a 13.0, reserva e avaliação).
 Contexto: `RELATÓRIO` do `Arquiteto`, 23:24; `tasks/prd-camada-ia/tasks.md`. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
