@@ -49,12 +49,12 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [ ] 5.3 `docs/lgpd.md` linha 99, os comentários, o glossário e `docs/mvp-contratos.md`
   - [ ] 5.4 Testes
 
-- [ ] **6.0 — A repetição com a reserva: no máximo quatro chamadas, dentro do prazo da execução**
-  - [ ] 6.1 O contador por destino
-  - [ ] 6.2 A inválida repete no provedor que respondeu; a queda na repetição vai à reserva
-  - [ ] 6.3 A saída de reserva da tarefa depois de duas inválidas na reserva
-  - [ ] 6.4 O prazo com quatro chamadas
-  - [ ] 6.5 Testes
+- [x] **6.0 — A repetição com a reserva: no máximo quatro chamadas, dentro do prazo da execução**
+  - [x] 6.1 O contador por destino (na 4.0; aqui só o teste de mesmo `provedorId`)
+  - [x] 6.2 A inválida repete no provedor que respondeu; a queda na repetição vai à reserva (na 4.0)
+  - [x] 6.3 A saída de reserva da tarefa depois de duas inválidas na reserva
+  - [x] 6.4 O prazo com quatro chamadas
+  - [x] 6.5 Testes
 
 - [ ] **7.0 — Sem vaga no principal, a chamada vai ao menor e depois à reserva, no balde dela**
   - [ ] 7.1 O ramo sem vaga

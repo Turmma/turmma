@@ -1,9 +1,9 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 a 4.0 (grande, 1ª tentativa, partida 22/11 16:25); L2 a 12.0 (grande, 1ª tentativa, partida 22/11 ~17:40). L3 ociosa: nada liberado (5.0 e 6.0 esperam a 4.0; 13.0 espera a 12.0).
-- **Devo ainda:** depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `2aa1a2f4` (esteira de `2aa1a2f` rodando, 45068657510)
+- **Espero:** L1 a 5.0 (grande, 1ª tentativa, partida 22/11 ~18:10); L2 a 12.0 (grande, 1ª tentativa, partida 22/11 17:50); L3 a 6.0 (grande, 1ª tentativa, pedido 22/11 ~18:20; o `Arquiteto` tirou a 6.1 e a 6.2, feitas na 4.0, do `6_task.md` e do `tasks.md` no checkout da L3, sem commit: vão no commit da 6.0).
+- **Devo ainda:** a 7.0 tem de entrar na spec antes do pouso: até ela, a chamada à reserva depois da queda não passa por limitador (regra 80, item 4; divergência no `4_task.md`, techspec §5 e `7_task.md`). depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
+- **Base:** `spec/reserva-e-avaliacao` em `82aaf93a` (esteira de `2aa1a2f` rodando, 45068657510; a de `82aaf93` dispara no push)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -13,6 +13,7 @@
 | 3.0 | `84f9c5ce` | Sonnet | os sete na 2ª | encontro em `459ea284`, verificação da soma passou; sem tela |
 | 2.0 | `e6668395` | Sonnet | os sete na 2ª | encontro em `172218e6`, verificação da soma passou; sem tela; caso intermitente de `fila-de-ia.int.test.ts` (prazo do perfil, 3 em 10 no HEAD sem a 2.0) e lacuna "contrato permite serviço usado por menor" no `TODO.md` |
 | 11.0 | `6373d9db` | Sonnet | `test-engineer` na 3ª (escalada na 2ª, diagnóstico do `Arquiteto`: regex `semImportDeTipo`); `revisor-geral`, `llm-integrator` e `pedagogia-reviewer` na 2ª; os outros quatro na 1ª | encontro em `2aa1a2f4`, verificação da soma passou; sem tela; DIVERGÊNCIA (ordem, guarda do ponto de entrada) triada como detalhe, techspec §8 e `cenarios.md` §1 no commit |
+| 4.0 | `ee23dc4e` | Sonnet | os sete na 2ª | encontro em `82aaf93a`, verificação da soma passou; sem tela; absorveu a 6.1 e a 6.2 (divergência no `4_task.md`); regra 80 item 4 no ramo da queda pendente até a 7.0 |
 
 ## Esperando o Joaquim
 ## 22/11 12:52 — a regra fixa da D55 recusa rubrica legítima, no meu terminal

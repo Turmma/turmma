@@ -1,10 +1,11 @@
-import { InMemoryConsumo, LLMError, LLMGateway, PRAZO_DA_EXECUCAO_MS, gerarAtividadeObjetiva, runInContext, turnoDoTutor, InMemorySuspensoes, type FilaDeTokens, type LimiteDeTokens, type ResultadoDaReserva } from '@educa/core'
+import { InMemoryConsumo, LLMError, LLMGateway, PRAZO_DA_EXECUCAO_MS, gerarAtividadeObjetiva, runInContext, turnoDoTutor, InMemorySuspensoes, type FilaDeTokens, type LimiteDeTokens, type ModeloAprovado, type ResultadoDaReserva } from '@educa/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ResilientAdapter } from '../../../../packages/core/src/ia/resilient-adapter.js'
 import type { ModelAdapter, ModelCall, ModelResponse } from '../../../../packages/core/src/ia/adapter.js'
 import type { Perfil } from '../../../../packages/core/src/ia/perfis.js'
 import { SEM_ENVIO_EXTERNO } from '../../../../packages/core/src/ia/port.js'
 import { ALUNO_1, atividadeDeEstequiometria, entradaDeAtividade, entradaDoTutor, ESCOLA_A } from '../../../../packages/core/src/ia/__fixtures__/inputs.js'
+import { tokensDoPedido } from '../../../../packages/core/src/ia/teto-de-entrada.js'
 import { prazoPorTemporizador } from './prazo-por-temporizador.js'
 
 /**
@@ -21,16 +22,18 @@ const MENORES = { padrao: 'menor-padrao', rapido: 'menor-rapido' } as const
 class LentoAdapter implements ModelAdapter {
   readonly origem = 'falso'
   readonly envio = SEM_ENVIO_EXTERNO
-  readonly identidade = 'falso'
   readonly chamadasDe: { modelo: string; em: number }[] = []
 
+  /** `identidade` e `prefixoDoModelo` fazem do segundo adaptador a reserva: outro provedor e outro modelo por perfil (`reserva-<perfil>`). Um passo com `queda` falha depois da duração, como o servidor que cai. */
   constructor(
     private readonly inicio: number,
-    private readonly roteiro: readonly { duracaoMs: number; texto: string }[],
+    private readonly roteiro: readonly { duracaoMs: number; texto: string; queda?: true }[],
+    readonly identidade = 'falso',
+    private readonly prefixoDoModelo = 'principal',
   ) {}
 
   modeloDoPerfil(perfil: Perfil): string {
-    return `principal-${perfil}`
+    return `${this.prefixoDoModelo}-${perfil}`
   }
 
   chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
@@ -39,7 +42,7 @@ class LentoAdapter implements ModelAdapter {
     this.chamadasDe.push({ modelo, em: Date.now() - this.inicio })
     return new Promise((resolver, rejeitar) => {
       if (passo === undefined) return rejeitar(new Error('sem roteiro'))
-      const temporizador = setTimeout(() => resolver({ texto: passo.texto, modelo, tokensDeEntrada: 100, tokensDeSaida: 20 }), passo.duracaoMs)
+      const temporizador = setTimeout(() => (passo.queda === true ? rejeitar(new LLMError('IA_INDISPONIVEL')) : resolver({ texto: passo.texto, modelo, tokensDeEntrada: 100, tokensDeSaida: 20 })), passo.duracaoMs)
       chamada.sinal.addEventListener('abort', () => {
         clearTimeout(temporizador)
         rejeitar(new LLMError('IA_TEMPO_ESGOTADO'))
@@ -82,9 +85,16 @@ const PRINCIPAL_DO_PADRAO = 'falso:principal-padrao'
 const PRINCIPAL_DO_RAPIDO = 'falso:principal-rapido'
 const MENOR_DO_PADRAO = 'falso:menor-padrao'
 
-function montar(roteiro: readonly { duracaoMs: number; texto: string }[]) {
+type Roteiro = readonly { duracaoMs: number; texto: string; queda?: true }[]
+const RESERVA = 'falso-reserva'
+const aprovada = (tarefa: ModeloAprovado['tarefa'], modelo: string): ModeloAprovado => ({ tarefa, provedorId: RESERVA, modelo, relatorio: 'docs/avaliacao/teste/relatorio.md', sha256: 'sha-do-teste', aprovadoPor: 'teste', aprovadoEm: '2026-11-22' })
+/** A reserva elegível para a ferramenta (`padrao`) e para o Tutor (`rapido`): conferida na D62 e aprovada por tarefa, provedor e modelo. */
+const APROVADAS_DA_RESERVA = [aprovada('gerar_atividade_objetiva', 'reserva-padrao'), aprovada('turno_do_tutor', 'reserva-rapido')]
+
+function montar(roteiro: Roteiro, roteiroDaReserva?: Roteiro) {
   const inicio = Date.now()
   const adaptador = new LentoAdapter(inicio, roteiro)
+  const reserva = roteiroDaReserva === undefined ? undefined : new LentoAdapter(inicio, roteiroDaReserva, RESERVA, 'reserva')
   const consumo = new InMemoryConsumo()
   const limite = new LimiteNoRelogio(inicio)
   const gateway = new LLMGateway({
@@ -94,6 +104,7 @@ function montar(roteiro: readonly { duracaoMs: number; texto: string }[]) {
     suspensao: new InMemorySuspensoes(),
     limiteDeTokens: limite,
     modelosMenores: MENORES,
+    ...(reserva === undefined ? {} : { reserva: { adaptador: new ResilientAdapter(reserva, POLITICA), ambiente: 'local' as const, aprovados: APROVADAS_DA_RESERVA }, soberaniaDaReserva: { conferida: true as const } }),
   })
   /** O pedido como o `ExecucaoProcessor` o faz: o prazo do perfil começa agora, e o sinal dele vai no pedido. */
   const pedir = (tarefa: 'ferramenta' | 'tutor') => {
@@ -105,7 +116,7 @@ function montar(roteiro: readonly { duracaoMs: number; texto: string }[]) {
         : gateway.generate({ ...base, tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), fila: 'ferramenta' }),
     )
   }
-  return { adaptador, consumo, limite, pedir, inicio }
+  return { adaptador, reserva, consumo, limite, pedir, inicio }
 }
 
 /** Acompanha a promessa: em que instante (relógio falso, desde o começo) ela terminou, e como. */
@@ -191,6 +202,38 @@ describe('o prazo único cobre a espera pela vaga de tokens (49.0)', () => {
     expect(adaptador.chamadasDe).toHaveLength(1)
     expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_SAIDA_INVALIDA', tentativas: 1 }])
     expect(consumo.registros).toHaveLength(1)
+  })
+
+  describe('a quarta chamada, na reserva, estoura o prazo da execução (reserva-e-avaliacao, 6.0; RF3; §7c)', () => {
+    /** O principal responde inválido e depois cai; a reserva responde inválido e a quarta chamada pendura 600 s: só o prazo único a corta. O "reserva" do nome é o provedor, e não a vaga de tokens. */
+    const casos = [
+      { perfil: 'padrao', tarefa: 'ferramenta', prazoMs: 140_000, principal: [{ duracaoMs: 10_000, texto: 'não é json' }, { duracaoMs: 10_000, texto: '', queda: true as const }], reserva: [{ duracaoMs: 30_000, texto: 'não é json' }, { duracaoMs: 600_000, texto: respostaValida() }], quartaEm: 50_000, tokensMinimosDeEntrada: () => tokensDoPedido(gerarAtividadeObjetiva, entradaDeAtividade()), tetoDeSaida: gerarAtividadeObjetiva.maximoDeTokensDeSaida },
+      { perfil: 'rapido', tarefa: 'tutor', prazoMs: 60_000, principal: [{ duracaoMs: 5_000, texto: '{}' }, { duracaoMs: 5_000, texto: '', queda: true as const }], reserva: [{ duracaoMs: 10_000, texto: '{}' }, { duracaoMs: 600_000, texto: '{}' }], quartaEm: 20_000, tokensMinimosDeEntrada: () => tokensDoPedido(turnoDoTutor, entradaDoTutor('não entendi')), tetoDeSaida: turnoDoTutor.maximoDeTokensDeSaida },
+    ] as const
+
+    for (const caso of casos) {
+      it(`${caso.perfil}: a quarta chamada pendurada termina aos ${caso.prazoMs.toLocaleString('pt-BR')} ms com IA_TEMPO_ESGOTADO, a execução falhou, e a reserva só tem o que sobrou do prazo`, async () => {
+        vi.useFakeTimers()
+        const { limite, pedir, inicio, adaptador, reserva, consumo } = montar(caso.principal, caso.reserva)
+        // Só o balde do principal abre: a reserva ainda não reserva vaga no dele (a 7.0 a põe no balde dela).
+        limite.abreEm(caso.perfil === 'padrao' ? PRINCIPAL_DO_PADRAO : PRINCIPAL_DO_RAPIDO, 0)
+        const estado = acompanhar(pedir(caso.tarefa), inicio)
+        await vi.advanceTimersByTimeAsync(caso.prazoMs - 1)
+        expect(estado.fimEm).toBeUndefined()
+        expect(adaptador.chamadasDe.map((chamada) => chamada.modelo)).toEqual([`principal-${caso.perfil}`, `principal-${caso.perfil}`])
+        expect(reserva?.chamadasDe.map((chamada) => chamada.modelo)).toEqual([`reserva-${caso.perfil}`, `reserva-${caso.perfil}`])
+        expect(reserva?.chamadasDe[1]?.em).toBe(caso.quartaEm)
+        await vi.advanceTimersByTimeAsync(1)
+        expect(estado).toMatchObject({ fimEm: caso.prazoMs, ok: false, codigo: 'IA_TEMPO_ESGOTADO' })
+        // Nenhuma quinta chamada, nem ao principal: o limite é de quatro e o prazo é o da execução, e não o da reserva.
+        expect([adaptador.chamadasDe.length, reserva?.chamadasDe.length]).toEqual([2, 2])
+        // A última linha é a da quarta chamada, que saiu e não voltou: leva o modelo da reserva e a estimativa da D14 (a entrada contada, com a correção da resposta inválida anterior, e a saída no teto da tarefa).
+        // `provedorId: null` é do harness: o `LentoAdapter` não tem envio externo, e não o que a reserva grava em produção (o caso "a reserva que falha depois de sair" da 4.0 prova o `provedorId` dela).
+        const ultima = consumo.registros.at(-1)
+        expect(ultima).toMatchObject({ estado: 'falhou', codigoDeErro: 'IA_TEMPO_ESGOTADO', peloProvedorDeReserva: true, modelo: `reserva-${caso.perfil}`, provedorId: null, tokensDeSaida: caso.tetoDeSaida })
+        expect(ultima?.tokensDeEntrada).toBeGreaterThan(caso.tokensMinimosDeEntrada())
+      })
+    }
   })
 
   it('sem o prazo apertado, a espera acaba sozinha aos 8 s: o degrau de IA_INDISPONIVEL cabe dentro dos 140 s, sem erro cru', async () => {
