@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LLMError } from './errors.js'
+import { LLMError, ProviderError } from './errors.js'
 import { FakeAdapter } from './fake-adapter.js'
 import { entradaDeAtividade, entradaDoTutor } from './__fixtures__/inputs.js'
 import { gerarAtividadeObjetiva } from './tasks/gerar-atividade-objetiva.js'
@@ -78,5 +78,30 @@ describe('FakeAdapter: os tokens que ele informa (a carga da manhã, X6, 11.0)',
     const estimando = await chamarTutor(new FakeAdapter())
     expect(estimando.tokensDeEntrada).toBe(Math.ceil(JSON.stringify(entradaDoTutor('Como acho o reagente limitante?')).length / 4))
     expect(estimando.tokensDeSaida).toBe(Math.ceil(estimando.texto.length / 4))
+  })
+})
+
+describe('FakeAdapter: a falha sob comando (`IA_FALHA_FALSA`, reserva-e-avaliacao, 4.0)', () => {
+  it.each([
+    { falha: '5xx', como: 'servidor', codigo: 'IA_INDISPONIVEL' },
+    { falha: 'prazo', como: 'tempo', codigo: 'IA_TEMPO_ESGOTADO' },
+    { falha: 'conexao', como: 'recusada', codigo: 'IA_INDISPONIVEL' },
+    { falha: '429', como: 'limite', codigo: 'IA_INDISPONIVEL' },
+  ] as const)('`$falha` faz toda chamada falhar como o provedor de verdade falharia (`$como`, $codigo), a de qualquer perfil', async ({ falha, como, codigo }) => {
+    const adaptador = new FakeAdapter({ falha })
+    for (const chamar of [chamarFerramenta, chamarTutor]) {
+      const erro: unknown = await chamar(adaptador).then(
+        () => undefined,
+        (motivo: unknown) => motivo,
+      )
+      expect(erro).toBeInstanceOf(ProviderError)
+      expect(erro).toMatchObject({ falha: como, codigoDeIa: codigo })
+    }
+  })
+
+  it('sem a falha o falso responde como sempre, e a falha vem antes da espera simulada', async () => {
+    expect(await terminouCom(chamarFerramenta(new FakeAdapter()))).toBeUndefined()
+    // A espera que não cabe no sinal terminaria `IA_TEMPO_ESGOTADO`; a falha `5xx` termina na hora, com o código do servidor.
+    expect(await terminouCom(chamarFerramenta(new FakeAdapter({ falha: '5xx', latenciaMs: ESPERA_QUE_NAO_CABE_MS })))).toBe('IA_INDISPONIVEL')
   })
 })

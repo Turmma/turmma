@@ -47,6 +47,16 @@ export const MOTIVO_RESERVA_COM_MODELO_DO_PRINCIPAL =
 export const MOTIVO_SEM_TOKENS_POR_MINUTO_DA_RESERVA =
   'LLM_RESERVA_TOKENS_POR_MINUTO é obrigatória fora de AMBIENTE=local com a reserva configurada: é o contratado com o provedor da reserva, e o limitador próprio dela não tem valor escondido no código (D41)'
 
+export const MOTIVO_FALHA_FALSA_EM_PRODUCAO =
+  'IA_FALHA_FALSA é proibida com AMBIENTE=producao: ela faz o adaptador falso falhar de propósito, para o ensaio da queda do principal, e em produção derrubaria o provedor de verdade'
+
+/** As quatro falhas que o adaptador falso sabe fazer sob comando (`IA_FALHA_FALSA`): o 5xx, o prazo, a conexão recusada e o 429. */
+export const FALHAS_FALSAS = ['5xx', 'prazo', 'conexao', '429'] as const
+export type FalhaFalsa = (typeof FALHAS_FALSAS)[number]
+/** Qual dos dois adaptadores falsos falha: o principal, ou a reserva. */
+export const DESTINOS_DA_FALHA_FALSA = ['principal', 'reserva'] as const
+export type DestinoDaFalhaFalsa = (typeof DESTINOS_DA_FALHA_FALSA)[number]
+
 /** A identidade da reserva falsa: o `IA_RESERVA_PROVEDOR_ID` que ela assume sem outro. Fora de produção, é a chave do balde, do preço e da aprovação dela. */
 export const IDENTIDADE_DA_RESERVA_FALSA = 'falso-reserva'
 
@@ -160,6 +170,11 @@ export const llmEnvSchema = z
      */
     IA_TOKENS_FALSOS_ENTRADA: inteiro(0, 1_000_000, 0),
     IA_TOKENS_FALSOS_SAIDA: inteiro(0, 1_000_000, 0),
+    /**
+     * A falha que o adaptador **falso** faz sob comando, `<principal|reserva>:<5xx|prazo|conexao|429>` (F5b, 4.0): o ensaio da queda do principal e a fase `reserva` da carga. Só o falso a lê (o
+     * `openai_compat` a ignora), e a subida a recusa com `AMBIENTE=producao`.
+     */
+    IA_FALHA_FALSA: opcional(z.string().regex(/^(principal|reserva):(5xx|prazo|conexao|429)$/).optional()),
   })
   .superRefine((valores, contexto) => {
     const problema = (variavel: string, message: string): void => contexto.addIssue({ code: 'custom', path: [variavel], message })
@@ -172,6 +187,7 @@ export const llmEnvSchema = z
     conferirLatenciasFalsas(valores, menorPrazo, problema)
     if (valores.AMBIENTE !== 'local' && valores.LLM_TOKENS_POR_MINUTO === undefined) problema('LLM_TOKENS_POR_MINUTO', MOTIVO_SEM_TOKENS_POR_MINUTO)
     conferirAReserva(valores, problema)
+    if (valores.AMBIENTE === 'producao' && valores.IA_FALHA_FALSA !== undefined) problema('IA_FALHA_FALSA', MOTIVO_FALHA_FALSA_EM_PRODUCAO)
     if (valores.IA_ADAPTADOR !== 'openai_compat') return
     if (valores.LLM_BASE_URL === undefined) problema('LLM_BASE_URL', MOTIVO_LLM_SEM_ENDERECO)
     else if (valores.LLM_PROCESSAMENTO_LOCAL === 'true' && !enderecoDaNossaRede(valores.LLM_BASE_URL)) {
@@ -335,13 +351,29 @@ export interface LLMConfig {
   readonly latenciaFalsaMsPadrao?: number
   /** Só do adaptador falso: os tokens que ele informa por chamada (`IA_TOKENS_FALSOS_ENTRADA` e `_SAIDA`). Ausente, é a estimativa pelo texto. */
   readonly tokensFalsos?: { readonly entrada: number; readonly saida: number }
+  /** Só do adaptador falso: qual deles falha (o principal ou a reserva) e como (`IA_FALHA_FALSA`). Ausente, nenhum falha. */
+  readonly falhaFalsa?: { readonly destino: DestinoDaFalhaFalsa; readonly falha: FalhaFalsa }
 }
 
-type ValoresDoFalso = { readonly IA_LATENCIA_FALSA_MS: number; readonly IA_LATENCIA_FALSA_MS_PADRAO: number; readonly IA_TOKENS_FALSOS_ENTRADA: number; readonly IA_TOKENS_FALSOS_SAIDA: number }
+type ValoresDoFalso = {
+  readonly IA_LATENCIA_FALSA_MS: number
+  readonly IA_LATENCIA_FALSA_MS_PADRAO: number
+  readonly IA_TOKENS_FALSOS_ENTRADA: number
+  readonly IA_TOKENS_FALSOS_SAIDA: number
+  readonly IA_FALHA_FALSA?: string | undefined
+}
 
-/** O que só o adaptador falso lê: a espera de cada chamada, a do `padrao` e os tokens que ele informa. Zero é ausente. */
-function opcoesDoAdaptadorFalso(valores: ValoresDoFalso): Pick<LLMConfig, 'latenciaFalsaMs' | 'latenciaFalsaMsPadrao' | 'tokensFalsos'> {
+/** O `IA_FALHA_FALSA` já conferido pelo esquema (`destino:falha`) em forma de configuração. */
+function falhaFalsaDe(texto: string | undefined): Pick<LLMConfig, 'falhaFalsa'> {
+  if (texto === undefined) return {}
+  const [destino, falha] = texto.split(':') as [DestinoDaFalhaFalsa, FalhaFalsa]
+  return { falhaFalsa: { destino, falha } }
+}
+
+/** O que só o adaptador falso lê: a espera de cada chamada, a do `padrao`, os tokens que ele informa e a falha sob comando. Zero é ausente. */
+function opcoesDoAdaptadorFalso(valores: ValoresDoFalso): Pick<LLMConfig, 'latenciaFalsaMs' | 'latenciaFalsaMsPadrao' | 'tokensFalsos' | 'falhaFalsa'> {
   return {
+    ...falhaFalsaDe(valores.IA_FALHA_FALSA),
     ...(valores.IA_LATENCIA_FALSA_MS > 0 ? { latenciaFalsaMs: valores.IA_LATENCIA_FALSA_MS } : {}),
     ...(valores.IA_LATENCIA_FALSA_MS_PADRAO > 0 ? { latenciaFalsaMsPadrao: valores.IA_LATENCIA_FALSA_MS_PADRAO } : {}),
     ...(valores.IA_TOKENS_FALSOS_ENTRADA > 0 || valores.IA_TOKENS_FALSOS_SAIDA > 0

@@ -468,6 +468,24 @@ describe('AdaptadorResiliente: o disjuntor', { timeout: LIMITE_DO_TESTE_MS }, ()
     await leitor.encerrar()
   })
 
+  it('o principal e a reserva, no mesmo medidor, têm uma série cada, pelo `provedor` de cada um: o do principal aberto não abre o da reserva, e os dois fora dão duas séries em 1 (reserva-e-avaliacao, 4.0; a X6)', async () => {
+    const leitor = new MedidorDeTeste()
+    const politica = { prazosMs: PRAZOS, recuoMs: RECUO_MS, aleatorio: () => 1, medidor: leitor.medidor }
+    // O mesmo modelo e o mesmo perfil nos dois: só o `provedor` os distingue.
+    const falhas = () => Array.from({ length: FALHAS_PARA_ABRIR_O_DISJUNTOR }, () => new ProviderError('servidor'))
+    const principal = new ResilientAdapter(new ScriptedAdapter([...falhas(), ...falhas()], true, 'principal-x'), politica)
+    const reserva = new ResilientAdapter(new ScriptedAdapter(['{}', ...falhas()], true, 'reserva-y'), politica)
+    const chamarOs = (adaptador: ResilientAdapter, vezes: number) => chamarEmFila(() => adaptador.chamar({ tarefa: tarefaDo('padrao'), entrada: entradaDeAtividade(), sinal: new AbortController().signal }), vezes)
+    const porProvedor = async () => Object.fromEntries((await leitor.pontos('ia.disjuntor.aberto')).map((ponto) => [String(ponto.atributos['provedor']), ponto.valor]))
+
+    await chamarOs(principal, FALHAS_PARA_ABRIR_O_DISJUNTOR)
+    await chamarOs(reserva, 1)
+    expect(await porProvedor()).toEqual({ 'principal-x': 1, 'reserva-y': 0 })
+    await chamarOs(reserva, FALHAS_PARA_ABRIR_O_DISJUNTOR)
+    expect(await porProvedor()).toEqual({ 'principal-x': 1, 'reserva-y': 1 })
+    await leitor.encerrar()
+  })
+
   describe('a chamada lenta', () => {
     it('no `rapido`, entre metade do prazo e o prazo a chamada vale e pesa: cinco delas abrem o disjuntor', async () => {
       const { interno, chamar } = montar(demora(12_000))

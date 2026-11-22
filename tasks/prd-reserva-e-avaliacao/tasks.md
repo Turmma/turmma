@@ -36,12 +36,12 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 3.3 A estimativa na linha do 429 e da conexão recusada
   - [x] 3.4 Testes
 
-- [ ] **4.0 — Com o principal caído, a chamada vai à reserva elegível, e cada chamada leva o seu destino**
-  - [ ] 4.1 O destino por chamada
-  - [ ] 4.2 O ramo da queda
-  - [ ] 4.3 O degrau, o log e os disjuntores por provedor
-  - [ ] 4.4 `IA_FALHA_FALSA`
-  - [ ] 4.5 Testes
+- [x] **4.0 — Com o principal caído, a chamada vai à reserva elegível, e cada chamada leva o seu destino**
+  - [x] 4.1 O destino por chamada
+  - [x] 4.2 O ramo da queda
+  - [x] 4.3 O degrau, o log e os disjuntores por provedor
+  - [x] 4.4 `IA_FALHA_FALSA`
+  - [x] 4.5 Testes
 
 - [ ] **5.0 — A chamada da reserva chega ao banco e ao compartilhamento do aluno, e o worker só a chama conferida**
   - [ ] 5.1 O `ConsumoRepository` grava a coluna

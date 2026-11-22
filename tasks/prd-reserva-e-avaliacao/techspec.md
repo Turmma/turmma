@@ -79,13 +79,15 @@ elegível, uma vez, se o sinal da execução não abortou. É queda: `disjuntor`
 `IA_TEMPO_ESGOTADO`. `rejeitada` não é queda nem falta de vaga (defeito de pedido ou de configuração): termina como hoje. (3) A repetição por saída inválida fica no provedor que respondeu. A queda na repetição do principal (a primeira
 inválida, a segunda com 5xx) também vai à reserva, com o pedido sem a correção do principal. (4) A reserva que falha termina como
 hoje: interativo indisponível, lote adiado; duas inválidas nela ainda passam pela saída de reserva da tarefa (`reservaQuandoInvalida`,
-outro sentido de "reserva": glossário). Uma função só confere a elegibilidade nos dois ramos. **No máximo quatro chamadas por
+outro sentido de "reserva": glossário). Uma função só confere a elegibilidade nos dois ramos. **O balde da reserva é da 7.0, nos dois ramos:** na 4.0 a chamada à reserva no ramo da queda
+ainda não reserva vaga (`vagaDoAlvo` devolve `{}` para a reserva, e o `limiteDeTokensDaReserva` ainda não é lido); a 7.0 a põe no balde dela, na fila do pedido, e o `sem_vaga` dali termina o pedido. **A vaga do principal
+que caiu sem sair** (o disjuntor aberto, `semEnvio`) volta ao balde na hora (`devolverAVaga`, `acertar(0)`), para o desvio não encher o balde até o `sem_vaga`; a das chamadas que podem ter saído (5xx, conexão, prazo) fica com a estimativa, que o provedor pode ter contado (D14). **No máximo quatro chamadas por
 execução**, duas por destino (principal ou reserva), com contador por destino. O Tutor e a classificação nunca vão ao menor (D36). A função suspensa
 não chega a nenhum provedor (a suspensão vem antes, como hoje).
 
 **O destino por chamada.** `ChamadaEnviada` e o `Gasto` guardam o destino de cada chamada (origem, envio, identidade e
 `peloProvedorDeReserva`); o preço, o rótulo, o balde, a linha de consumo e a `medicao` devolvida leem o destino da chamada, e
-a `medicao` é a do provedor que respondeu. `ConsumoDeIa` ganha `peloProvedorDeReserva`, e o `ConsumoRepository` o grava.
+a `medicao` é a do provedor que respondeu. `ConsumoDeIa` ganha `peloProvedorDeReserva` (opcional no tipo, e a falta vale `false`: o `ConsumoDeIa` também é construído fora do gateway, e o campo obrigatório é da 5.0; a linha que o gateway entrega sempre o traz preenchido), e o `ConsumoRepository` o grava.
 A reserva soma `ia.degradacao{degrau="provedor_de_reserva"}` (o degrau entra em `DEGRAUS`, nascendo em zero) e loga
 `ia.geracao.provedor_de_reserva`. `usosDoTeto` e `ia.tokens.uso_do_teto` passam a ser por `provedor:modelo`.
 

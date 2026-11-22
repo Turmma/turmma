@@ -25,7 +25,8 @@ direto da espera à reserva, sem o menor. O uso do teto passa a ser por `provedo
 ## Subtarefas
 
 - [ ] 7.1 — O ramo sem vaga (§5 (1)): espera, menor (se a tarefa o tem), reserva elegível no limitador dela (2.0); a mesma função
-  de elegibilidade da queda
+  de elegibilidade da queda. **E o ramo da queda (4.0):** a chamada à reserva depois da queda do principal também reserva no balde dela, por fila
+  (`vagaDoAlvo` hoje devolve `{}` para a reserva), com acerto pelo uso real e devolução na falha; sem vaga ali, `sem_vaga`. A vaga do modelo menor que cai com `semEnvio` também volta ao balde (`menor.reserva`: `devolverAVaga` da 4.0 só vê a do principal); a vaga é uma só nos dois ramos (`chamarComDegrau` e o `catch` de `chamarAteValer`)
 - [ ] 7.2 — `usosDoTeto` e `ia.tokens.uso_do_teto` por `provedor:modelo`
 - [ ] 7.3 — `ia-tokens-acima-do-teto.yaml` agrupado por `provedor` e `modelo`; `docs/infra.md` 5.4 diz se a reserva de mesmo
   provedor divide o contratado
@@ -48,6 +49,7 @@ direto da espera à reserva, sem o menor. O uso do teto passa a ser por `provedo
 | o 429 que sobra, com o menor também sem vaga: linhas na ordem, a estimada do principal, a do menor e a da reserva | U | o `limite` até a reserva | a ordem das três | |
 | Tutor e classificação, com `modelosMenores` do `rapido` configurado: o `limite` vai direto à reserva aprovada | U | D36 | o menor configurado e não chamado | |
 | sem vaga também na reserva: `IA_INDISPONIVEL`, `sem_vaga` | U | balde próprio | só o balde da reserva cheio decide: com ele vazio, o mesmo caso atende | |
+| queda do principal: a reserva reserva no balde dela, por fila; sem vaga ali, `sem_vaga` | U | regra 80.4 no ramo da queda (4.0) | o balde da reserva cheio e o do principal vazio, e o mesmo caso com o da reserva vazio atende | |
 | aprovação só da geração, principal sem vaga, sem menor: a geração vai à reserva; o Tutor termina `sem_vaga` sem chamá-la | U | a elegibilidade nos dois ramos | as duas tarefas | |
 | Tutor aprovado no `rapido` da reserva, sem vaga: a reserva atende sem passar pelo menor | U | RF4 positivo | `modelosMenores` configurado para o `rapido` | |
 | reserva falsa com o mesmo modelo do principal falso: `ia.tokens.uso_do_teto` em duas séries | U | por `provedor:modelo` | o mesmo modelo nos dois | |
