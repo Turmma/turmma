@@ -30,11 +30,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [ ] 2.3 `ia.provedor_de_reserva.conferido`, o alerta e o runbook
   - [ ] 2.4 Testes
 
-- [ ] **3.0 — A causa da falha atravessa o `ResilientAdapter`: o 429 que sobra é falta de vaga, o 4xx não é queda**
-  - [ ] 3.1 Os motivos `limite` e `rejeitada`
-  - [ ] 3.2 O `limite` pelo degrau do menor; a `rejeitada` termina
-  - [ ] 3.3 A estimativa na linha do 429 e da conexão recusada
-  - [ ] 3.4 Testes
+- [x] **3.0 — A causa da falha atravessa o `ResilientAdapter`: o 429 que sobra é falta de vaga, o 4xx não é queda**
+  - [x] 3.1 Os motivos `limite` e `rejeitada`
+  - [x] 3.2 O `limite` pelo degrau do menor; a `rejeitada` termina
+  - [x] 3.3 A estimativa na linha do 429 e da conexão recusada
+  - [x] 3.4 Testes
 
 - [ ] **4.0 — Com o principal caído, a chamada vai à reserva elegível, e cada chamada leva o seu destino**
   - [ ] 4.1 O destino por chamada

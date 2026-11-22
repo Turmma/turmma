@@ -68,7 +68,10 @@ principal, o menor incluído, em qualquer perfil: é a reserva "outro modelo da 
 
 **A causa da falha.** O `traduzir` do `ResilientAdapter` deixa de apagar a classificação do `ProviderError`: o `LLMError` ganha os
 motivos `limite` (o 429 que sobrou da repetição) e `rejeitada` (outro 4xx), que **não** são `semEnvio`: o pedido chegou ao provedor,
-a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão.
+a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão. O `limite` desce ao modelo menor
+**sem a espera de 8 s** do balde, na mesma tentativa e só com o limitador configurado (o 429 já é a recusa do provedor), e o menor que já era o modelo da chamada
+não desce de novo. Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, termina `IA_INDISPONIVEL` **com o motivo `limite`**
+e a espera do `Retry-After`, e não `sem_vaga`: `sem_vaga` é `semEnvio`, e o 429 saiu e tem linha. O `sem_vaga` depois da reserva é o da 4.0.
 
 **A chamada.** (1) Sem vaga no principal (balde cheio ou `limite`, depois da espera e do modelo menor, se a tarefa o tem), vai ao provedor
 de reserva elegível, no balde `provedor:modelo` dele; sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda do principal passa à reserva
