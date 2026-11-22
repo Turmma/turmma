@@ -337,9 +337,9 @@ Toda chamada de modelo já passa pela porta `LLMProvider` (regra 30). É ali que
   `provedor:modelo`, somado entre as réplicas do `worker-ia`, e, antes dele, um balde menor para a `ferramenta` (15 %) e outro para a
   `normal` (10 %): cheio o balde da fila, quem espera é ela, e o Tutor, que só olha o geral, segue. Sem vaga, o pedido **espera até 8 s**
   (dentro do prazo único da execução), **desce ao modelo menor do perfil** (`LLM_MODELO_MENOR_<PERFIL>`, opcional; o turno do Tutor
-  nunca, D36) e então termina **`IA_INDISPONIVEL`**, sem troca contada e sem erro cru. O provedor de reserva fica para a D37. Com o
+  nunca, D36) e então vai ao **provedor de reserva**, se ele é elegível para a tarefa (o parágrafo "O balde da reserva", abaixo), e só sem ele, ou sem vaga nele, termina **`IA_INDISPONIVEL`**, sem troca contada e sem erro cru. Com o
   Redis fora, cada réplica segura o teto dividido por `IA_REPLICAS`: nunca libera sem teto. Cada degrau tem a sua métrica
-  (`ia.degradacao{degrau}`) e o uso do balde também (`ia.tokens.uso_do_teto{modelo}`), com os alertas "Tokens acima de 70% do
+  (`ia.degradacao{degrau}`) e o uso do balde também (`ia.tokens.uso_do_teto{provedor,modelo}`), com os alertas "Tokens acima de 70% do
   contratado" (aviso) e "Tokens acima de 80% do contratado" (o balde cheio), e "Provedor de IA fora" (o disjuntor aberto por 2 min).
 
   **O prazo com quatro chamadas (reserva-e-avaliacao, 6.0).** Com o provedor de reserva, uma execução faz **no máximo quatro chamadas**,
@@ -353,9 +353,18 @@ Toda chamada de modelo já passa pela porta `LLMProvider` (regra 30). É ali que
   A recusa fixa da D55 também pode sair da reserva: duas saídas reprovadas na conferência, na reserva, entregam a recusa da tarefa, com
   os `problemas` da última chamada da reserva e nunca os do principal (JSON quebrado não conta).
 
+  **O balde da reserva (reserva-e-avaliacao, 7.0).** O provedor de reserva tem o `TokenLimiter` dele, com o contratado dele (`LLM_RESERVA_TOKENS_POR_MINUTO`, obrigatório fora do `local`) e os mesmos baldes por fila, e
+  **toda chamada à reserva reserva no balde `provedor:modelo` dela**, nunca no do principal, e a acerta pelo uso real. Ela é tentada em três lugares: sem vaga no principal e no menor (depois dos 8 s de espera, e sem o menor
+  no Tutor e na classificação), no 429 que sobrou (depois do menor) e na queda do principal. Na reserva **não há espera**: o principal já esperou, e a queda não tem tempo do prazo a gastar. Sem vaga ali termina `IA_INDISPONIVEL` com
+  o motivo `sem_vaga`, e o lote adia o job pela espera do balde dela. O alerta de tokens é **por `provedor` e `modelo`**, e por isso a reserva tem o seu aviso aos 70 % e o seu balde cheio aos 80 %.
+  **A reserva do mesmo provedor divide o contratado.** Com a reserva em **outro provedor**, o contratado dela é uma cota própria. Com a reserva "outro modelo da Maritaca" (a reserva do mesmo provedor, PRD §10), o contratado é
+  **da conta**, e os dois baldes (80 % de cada contratado) saem da mesma cota: a soma de `LLM_TOKENS_POR_MINUTO` e `LLM_RESERVA_TOKENS_POR_MINUTO` **não passa do que o contrato dá à conta**, a menos que o contrato
+  diga por escrito cota por modelo. Passando, a manhã de segunda esgota a conta e o provedor devolve 429 aos dois baldes ao mesmo tempo, e o transbordo que a reserva existe para dar não acontece. O valor que a conta aceita é um dos
+  números que o contrato precisa dizer por escrito antes do primeiro aluno real (D29, D37).
+
   **O balde geral é de todas as escolas, de propósito.** O limite é do **provedor** (o contratado é por conta, e não por escola), e por isso o balde é um só por `provedor:modelo`. Uma escola com muita carga pode esgotá-lo
   e fazer o Tutor de outra terminar `IA_INDISPONIVEL` depois de 8 s. Isso não vaza dado, mas é interferência entre escolas, e as vagas por escola (RF2, `VAGAS_ESCOLA_*`) não a impedem: são outra barreira, que limita jobs
-  em andamento, e não tokens. Uma parte por escola fica no `TODO.md`, para quando o piloto tiver mais de uma escola com carga real.
+  em andamento, e não tokens. Uma parte por escola fica no `TODO.md`, para quando o piloto tiver mais de uma escola com carga real. O balde da reserva também é de todas as escolas, pelo mesmo motivo.
 
   **Tokens por minuto, o contrato (`LLM_TOKENS_POR_MINUTO`):** o balde geral vale 80 % do contratado, e no pico da manhã de segunda
   esperam-se uns 1,5 milhão de tokens por minuto do Tutor mais uns 0,2 milhão da ferramenta (seção 3.2), **~1,7 milhão**. Com a `normal`

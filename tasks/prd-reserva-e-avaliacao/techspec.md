@@ -70,8 +70,8 @@ principal, o menor incluído, em qualquer perfil: é a reserva "outro modelo da 
 motivos `limite` (o 429 que sobrou da repetição) e `rejeitada` (outro 4xx), que **não** são `semEnvio`: o pedido chegou ao provedor,
 a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão. O `limite` desce ao modelo menor
 **sem a espera de 8 s** do balde, na mesma tentativa e só com o limitador configurado (o 429 já é a recusa do provedor), e o menor que já era o modelo da chamada
-não desce de novo. Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, termina `IA_INDISPONIVEL` **com o motivo `limite`**
-e a espera do `Retry-After`, e não `sem_vaga`: `sem_vaga` é `semEnvio`, e o 429 saiu e tem linha. O `sem_vaga` depois da reserva é o da 4.0.
+não desce de novo. Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, **e sem reserva elegível**, termina `IA_INDISPONIVEL` **com o motivo `limite`**
+e a espera do `Retry-After`, e não `sem_vaga`: `sem_vaga` é `semEnvio`, e o 429 saiu e tem linha. Com reserva elegível, o 429 que sobra vai a ela, no balde dela (7.0); se também ali não há vaga, termina `sem_vaga` (o da 7.0, como o da falta de vaga no principal).
 
 **A chamada.** (1) Sem vaga no principal (balde cheio ou `limite`, depois da espera e do modelo menor, se a tarefa o tem), vai ao provedor
 de reserva elegível, no balde `provedor:modelo` dele; sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda do principal passa à reserva
@@ -84,6 +84,11 @@ ainda não reserva vaga (`vagaDoAlvo` devolve `{}` para a reserva, e o `limiteDe
 que caiu sem sair** (o disjuntor aberto, `semEnvio`) volta ao balde na hora (`devolverAVaga`, `acertar(0)`), para o desvio não encher o balde até o `sem_vaga`; a das chamadas que podem ter saído (5xx, conexão, prazo) fica com a estimativa, que o provedor pode ter contado (D14). **No máximo quatro chamadas por
 execução**, duas por destino (principal ou reserva), com contador por destino. O Tutor e a classificação nunca vão ao menor (D36). A função suspensa
 não chega a nenhum provedor (a suspensão vem antes, como hoje).
+
+**A vaga da reserva (7.0).** A chamada à reserva reserva no balde `provedor:modelo` dela, na fila do pedido (`limiteDeTokensDaReserva`; sem o limitador, o `local`, a chamada vai direto), nos três caminhos que a levam até ela: a queda do principal, o 429 que sobrou
+(`limite`, depois do menor) e a falta de vaga no principal, depois da espera de 8 s e do menor, se a tarefa o tem. **A reserva não espera:** o principal já esperou os 8 s (dentro do prazo único da execução), e a queda não tem tempo a gastar; uma tentativa só, e sem vaga
+ali termina `IA_INDISPONIVEL` com o motivo `sem_vaga` e a espera do balde **dela** (`tenteDeNovoEmSegundos`). A vaga é a da chamada que caiu: a do menor, quando é ele que cai sem sair, volta ao balde dele (`acertar(0)`), e a do principal, que o 429 já gastou, fica com a estimativa (D14).
+A reserva que atende depois do sem vaga começa sem a correção do principal, como na queda, e o degrau que soma é o `provedor_de_reserva`, e não o `indisponivel`, que só conta quando termina.
 
 **O destino por chamada.** `ChamadaEnviada` e o `Gasto` guardam o destino de cada chamada (origem, envio, identidade e
 `peloProvedorDeReserva`); o preço, o rótulo, o balde, a linha de consumo e a `medicao` devolvida leem o destino da chamada, e

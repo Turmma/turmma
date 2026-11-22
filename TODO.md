@@ -197,6 +197,19 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       o da ferramenta noutra; o outro já `concluido`), depois de o teste abortar o prazo de cada uma com `prazos[n].abortar()`. Investigar se o job fica `ativo` porque o
       aborto chega antes de o modelo pendurado registrar o sinal, ou se o processador deixa o job `ativo` quando o aborto cai logo depois de começar; o intermitente vira
       ruído na esteira da spec se cair lá (dono: Implementador; vira `/corrigir` se aparecer na esteira)
+- [ ] (reserva-e-avaliacao, 7.0, privacy-guardian, 1ª, 22/11/2026) **`ia.geracao.sem_vaga` não leva `escolaId` nem `execucaoId`.** `descer` não recebe o pedido, e mudar a assinatura
+      é mais do que a 7.0 pedia. Não é falta de privacidade: o `desviarParaAReserva` já os leva, e a linha de consumo liga o fim à execução (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, infra-guardian, 1ª, 22/11/2026) **`tenteDeNovoEmSegundos` do `sem_vaga` poderia ser o menor dos dois `msAteLiberar` (o do principal e o da reserva).**
+      Hoje é o do balde onde a chamada parou, e o lote pode adiar mais do que precisa; muda o valor devolvido (comportamento), então fica para a carga (9.0) provar se o adiamento
+      excessivo aparece (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, privacy-guardian, 2ª, 22/11/2026) **`docs/runbook.md`, "Tokens acima de 80% do contratado": uma frase dizendo que a saída inválida da primeira chamada à reserva, descartada quando o `sem_vaga` encerra, já saiu para o provedor e aparece no compartilhamento pela linha `falhou` da reserva.**
+      O envio já está registrado na linha de consumo, e a pergunta "para onde foi" é respondida por ela; falta só o texto do runbook (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, conformidade-reviewer, infra-guardian, revisor-geral e test-engineer, 2ª, 22/11/2026) **`llm-gateway.test.ts`: o título "a D62 da reserva vale nos três caminhos" promete três e o corpo cobre dois.**
+      A queda está provada no caso da 4.0; trocar o título para "nos caminhos de falta de vaga e de 429" (e a linha do documento e o bloco de mutação que o citam) (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, llm-integrator, revisor-geral e test-engineer, 2ª, 22/11/2026) **`llm-gateway.ts`: o comentário "A vaga do principal que caiu sem sair volta ao balde" (em `chamarComDegrau`) devia dizer "do destino".**
+      Vale também para a reserva; trocar junto as linhas de contexto dos blocos de mutação do `7_task.md` que o citam (sem mudar comportamento) (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, test-engineer, 2ª, 22/11/2026) **Caso da repetição da reserva sem vaga também na fila `lote`**, para provar que a linha da primeira chamada à reserva fica gravada quando o `sem_vaga` adia o job (`gasto.chamadas.length > 0`, `llm-gateway.ts`).
+      Entra na camada-ia ou na carga (9.0), que roda a fila `lote` (dono: Implementador)
 - [ ] (correção `2026-11-21-limpeza-do-painel-com-job-registro`, revisor-geral e infra-guardian, 1ª) **Os outros removedores de escola do e2e não apagam o que o
       worker grava nela.** Dez arquivos de `e2e/support/` (cada um com o seu `comBanco`) apagam a escola sem apagar `job_registro` nem `expurgo_execucao`, as duas
       tabelas com FK para `escola` que a correção fechou só no `painel.ts`: o mesmo `afterEach` pode cair neles. Levantar a lista, mover a limpeza para um
