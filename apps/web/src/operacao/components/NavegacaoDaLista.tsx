@@ -1,4 +1,4 @@
-import type { OrdemDoPainel } from '@educa/shared'
+import type { OrdemDoUso } from '@educa/shared'
 import { EmptyState } from '../../components/states'
 import { formatNumber, formatQuantity } from '../../format'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
@@ -8,16 +8,19 @@ import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
  * (`pagina` e `ordem` na query string), os mesmos botões e os mesmos textos nas duas telas.
  */
 
-const ROTULO_DA_ORDEM: Readonly<Record<OrdemDoPainel, string>> = { nome: 'Nome', uso: 'Mais uso no mês' }
+const ROTULO_DA_ORDEM: Readonly<Record<OrdemDoUso, string>> = { nome: 'Nome', uso: 'Mais uso no mês', custo: 'Mais custo de IA no mês' }
 
-/** "Nome" e "Mais uso no mês", com `aria-pressed` na escolhida: a escolha não é só cor. Alvo de toque de 44 px. */
-export function SortSelect({ ordem, aoEscolher }: { ordem: OrdemDoPainel; aoEscolher: (ordem: OrdemDoPainel) => void }) {
+/**
+ * As ordens que a tela oferece, com `aria-pressed` na escolhida: a escolha não é só cor. Escolas oferece `nome` e `uso`;
+ * o Uso, também `custo` (camada-ia, 8.0). Alvo de toque de 44 px.
+ */
+export function SortSelect<Ordem extends OrdemDoUso>({ ordem, ordens, aoEscolher }: { ordem: Ordem; ordens: readonly Ordem[]; aoEscolher: (ordem: Ordem) => void }) {
   return (
     <div role="group" aria-label="Ordenar as escolas por" className="flex flex-wrap items-center gap-2">
       <span className="text-sm text-sutil" aria-hidden="true">
         Ordenar por
       </span>
-      {(['nome', 'uso'] as const).map((opcao) => (
+      {ordens.map((opcao) => (
         <button
           key={opcao}
           type="button"

@@ -41,6 +41,11 @@ type Contagens = Pick<EscolaDoPainel, 'turmas' | 'professores' | 'alunos'>
 
 const periodo = (requisicoes: number, jobs: number, bytesStorage: number): UsoDoPeriodoDoPainel => ({ requisicoes, jobs, bytesStorage })
 const ZERO = periodo(0, 0, 0)
+/** O orçamento de IA da escola sem nada próprio, numa rede sem nada: o padrão (`orcamentoDaEscolaNoPainel`). */
+const SEM_ORCAMENTO_DA_ESCOLA = {
+  proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
+  vigente: { valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+}
 
 /** Ordena como o painel: pela chave, e o desempate pelo `id` (o `uuid` do Postgres compara como o texto em minúsculas). */
 const porId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
@@ -316,6 +321,8 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       expect(doItem(lido.itens, muito)).toStrictEqual({
         id: muito,
         nome: `Escola Leitura Uso ${sufixo}`,
+        rede: { id: redeId, nome: `Rede Leitura ${sufixo}` },
+        orcamento: SEM_ORCAMENTO_DA_ESCOLA,
         dia: periodo(7_000, 30, 5_000),
         mes: antes === undefined ? periodo(7_000, 30, 5_000) : periodo(8_000, 40, 9_000),
         ia: expect.objectContaining({ alunosAtivos: 0 }),
@@ -323,6 +330,8 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       expect(doItem(lido.itens, pouco)).toStrictEqual({
         id: pouco,
         nome: `Escola Leitura Uso ${sufixo}`,
+        rede: { id: redeId, nome: `Rede Leitura ${sufixo}` },
+        orcamento: SEM_ORCAMENTO_DA_ESCOLA,
         dia: periodo(70, 3, 1_000),
         mes: antes === undefined ? periodo(70, 3, 1_000) : periodo(75, 4, 1_000),
         ia: expect.objectContaining({ alunosAtivos: 0 }),
@@ -723,6 +732,38 @@ describe('painel da operação: a lista de escolas e o uso, entre escolas (taref
       expect(doItem(itens, semValor.id).ia).toMatchObject({ situacao: 'sem_orcamento', origemDoValor: 'nenhuma', valorPorAlunoMicros: null, porcentagem: null, alunosAtivos: 4, mes: { custoMicros: 7 * REAIS } })
       // R$ 10 sobre 5 alunos a R$ 4 (R$ 20): 50%.
       expect(doItem(itens, daRede.id).ia).toMatchObject({ situacao: 'definido', origemDoValor: 'rede', valorPorAlunoMicros: 4 * REAIS, porcentagem: 50 })
+    })
+
+    it('a linha do uso traz a rede da escola e o orçamento próprio e o vigente, os mesmos da aba Escolas, para o diálogo "Orçamento de IA" abrir da própria linha (8.0)', async () => {
+      const soTeto = await escolaDeIa({ rede: { valor: 4 * REAIS, teto: 300 }, propria: { valor: null, teto: 150 }, alunos: 2 })
+      const semNada = await escolaDeIa()
+      // Com gasto no mês, as duas entram na primeira página da ordem por custo (o banco de teste guarda escolas de outras execuções, todas com custo zero).
+      await chamada(soTeto.id, '2033-04-10T10:00:00-03:00', 3 * REAIS)
+      await chamada(semNada.id, '2033-04-10T10:00:00-03:00', 2 * REAIS)
+      const { rows } = await pool.query<{ id: string; redeId: string; redeNome: string }>(
+        'select e.id, r.id as "redeId", r.nome as "redeNome" from escola as e join rede as r on r.id = e.rede_id where e.id = any($1::uuid[])',
+        [[soTeto.id, semNada.id]],
+      )
+      const redeDe = (escolaId: string) => {
+        const linha = rows.find((candidata) => candidata.id === escolaId)
+        return { id: linha?.redeId, nome: linha?.redeNome }
+      }
+      // As duas escolas estão em redes diferentes: sem isso, a rede de uma passaria pela da outra.
+      expect(redeDe(soTeto.id).id).toBeDefined()
+      expect(redeDe(semNada.id).id).toBeDefined()
+      expect(redeDe(soTeto.id).id).not.toBe(redeDe(semNada.id).id)
+      const itens = await usoPorCusto()
+      const daLinha = doItem(itens, soTeto.id)
+      // A rede da outra escola não entra: a rede de cada linha é a da própria escola, e o valor vem da rede e o teto da escola, coluna a coluna.
+      expect(daLinha.rede).toStrictEqual(redeDe(soTeto.id))
+      expect(daLinha.orcamento).toStrictEqual({
+        proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: 150 },
+        vigente: { valorPorAlunoMicros: 4 * REAIS, origemDoValor: 'rede', tetoDeSegurancaPercentual: 150, origemDoTeto: 'escola' },
+      })
+      expect(doItem(itens, semNada.id).rede).toStrictEqual(redeDe(semNada.id))
+      expect(doItem(itens, semNada.id).orcamento).toStrictEqual(SEM_ORCAMENTO_DA_ESCOLA)
+      // O que o grupo `ia` diz do valor é o do `orcamento.vigente`: a mesma conta, as mesmas entradas.
+      expect(daLinha.ia).toMatchObject({ valorPorAlunoMicros: daLinha.orcamento.vigente.valorPorAlunoMicros, origemDoValor: daLinha.orcamento.vigente.origemDoValor })
     })
 
     it('sem ano em curso: `sem_aluno_ativo`, sem porcentagem e com os reais à vista; sem valor e sem aluno vale `sem_orcamento`', async () => {

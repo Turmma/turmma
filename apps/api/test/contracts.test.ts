@@ -182,6 +182,22 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
       'itens[].ia.porcentagem',
       'itens[].ia.situacao',
     ])
+    // 8.0: a rede e o orçamento da escola, fora do `ia`, são os da lista de escolas: id e nome da rede, e só número no orçamento (nenhuma pessoa).
+    const daLinha = camposDoEsquema(shared.usoDoPainelResponseSchema).filter((campo) => campo.startsWith('itens[].rede') || campo.startsWith('itens[].orcamento'))
+    expect(daLinha).toEqual([
+      'itens[].rede',
+      'itens[].rede.id',
+      'itens[].rede.nome',
+      'itens[].orcamento',
+      'itens[].orcamento.proprio',
+      'itens[].orcamento.proprio.valorPorAlunoMicros',
+      'itens[].orcamento.proprio.tetoDeSegurancaPercentual',
+      'itens[].orcamento.vigente',
+      'itens[].orcamento.vigente.valorPorAlunoMicros',
+      'itens[].orcamento.vigente.origemDoValor',
+      'itens[].orcamento.vigente.tetoDeSegurancaPercentual',
+      'itens[].orcamento.vigente.origemDoTeto',
+    ])
     expect(camposDoEsquema(shared.usoDeIaDoPeriodoDoPainelSchema)).toEqual(['execucoes', 'chamadas', 'tokens', 'custoMicros', 'chamadasPeloProvedorDeReserva'])
     const dosMeses = camposDoEsquema(shared.usoDeIaDaEscolaDoPainelResponseSchema)
     expect(dosMeses).toEqual([

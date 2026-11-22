@@ -1,4 +1,4 @@
-import type { PainelQuery, EscolaDoPainel } from '@educa/shared'
+import { ORDENS_DO_PAINEL, type PainelQuery, type EscolaDoPainel } from '@educa/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useSearch } from 'wouter'
@@ -236,7 +236,7 @@ export function Escolas() {
             Nova rede
           </button>
         </div>
-        <SortSelect ordem={consulta.ordem} aoEscolher={(ordem) => irPara({ pagina: 1, ordem })} />
+        <SortSelect ordem={consulta.ordem} ordens={ORDENS_DO_PAINEL} aoEscolher={(ordem) => irPara({ pagina: 1, ordem })} />
       </div>
 
       <div ref={regiaoDoAnuncio} tabIndex={-1} role="status">{anuncio !== '' && <p className="rounded-controle border border-ok bg-ok-cx p-3 text-ok wrap-anywhere">{anuncio}</p>}</div>

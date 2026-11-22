@@ -11,6 +11,7 @@ import {
   VALOR_MAXIMO_DE_IA_POR_ALUNO_CENTAVOS,
   VALOR_MINIMO_DE_IA_POR_ALUNO_CENTAVOS,
   type OrcamentoDeIaDoPainel,
+  type SituacaoDoOrcamento,
   type TipoDeRede,
 } from '@educa/shared'
 import { ApiError, estourouNoCliente } from '../api/client'
@@ -149,7 +150,7 @@ export const TEXTO_DA_LISTA_VAZIA = { titulo: 'Nenhuma escola ainda.', descricao
  * nova aparece aqui já no dia em que é criada, com zero, e o uso dela entra depois da consolidação.
  */
 export const TEXTO_DO_USO_VAZIO = {
-  titulo: 'Nenhuma escola ainda.',
+  titulo: 'Nenhuma escola criada ainda.',
   descricao: 'O uso de cada escola aparece aqui assim que ela é criada.',
   link: 'Ir para Escolas',
 } as const
@@ -257,4 +258,38 @@ export function textoDoAntesEDepois(antes: Vigente, depois: Vigente): string {
 /** Quantas escolas mudam junto, no diálogo da rede: as que usam o valor ou o teto da rede. */
 export function textoDasEscolasQueMudam(quantas: number): string {
   return quantas === 1 ? 'Muda o orçamento de 1 escola que usa o valor da rede.' : `Muda o orçamento de ${formatNumber(quantas)} escolas que usam o valor da rede.`
+}
+
+/** O título do grupo de IA da aba Uso: a IA mostra hoje (até agora) e o mês, e a infra, o último dia fechado (camada-ia, 8.0). */
+export const TITULO_DO_GRUPO_DE_IA = 'IA (hoje, até agora, e mês)'
+
+/** A frase que diz os dois períodos da aba Uso: o da infra e o da IA não são o mesmo, e a tela não os deixa parecer um (camada-ia, 8.0). */
+export const TEXTO_DOS_DOIS_PERIODOS_DO_USO = 'A infra mostra o último dia fechado; a IA mostra hoje, até agora, e o mês corrente.'
+
+/** Os estados do orçamento de uma escola na aba Uso (cenário da seção 4): em texto, e nunca só em cor. */
+export const TEXTO_SEM_ORCAMENTO_DEFINIDO = 'sem orçamento definido'
+export const TEXTO_SEM_ALUNO_ATIVO = 'sem aluno ativo'
+export const TEXTO_SEM_PORCENTAGEM = 'sem porcentagem'
+export const TEXTO_DO_MES_SEM_RETRATO = 'sem retrato (antes da medição)'
+
+/** "Ver meses" sem nenhum mês com retrato: a medição ainda não fechou o primeiro mês. */
+export const TEXTO_SEM_MES_FECHADO = 'Ainda não há mês fechado com retrato.'
+
+/**
+ * O custo por aluno do mês contra o valor que vale: "R$ 0,18 de R$ 5,00", ou só "R$ 0,18" quando não há valor definido.
+ * Sem aluno ativo não há divisão: "sem aluno ativo". É a única conta da tela, e é a que a Tech Spec manda dividir aqui
+ * (`ia.mes.custoMicros` ÷ `ia.alunosAtivos`); a porcentagem, não: essa vem pronta da API.
+ */
+export function textoDoCustoPorAluno(custoMicros: number, alunosAtivos: number | null, valorPorAlunoMicros: number | null): string {
+  if (alunosAtivos === null || alunosAtivos === 0) return TEXTO_SEM_ALUNO_ATIVO
+  const custo = reais(custoMicros / alunosAtivos)
+  return valorPorAlunoMicros === null ? custo : `${custo} de ${reais(valorPorAlunoMicros)}`
+}
+
+/** A porcentagem que a API calculou, dita com palavra ("62% do orçamento"); fora de `definido`, o texto do estado. */
+export function textoDoOrcamentoDoMes(situacao: SituacaoDoOrcamento, porcentagem: number | null): string {
+  if (situacao === 'sem_orcamento') return TEXTO_SEM_ORCAMENTO_DEFINIDO
+  if (situacao === 'sem_retrato') return TEXTO_DO_MES_SEM_RETRATO
+  if (situacao === 'sem_aluno_ativo' || porcentagem === null) return TEXTO_SEM_PORCENTAGEM
+  return `${formatNumber(porcentagem)}% do orçamento`
 }

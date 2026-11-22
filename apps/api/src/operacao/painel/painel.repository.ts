@@ -80,6 +80,7 @@ export interface IaLidaNoPainel {
 export interface UsoLidoNoPainel {
   readonly id: string
   readonly nome: string
+  readonly rede: { readonly id: string; readonly nome: string }
   readonly dia: UsagePeriod
   readonly mes: UsagePeriod
   readonly ia: IaLidaNoPainel
@@ -127,6 +128,8 @@ interface RedeRow extends Record<string, unknown> {
 interface UsoRow extends Record<string, unknown> {
   id: string
   nome: string
+  redeId: string
+  redeNome: string
   diaRequisicoes: string
   diaJobs: string
   diaBytes: string
@@ -196,7 +199,7 @@ export function usoDaPaginaSql(pedido: PedidoDePaginaDoPainel): SQL {
   const mes = faixaDoMes(mesDeSaoPaulo(pedido.agora))
   return sql`
     with pagina as (${escolasDaPagina(pedido)})
-    select e.id, e.nome,
+    select e.id, e.nome, r.id as "redeId", r.nome as "redeNome",
       coalesce(no_dia.requisicoes, 0) as "diaRequisicoes",
       coalesce(no_dia.jobs, 0) as "diaJobs",
       coalesce(no_dia.bytes_storage, 0) as "diaBytes",
@@ -351,9 +354,9 @@ export class PainelRepository {
    * Uma página do uso por escola (D30): o de infra, com a mesma regra do `UsageRepository` (no dia de referência, a linha dele; no mês, do dia 1 até o dia de referência, requisições e jobs somados e o pico de bytes; sem
    * linha, zero; o dia de hoje, ainda não fechado, não entra) e **o de IA** (camada-ia, 5.0; RF11): hoje (o dia de São Paulo de `agora`) e o mês corrente (o mês de São Paulo de `agora`), somados do consumo gravado de
    * cada linha pelos trechos do `OrcamentoDoMesRepository` (`faixaDoDia`, `faixaDoMes`, `COLUNAS_DO_USO_DE_IA`, `alunosAtivosDaEscola`), com o orçamento que a escola e a rede definem. `agora` é parâmetro: nenhuma conta lê
-   * o `now()` do Postgres. Só id, nome e número.
+   * o `now()` do Postgres. Só id, nome e número: o id e o nome da rede e o orçamento (valor por aluno e teto) de cada escola vão no item, para o diálogo do orçamento abrir da própria linha.
    */
-  @Unscoped('painel do operador: o uso de infra e de IA de cada escola no último dia fechado, em hoje e no mês; só id, nome e número, sem pessoa')
+  @Unscoped('painel do operador: o uso de infra e de IA de cada escola no último dia fechado, em hoje e no mês, com o id e o nome da rede e o orçamento da escola; só id, nome e número, sem pessoa')
   async uso(pedido: PedidoDePaginaDoPainel): Promise<PaginaLidaNoPainel<UsoLidoNoPainel>> {
     const [pagina, total] = await Promise.all([this.banco.execute<UsoRow>(usoDaPaginaSql(pedido)), this.banco.execute<{ total: number }>(TOTAL_DE_ESCOLAS)])
     return {
@@ -361,6 +364,7 @@ export class PainelRepository {
       itens: pagina.rows.map((linha) => ({
         id: linha.id,
         nome: linha.nome,
+        rede: { id: linha.redeId, nome: linha.redeNome },
         dia: { requisicoes: Number(linha.diaRequisicoes), jobs: Number(linha.diaJobs), bytesStorage: Number(linha.diaBytes) },
         mes: { requisicoes: Number(linha.mesRequisicoes), jobs: Number(linha.mesJobs), bytesStorage: Number(linha.mesBytes) },
         ia: {

@@ -126,12 +126,18 @@ describe('contratos do painel da operação (Tech Spec da A0b, seção 4)', () =
     const periodo = { requisicoes: 10, jobs: 2, bytesStorage: 1_048_576 }
     const consumo = { execucoes: 3, chamadas: 5, tokens: 1200, custoMicros: 45_000, chamadasPeloProvedorDeReserva: 1 }
     const ia = { hoje: consumo, mes: consumo, alunosAtivos: 100, valorPorAlunoMicros: 5_000_000, origemDoValor: 'escola', porcentagem: 20, situacao: 'definido' }
-    const resposta = { itens: [{ id: V7, nome: 'Colégio Sintético', dia: periodo, mes: periodo, ia }], pagina: 1, total: 1, dia: '2026-09-23', mes: '2026-09' }
+    const item = { id: V7, nome: 'Colégio Sintético', rede: { id: REDE, nome: 'Rede Sintética' }, orcamento: SEM_ORCAMENTO, dia: periodo, mes: periodo, ia }
+    const resposta = { itens: [item], pagina: 1, total: 1, dia: '2026-09-23', mes: '2026-09' }
     const comIa = (mudanca: object) => ({ ...resposta, itens: [{ ...resposta.itens[0], ia: { ...ia, ...mudanca } }] })
     expect(usoDoPainelResponseSchema.safeParse(resposta).success).toBe(true)
     expect(usoDoPainelResponseSchema.safeParse({ ...resposta, itens: [{ ...resposta.itens[0], slug: 'x' }] }).success).toBe(false)
     // O grupo `ia` é obrigatório e estrito: sem ele, ou com pessoa, função, modelo ou aviso, a resposta é recusada.
     expect(usoDoPainelResponseSchema.safeParse({ ...resposta, itens: [{ id: V7, nome: 'Colégio Sintético', dia: periodo, mes: periodo }] }).success).toBe(false)
+    // A rede e o orçamento da escola são obrigatórios e estritos, como na lista de escolas (8.0): o diálogo "Orçamento de IA" abre da linha do uso com eles.
+    for (const incompleto of [{ ...item, rede: undefined }, { ...item, orcamento: undefined }]) expect(usoDoPainelResponseSchema.safeParse({ ...resposta, itens: [incompleto] }).success).toBe(false)
+    for (const aMais of [{ rede: { id: REDE, nome: 'Rede Sintética', tipo: 'grupo' } }, { rede: { id: REDE } }, { orcamento: { ...SEM_ORCAMENTO, aviso: 80 } }, { orcamento: { proprio: SEM_ORCAMENTO.proprio } }]) {
+      expect(usoDoPainelResponseSchema.safeParse({ ...resposta, itens: [{ ...item, ...aMais }] }).success, JSON.stringify(aMais)).toBe(false)
+    }
     for (const aMais of [{ alunoId: V4 }, { funcao: 'tutor' }, { modelo: 'x' }, { aviso: 80 }, { tetoDeSegurancaPercentual: 200 }]) expect(usoDoPainelResponseSchema.safeParse(comIa(aMais)).success, JSON.stringify(aMais)).toBe(false)
     expect(usoDoPainelResponseSchema.safeParse(comIa({ hoje: { ...consumo, usuarioId: V4 } })).success).toBe(false)
     // O mês corrente nunca é `sem_retrato`; a porcentagem é inteira e não negativa, ou nula (sem divisão por zero).

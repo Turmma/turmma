@@ -107,6 +107,8 @@ describe('o uso por escola (tarefa 8.0)', () => {
   const USO = {
     id: ESCOLA.id,
     nome: ESCOLA.nome,
+    rede: ESCOLA.rede,
+    orcamento: ESCOLA.orcamento,
     dia: { requisicoes: 10, jobs: 2, bytesStorage: 1024 },
     mes: { requisicoes: 300, jobs: 40, bytesStorage: 2048 },
     ia: {
@@ -138,6 +140,52 @@ describe('o uso por escola (tarefa 8.0)', () => {
     await expect(new QueryClient().fetchQuery(m.painel.doUsoQueryOptions({ pagina: 1, ordem: 'nome' }))).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
     fila.push({ status: 200, corpo: { itens: [USO], pagina: 1, total: 1 } })
     await expect(new QueryClient().fetchQuery(m.painel.doUsoQueryOptions({ pagina: 1, ordem: 'nome' }))).rejects.toMatchObject({ codigo: 'ERRO_INTERNO' })
+  })
+
+  it('o item do uso sem a rede e o orçamento da escola (a web nova com a API antiga) sobe como `RespostaForaDoContrato`, para a tela dizer "Atualize a página"', async () => {
+    fila.push({ status: 200, corpo: { itens: [{ ...USO, rede: undefined, orcamento: undefined }], pagina: 1, total: 1, dia: '2026-09-23', mes: '2026-09' } })
+    await expect(new QueryClient().fetchQuery(m.painel.doUsoQueryOptions({ pagina: 1, ordem: 'nome' }))).rejects.toMatchObject({ name: 'RespostaForaDoContrato', codigo: 'ERRO_INTERNO' })
+  })
+
+  it('o Uso lê a ordem `custo` do endereço, e a lista de escolas não: `?ordem=custo` em `/operacao` volta a `nome`, e a API nunca recebe o que ela recusa', async () => {
+    expect(m.painel.readConsultaDoUso('pagina=2&ordem=custo')).toEqual({ pagina: 2, ordem: 'custo' })
+    expect(m.painel.readConsultaDoUso('ordem=uso')).toEqual({ pagina: 1, ordem: 'uso' })
+    expect(m.painel.readConsultaDoUso('ordem=Custo')).toEqual({ pagina: 1, ordem: 'nome' })
+    expect(m.painel.readConsultaDaTela('pagina=2&ordem=custo')).toEqual({ pagina: 2, ordem: 'nome' })
+    fila.push({ status: 200, corpo: { itens: [USO], pagina: 1, total: 1, dia: '2026-09-23', mes: '2026-09' } })
+    const opcoes = m.painel.doUsoQueryOptions({ pagina: 1, ordem: 'custo' })
+    await new QueryClient().fetchQuery(opcoes)
+    expect(chamadas.map(({ caminho }) => caminho)).toEqual(['/v1/operacao/uso?pagina=1&ordem=custo'])
+    expect(opcoes.queryKey).not.toEqual(m.painel.doUsoQueryOptions({ pagina: 1, ordem: 'uso' }).queryKey)
+  })
+
+  describe('os 12 meses de uma escola', () => {
+    const consumo = { execucoes: 1, chamadas: 2, tokens: 300, custoMicros: 1000, chamadasPeloProvedorDeReserva: 0 }
+    const meses = Array.from({ length: 12 }, (_, posicao) => ({
+      ...consumo,
+      mes: new Date(Date.UTC(2026, 9 - posicao, 1)).toISOString().slice(0, 7),
+      alunosAtivos: null,
+      valorPorAlunoMicros: null,
+      origemDoValor: null,
+      porcentagem: null,
+      situacao: 'sem_retrato',
+    }))
+
+    it('o GET vai ao caminho da escola, com o id codificado e o token da sessão, e a chave é própria de cada escola, fora da do uso', async () => {
+      fila.push({ status: 200, corpo: { meses } })
+      const opcoes = m.painel.doUsoDeIaDaEscolaQueryOptions(ESCOLA.id)
+      expect((await new QueryClient().fetchQuery(opcoes)).meses).toHaveLength(12)
+      expect(chamadas).toEqual([{ caminho: `/v1/operacao/escolas/${ESCOLA.id}/uso-ia`, metodo: 'GET', corpo: undefined, autorizacao: 'Bearer token-de-acesso' }])
+      expect(opcoes.queryKey).not.toEqual(m.painel.doUsoDeIaDaEscolaQueryOptions(ESCOLA.rede.id).queryKey)
+      expect(m.painel.caminhoDoUsoDeIa('a/b')).toBe('/v1/operacao/escolas/a%2Fb/uso-ia')
+    })
+
+    it('onze meses, ou um campo de pessoa a mais, sobem como `RespostaForaDoContrato`', async () => {
+      fila.push({ status: 200, corpo: { meses: meses.slice(1) } })
+      await expect(new QueryClient().fetchQuery(m.painel.doUsoDeIaDaEscolaQueryOptions(ESCOLA.id))).rejects.toMatchObject({ name: 'RespostaForaDoContrato' })
+      fila.push({ status: 200, corpo: { meses: [{ ...meses[0], alunoId: ESCOLA.id }, ...meses.slice(1)] } })
+      await expect(new QueryClient().fetchQuery(m.painel.doUsoDeIaDaEscolaQueryOptions(ESCOLA.id))).rejects.toMatchObject({ name: 'RespostaForaDoContrato' })
+    })
   })
 
   it('as páginas do total: ao menos uma, e a 26ª escola abre a segunda', () => {

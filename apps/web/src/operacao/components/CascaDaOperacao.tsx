@@ -1,6 +1,7 @@
 import { Lock } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useRoute } from 'wouter'
+import { RespostaForaDoContrato } from '../../api/contrato/resposta-fora-do-contrato'
 import { Aparencia } from '../../components/Aparencia'
 import { Button } from '../../components/ui/Button'
 import { SECONDARY_BUTTON_CLASSES } from '../../components/ui/button-variants'
@@ -134,22 +135,26 @@ export function CascaDaOperacao({ nome, aoSair, saindo, children }: PropsDaCasca
 
 /**
  * O erro de uma tela da operação: o 503 diz "O Turmma está indisponível agora…" e a tela **fica** (Tech Spec, seção 9),
- * com "Tentar de novo". O alerta é só a mensagem; o botão fica fora dele.
+ * com "Tentar de novo". O alerta é só a mensagem; o botão fica fora dele. A resposta que a web não reconhece (a web antiga
+ * com a API nova) diz "Atualize a página" e **não** oferece "Tentar de novo": traria a mesma resposta (camada-ia, 8.0).
  */
 export function ErroDaOperacao({ erro, aoTentarDeNovo, tentando = false }: { erro: unknown; aoTentarDeNovo: () => void; tentando?: boolean }) {
+  const paraAtualizar = erro instanceof RespostaForaDoContrato
   return (
     <div className="rounded-cartao border-2 border-erro bg-erro-cx p-4">
       <p role="alert" className="t-apoio text-erro">
         {textoDaFalha(erro)}
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button onClick={aoTentarDeNovo} disabled={tentando}>
-          Tentar de novo
-        </Button>
-        <span role="status" className="t-apoio text-erro">
-          {tentando ? 'Tentando de novo…' : ''}
-        </span>
-      </div>
+      {!paraAtualizar && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Button onClick={aoTentarDeNovo} disabled={tentando}>
+            Tentar de novo
+          </Button>
+          <span role="status" className="t-apoio text-erro">
+            {tentando ? 'Tentando de novo…' : ''}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

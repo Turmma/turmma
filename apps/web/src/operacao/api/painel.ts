@@ -4,12 +4,16 @@ import {
   escolasDoPainelResponseSchema,
   orcamentoDeIaDoPainelSchema,
   redesDoPainelResponseSchema,
+  usoDeIaDaEscolaDoPainelResponseSchema,
   usoDoPainelResponseSchema,
   ESCOLAS_POR_PAGINA,
   MAXIMA_PAGINA_DO_PAINEL,
   ORDENS_DO_PAINEL,
+  ORDENS_DO_USO_DO_PAINEL,
   type PainelQuery,
   type OrdemDoPainel,
+  type OrdemDoUso,
+  type UsoDoPainelQuery,
   type ConviteDaCoordenacaoRequest,
   type CriarEscolaRequest,
   type CriarRedeRequest,
@@ -34,11 +38,21 @@ export const CAMINHO_DAS_REDES = '/v1/operacao/redes'
 export const CAMINHO_DAS_ESCOLAS = '/v1/operacao/escolas'
 export const CAMINHO_DOS_CONVITES = '/v1/operacao/convites'
 export const CAMINHO_DO_USO = '/v1/operacao/uso'
+/** `GET /v1/operacao/escolas/:id/uso-ia`: os 12 meses anteriores de uma escola (camada-ia, 5.0). */
+export const caminhoDoUsoDeIa = (escolaId: string): string => `${CAMINHO_DAS_ESCOLAS}/${encodeURIComponent(escolaId)}/uso-ia`
 
 /** A consulta padrão da lista: a primeira página, por nome. */
 export const CONSULTA_PADRAO: PainelQuery = { pagina: 1, ordem: 'nome' }
 
 const isOrdem = (valor: string | null): valor is OrdemDoPainel => (ORDENS_DO_PAINEL as readonly (string | null)[]).includes(valor)
+const isOrdemDoUso = (valor: string | null): valor is OrdemDoUso => (ORDENS_DO_USO_DO_PAINEL as readonly (string | null)[]).includes(valor)
+
+/** A página da barra de endereço: o que não é uma página do contrato volta à primeira, sem erro na tela. */
+function paginaDaBusca(parametros: URLSearchParams): number {
+  const pagina = parametros.get('pagina') ?? ''
+  const numero = /^[1-9]\d{0,4}$/.test(pagina) ? Number(pagina) : CONSULTA_PADRAO.pagina
+  return numero <= MAXIMA_PAGINA_DO_PAINEL ? numero : CONSULTA_PADRAO.pagina
+}
 
 /**
  * `pagina` e `ordem` da barra de endereço (Tech Spec da A0b, seção 9: a página e a ordem ficam na query string, e o
@@ -47,17 +61,19 @@ const isOrdem = (valor: string | null): valor is OrdemDoPainel => (ORDENS_DO_PAI
  */
 export function readConsultaDaTela(busca: string): PainelQuery {
   const parametros = new URLSearchParams(busca)
-  const pagina = parametros.get('pagina')
   const ordem = parametros.get('ordem')
-  const numero = pagina !== null && /^[1-9]\d{0,4}$/.test(pagina) ? Number(pagina) : CONSULTA_PADRAO.pagina
-  return {
-    pagina: numero <= MAXIMA_PAGINA_DO_PAINEL ? numero : CONSULTA_PADRAO.pagina,
-    ordem: isOrdem(ordem) ? ordem : CONSULTA_PADRAO.ordem,
-  }
+  return { pagina: paginaDaBusca(parametros), ordem: isOrdem(ordem) ? ordem : CONSULTA_PADRAO.ordem }
+}
+
+/** A consulta do Uso: a da lista, com a ordem `custo` (camada-ia, 8.0). A lista de escolas não a aceita: `?ordem=custo` em `/operacao` volta a `nome`, e a API nunca recebe o que ela recusaria. */
+export function readConsultaDoUso(busca: string): UsoDoPainelQuery {
+  const parametros = new URLSearchParams(busca)
+  const ordem = parametros.get('ordem')
+  return { pagina: paginaDaBusca(parametros), ordem: isOrdemDoUso(ordem) ? ordem : CONSULTA_PADRAO.ordem }
 }
 
 /** A query string da consulta, na ordem fixa `pagina` e `ordem`: é a da barra e a do `GET`. */
-export function buscaDaConsulta(consulta: PainelQuery): string {
+export function buscaDaConsulta(consulta: UsoDoPainelQuery): string {
   return new URLSearchParams({ pagina: String(consulta.pagina), ordem: consulta.ordem }).toString()
 }
 
@@ -75,13 +91,22 @@ export function dasEscolasQueryOptions(consulta: PainelQuery) {
 
 /**
  * `GET /v1/operacao/uso`: a página do uso por escola, com o total e o dia e o mês de referência que a API escolheu. A
- * troca de página ou de ordem mantém a anterior na tela, como na lista.
+ * troca de página ou de ordem mantém a anterior na tela, como na lista. A resposta que a web não reconhece (a web antiga
+ * com a API nova) sobe como `RespostaForaDoContrato`, e a tela diz "Atualize a página".
  */
-export function doUsoQueryOptions(consulta: PainelQuery) {
+export function doUsoQueryOptions(consulta: UsoDoPainelQuery) {
   return queryOptions({
     queryKey: ['operacao', 'uso', consulta.ordem, consulta.pagina],
-    queryFn: ({ signal }) => operadorAuthedRequest(`${CAMINHO_DO_USO}?${buscaDaConsulta(consulta)}`, usoDoPainelResponseSchema, { sinal: signal }),
+    queryFn: ({ signal }) => operadorAuthedRequest(`${CAMINHO_DO_USO}?${buscaDaConsulta(consulta)}`, lidoPeloContrato(usoDoPainelResponseSchema), { sinal: signal }),
     placeholderData: keepPreviousData,
+  })
+}
+
+/** `GET /v1/operacao/escolas/:id/uso-ia`: os 12 meses anteriores da escola, cada um pelo retrato. Só é lido quando o operador abre "Ver meses". */
+export function doUsoDeIaDaEscolaQueryOptions(escolaId: string) {
+  return queryOptions({
+    queryKey: ['operacao', 'uso-ia', escolaId],
+    queryFn: ({ signal }) => operadorAuthedRequest(caminhoDoUsoDeIa(escolaId), lidoPeloContrato(usoDeIaDaEscolaDoPainelResponseSchema), { sinal: signal }),
   })
 }
 

@@ -839,8 +839,34 @@ põe as duas abas na página.
   possível carregar." com "Tentar de novo") e a web antiga com a API nova ("Atualize a página: esta tela ficou desatualizada em
   relação ao Turmma.", sem "Tentar de novo"). "Salvar orçamento" tem 44 px, a caixa 24 px, e nada depende de hover. A aba Uso abre o
   mesmo diálogo de "Definir orçamento" (camada-ia, 8.0)
-- **Aba Uso**: por escola, no dia e no mês — o uso de infra desde já (D30), o consumo de IA
-  contra o teto por aluno (D39), que a D76 previa com a A2 e o MVP não trouxe (`TODO.md`)
+- **Aba Uso** (`/operacao/uso`; camada-ia, 8.0; RF11): por escola, o uso de infra (D30) e o de IA contra o valor por aluno (D39).
+  No computador, uma tabela com a escola como cabeçalho da linha, o grupo da infra (**Dia** e **Mês**, cada um com requisições, tarefas
+  em segundo plano e armazenamento: o último dia fechado e o mês dele até esse dia) e o grupo **"IA (hoje, até agora, e mês)"**, com nove
+  colunas: chamadas, tokens e reais de hoje; chamadas, tokens e reais do mês; "Custo por aluno no mês, contra o valor" ("R$ 0,31 de R$ 5,00",
+  ou só "R$ 0,31" quando não há valor; "sem aluno ativo" quando não há aluno); "Orçamento do mês" ("62% do orçamento", sempre em texto, nunca só
+  cor); e as chamadas da reserva no mês. A tabela que passa da largura rola dentro da própria moldura, que então recebe foco. No celular, um
+  cartão por escola com os mesmos blocos empilhados (dia, mês e o grupo de IA), sem rolagem horizontal a 360 px. A tela diz os dois períodos:
+  "A infra mostra o último dia fechado; a IA mostra hoje, até agora, e o mês corrente." Os números ficam inteiros na linha ("1.234.567",
+  "R$ 98.765.432,00" nunca quebram); R$ com vírgula; **nenhuma tela calcula porcentagem**: ela vem da API, e a única conta da tela é o custo por
+  aluno (custo do mês ÷ alunos ativos).
+  - **Ordem**: "Nome", "Mais uso no mês" e **"Mais custo de IA no mês"**, com `aria-pressed` na escolhida e 44 px; a escolha vai à barra de
+    endereço (`?pagina=1&ordem=custo`) e ao pedido. A lista de Escolas não tem a ordem por custo.
+  - **Célula sem orçamento**: "sem orçamento definido" com o botão **"Definir orçamento"** (o nome acessível diz a escola), que abre o diálogo
+    "Orçamento de IA" da escola da linha (a rede e o orçamento vêm da própria linha do uso; ver a aba Escolas acima). Salvo, a tela anuncia
+    "Orçamento salvo." e o foco volta à escola. Escola com valor definido não tem o botão. **"sem aluno ativo"** quando não há aluno ativo
+    (a escola em montagem ou na virada do ano letivo), e a porcentagem diz "sem porcentagem".
+  - **"Ver meses"** (junto do nome da escola, na tabela e no cartão): abre o diálogo "Meses de IA" com os 12 meses anteriores, do mais recente
+    ao mais antigo, o mês por extenso em português ("setembro de 2026"), e em cada um chamadas, tokens, reais, custo por aluno contra o valor,
+    a porcentagem e as chamadas da reserva, **pelo retrato** que a medição gravou. O mês fechado antes da medição diz "sem retrato (antes da
+    medição)" e mostra só o consumo. Se nenhum dos 12 tem retrato: "Ainda não há mês fechado com retrato." Carregando ("Carregando os
+    meses…"); erro ("Não foi possível carregar." com "Tentar de novo"); e a web antiga com a API nova, "Atualize a página", sem "Tentar de
+    novo". "Fechar" devolve o foco ao botão que abriu.
+  - **Estados da tela**: carregando; vazio ("Nenhuma escola criada ainda." com "Ir para Escolas"); erro ("Não foi possível carregar." do 503, com
+    "Tentar de novo"); e a resposta que a web não reconhece, "Atualize a página", sem "Tentar de novo", que traria a mesma resposta. Só número,
+    por escola, nunca pessoa (D76)
+  - **Só da Operação**: reais e tokens por escola ficam nesta aba, que é do operador da Turmma. A coordenação da escola vê "IA do mês: N% do
+    previsto", sem reais nem tokens (6.0, D40: a escola paga por aluno, sem crédito visível). Levar esta tabela, os 12 meses ou o custo por aluno
+    à Governança ou ao Painel da escola pede decisão nova, antes de qualquer tela.
 
 A pele é a mesma do produto (D80), e a barra com "Operação Turmma" é a marca de que ali é a operação,
 para ninguém confundir com a tela de uma escola. As medidas estão na seção 11.4.

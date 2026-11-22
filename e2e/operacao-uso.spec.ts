@@ -1,5 +1,5 @@
-import type { Page, Route } from '@playwright/test'
-import type { OrdemDoPainel, UsoDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
+import type { Locator, Page, Route } from '@playwright/test'
+import type { MesDoUsoDeIaDaEscola, OrdemDoUso, UsoDeIaDaEscolaDoPainel, UsoDoPainelResponse } from '../packages/shared/src/operacao/painel.ts'
 import { criarOperadorComSegundoFator as criarOperador, removerOperador, type OperadorDeTeste } from './support/operacao.ts'
 import {
   criarRedeDoPainel,
@@ -30,6 +30,8 @@ import { ALVO_DE_TOQUE_PRINCIPAL_PX, rawCodePattern, horizontalOverflow, serious
 const ROTA_DO_USO = (url: URL) => url.pathname === '/v1/operacao/uso'
 const TEXTO_DO_503 = 'O Turmma está indisponível agora. Tente de novo em instantes.'
 const numero = new Intl.NumberFormat('pt-BR')
+/** O alvo de toque mínimo de WCAG 2.5.8, que "Definir orçamento" e "Ver meses" cumprem com folga (regra 50, item 2a). */
+const ALVO_MINIMO_PX = 24
 
 const operadores: string[] = []
 const paineis: PainelSemeado[] = []
@@ -54,8 +56,10 @@ async function novoPainel(uso: UsoDoPainel): Promise<PainelSemeado> {
  * em que nenhum outro semeou. Uma só, sem uso, e não as 30 do painel: não entra na frente das escolas dos W6 na ordem por
  * uso. O `afterEach` a apaga.
  */
-async function umaEscolaNoBanco(): Promise<void> {
-  escolasAvulsas.push(await semearEscolaDoConvite('sem_convite'))
+async function umaEscolaNoBanco(): Promise<EscolaDoConvite> {
+  const escola = await semearEscolaDoConvite('sem_convite')
+  escolasAvulsas.push(escola)
+  return escola
 }
 
 test.afterEach(async () => {
@@ -69,11 +73,23 @@ function envelope(codigo: string) {
 }
 
 /** A resposta do `GET` do uso com aquela página e ordem, esperada a partir de agora. */
-function respostaDoUso(page: Page, pagina: number, ordem: OrdemDoPainel) {
+function respostaDoUso(page: Page, pagina: number, ordem: OrdemDoUso) {
   return page.waitForResponse((resposta) => {
     const url = new URL(resposta.url())
     return ROTA_DO_USO(url) && url.searchParams.get('pagina') === String(pagina) && url.searchParams.get('ordem') === ordem && resposta.ok()
   })
+}
+
+/** O toque no celular e o clique no Chromebook num botão que o teste já achou pela linha dele. */
+async function acionar(botao: Locator, hasTouch: boolean): Promise<void> {
+  if (hasTouch) await botao.tap()
+  else await botao.click()
+}
+
+/** A linha da escola na tabela (Chromebook) ou o cartão dela (celular), pelo nome: o `hasTouch` é o que decide qual das duas a tela desenha. */
+function linhaDaEscola(page: Page, hasTouch: boolean, nome: string): Locator {
+  if (hasTouch) return page.getByRole('listitem').filter({ has: page.getByRole('heading', { level: 2, name: nome }) })
+  return page.getByRole('row').filter({ has: page.locator('[data-nome-da-escola]', { hasText: nome }) })
 }
 
 /** Um item da navegação da operação, pelo toque no celular e pelo clique no Chromebook. */
@@ -83,23 +99,39 @@ async function irPelaNavegacao(page: Page, item: 'Escolas' | 'Uso', hasTouch: bo
   else await link.click()
 }
 
+/** As medidas da infra são as seis primeiras da linha e do cartão; as nove seguintes são as da IA (camada-ia, 8.0). */
+const MEDIDAS_DA_INFRA = 6
+
 interface EscolaNaTela {
   readonly nome: string
   /** As seis medidas, na ordem da tela: o dia (requisições, tarefas, armazenamento), depois o mês. */
   readonly valores: string[]
 }
 
-/** As escolas na tela, na ordem, com as medidas: as linhas da tabela no Chromebook, os cartões no celular. */
+/** As escolas na tela, na ordem, com as medidas: as linhas da tabela no Chromebook, os cartões no celular. Uma ida só ao navegador por lista: com as quinze medidas da linha, uma por célula levava a página de 25 a segundos. */
 async function usoNaTela(page: Page): Promise<EscolaNaTela[]> {
   const tabela = page.getByRole('table')
   if (await tabela.isVisible()) {
-    const linhas = await tabela.locator('tbody tr').all()
-    return Promise.all(linhas.map(async (linha) => ({ nome: (await linha.getByRole('rowheader').textContent()) ?? '', valores: await linha.getByRole('cell').allTextContents() })))
+    return tabela.locator('tbody tr').evaluateAll(
+      (linhas, quantas) =>
+        linhas.map((linha) => ({
+          nome: linha.querySelector('[data-nome-da-escola]')?.textContent ?? '',
+          valores: [...linha.querySelectorAll('td')].slice(0, quantas).map((celula) => celula.textContent ?? ''),
+        })),
+      MEDIDAS_DA_INFRA,
+    )
   }
-  const cartoes = await page.getByRole('main').getByRole('listitem').all()
-  return Promise.all(
-    cartoes.map(async (cartao) => ({ nome: (await cartao.getByRole('heading', { level: 2 }).textContent()) ?? '', valores: await cartao.getByRole('definition').allTextContents() })),
-  )
+  return page
+    .getByRole('main')
+    .getByRole('listitem')
+    .evaluateAll(
+      (cartoes, quantas) =>
+        cartoes.map((cartao) => ({
+          nome: cartao.querySelector('h2')?.textContent ?? '',
+          valores: [...cartao.querySelectorAll('dd')].slice(0, quantas).map((definicao) => definicao.textContent ?? ''),
+        })),
+      MEDIDAS_DA_INFRA,
+    )
 }
 
 const nomesNaTela = async (page: Page) => (await usoNaTela(page)).map((escola) => escola.nome)
@@ -284,7 +316,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     expect(await seriousViolations(page)).toEqual([])
 
     soltar()
-    await expect(page.getByRole('main')).toContainText('Nenhuma escola ainda.', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(page.getByRole('main')).toContainText('Nenhuma escola criada ainda.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText('O uso de cada escola aparece aqui assim que ela é criada.')
     const paraEscolas = page.getByRole('main').getByRole('button', { name: 'Ir para Escolas' })
     await expect(paraEscolas).toBeVisible()
@@ -319,7 +351,7 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await expect.poll(() => nomesNaTela(page)).toEqual(dados.itens.map((escola) => escola.nome))
     await expect(page.getByRole('alert')).toHaveCount(0)
     expect(await horizontalOverflow(page)).toBe(0)
-    expect(await seriousViolations(page)).toEqual([])
+    // O axe da tabela com dado é o do W6 e o do "erro com dado", logo abaixo, que lê a mesma lista: com as quinze medidas por escola, cada leitura custa o dobro.
 
     // Com o uso na tela, a busca seguinte falha (a volta à aba com o dado já velho): a mensagem e o "Tentar de novo" em
     // cima, e o uso que já estava fica. Tentando de novo com a API de volta, a mensagem sai.
@@ -335,12 +367,21 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
     await activate(page, 'Tentar de novo', hasTouch)
     await denovo
     await expect(page.getByRole('alert')).toHaveCount(0)
+  })
 
-    // A página além da última (endereço digitado): o vazio dela, com o caminho de volta à primeira.
+  test('a página além da última (endereço digitado) tem o vazio dela, com o caminho de volta à primeira', async ({ page, hasTouch }) => {
+    test.slow()
+    await umaEscolaNoBanco()
+    const operador = await novoOperador()
+    await entrarNaOperacao(page, operador, hasTouch)
     const alemDaUltima = (rota: Route) =>
       rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ itens: [], pagina: 9999, total: 30, dia: '2026-09-23', mes: '2026-09' }) })
     await page.route(ROTA_DO_USO, alemDaUltima)
-    await page.goto('/operacao/uso?pagina=9999&ordem=uso')
+    // O endereço digitado, sem recarregar a página (a sessão já está de pé): o roteador lê o mesmo endereço que leria numa carga nova.
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/operacao/uso?pagina=9999&ordem=uso')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
     await expect(page.getByRole('main')).toContainText('Não há escolas nesta página.', { timeout: SIGN_IN_TIMEOUT_MS })
     await expect(page.getByRole('main')).toContainText('A lista tem 2 páginas.')
     expect(await seriousViolations(page)).toEqual([])
@@ -387,9 +428,166 @@ test.describe('Uso (A0b, tarefa 8.0)', () => {
       await expect(page.getByRole('columnheader', { name: 'Tarefas em segundo plano' })).toHaveCount(2)
     } else {
       const cartao = principal.getByRole('listitem').first()
-      expect(await cartao.getByRole('heading', { level: 3 }).allTextContents()).toEqual(titulosDosPeriodos)
-      expect(await cartao.getByRole('term').allTextContents()).toEqual(['Requisições', 'Tarefas em segundo plano', 'Armazenamento', 'Requisições', 'Tarefas em segundo plano', 'Armazenamento'])
+      // O cartão traz, depois da infra, o grupo da IA (camada-ia, 8.0): a conferência é a dos dois períodos da infra, que vêm primeiro.
+      expect((await cartao.getByRole('heading', { level: 3 }).allTextContents()).slice(0, titulosDosPeriodos.length)).toEqual(titulosDosPeriodos)
+      expect((await cartao.getByRole('term').allTextContents()).slice(0, MEDIDAS_DA_INFRA)).toEqual(['Requisições', 'Tarefas em segundo plano', 'Armazenamento', 'Requisições', 'Tarefas em segundo plano', 'Armazenamento'])
     }
+    expect(await horizontalOverflow(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+  })
+
+  test('IA 14.4: chamadas, tokens, reais, custo por aluno, porcentagem e reserva ficam inteiros na linha, a 360 e a 1366 px, e a porcentagem vem em texto', async ({ page, hasTouch }) => {
+    test.slow()
+    await novoPainel('nenhum')
+    const operador = await novoOperador()
+    const grande: UsoDeIaDaEscolaDoPainel = {
+      hoje: { execucoes: 9, chamadas: 1_234_567, tokens: 987_654_321, custoMicros: 12_345_678_000_000, chamadasPeloProvedorDeReserva: 2_345_678 },
+      mes: { execucoes: 90, chamadas: 7_654_321, tokens: 1_987_654_321, custoMicros: 98_765_432_000_000, chamadasPeloProvedorDeReserva: 3_456_789 },
+      alunosAtivos: 112,
+      valorPorAlunoMicros: 5_000_000,
+      origemDoValor: 'rede',
+      porcentagem: 1234,
+      situacao: 'definido',
+    }
+    await trocarAPrimeiraDaResposta(page, ROTA_DO_USO, (escola) => ({ ...escola, ia: grande }))
+    await entrarNaOperacao(page, operador, hasTouch)
+    await irPelaNavegacao(page, 'Uso', hasTouch)
+    const reais = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    // A porcentagem é texto ("1.234% do orçamento"), nunca só cor; os números não quebram em duas linhas. A reserva de hoje não tem coluna: a da tela é a do mês.
+    await conferirQueCadaNumeroFicaEmUmaLinha(page, [
+      '1.234.567',
+      '987.654.321',
+      `R$ ${reais.format(12_345_678)}`,
+      '7.654.321',
+      '1.987.654.321',
+      `R$ ${reais.format(98_765_432)}`,
+      `R$ ${reais.format(98_765_432 / 112)} de R$ 5,00`,
+      '1.234% do orçamento',
+      '3.456.789',
+    ])
+    expect(await horizontalOverflow(page)).toBe(0)
+    await expect(page.getByRole('main')).toContainText('IA (hoje, até agora, e mês)')
+    await expect(page.getByRole('main')).toContainText('A infra mostra o último dia fechado; a IA mostra hoje, até agora, e o mês corrente.')
+  })
+
+  test('IA: a ordem por custo vai à barra e ao pedido, e a tela fica na ordem da resposta', async ({ page, hasTouch }) => {
+    test.slow()
+    await umaEscolaNoBanco()
+    const operador = await novoOperador()
+    await entrarNaOperacao(page, operador, hasTouch)
+    await irPelaNavegacao(page, 'Uso', hasTouch)
+    const resposta = respostaDoUso(page, 1, 'custo')
+    await activate(page, 'Mais custo de IA no mês', hasTouch)
+    const porCusto = (await (await resposta).json()) as UsoDoPainelResponse
+    await expect(page).toHaveURL(/\/operacao\/uso\?pagina=1&ordem=custo$/)
+    await expect(page.getByRole('button', { name: 'Mais custo de IA no mês' })).toHaveAttribute('aria-pressed', 'true')
+    // A ordem que a API dá é a da integração da 5.0 (`painel-leitura.int.test.ts`): aqui o que se prova é o pedido, o endereço, o botão marcado e a tela na ordem da resposta.
+    await expect.poll(() => nomesNaTela(page)).toEqual(porCusto.itens.map((escola) => escola.nome))
+  })
+
+  test('IA: "Definir orçamento" abre o diálogo da escola da linha, com alvo de 24 px, e "Cancelar" devolve o foco ao botão', async ({ page, hasTouch }) => {
+    test.slow()
+    const escola = await umaEscolaNoBanco()
+    const operador = await novoOperador()
+    await entrarNaOperacao(page, operador, hasTouch)
+    await irPelaNavegacao(page, 'Uso', hasTouch)
+    const nome = escola.nome
+    const linha = linhaDaEscola(page, hasTouch, nome)
+    await expect(linha).toContainText('sem orçamento definido', { timeout: SIGN_IN_TIMEOUT_MS })
+    const definir = linha.getByRole('button', { name: /^Definir orçamento/ })
+    const caixa = await definir.boundingBox()
+    expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_MINIMO_PX)
+    expect(caixa?.width ?? 0).toBeGreaterThanOrEqual(ALVO_MINIMO_PX)
+    await acionar(definir, hasTouch)
+    const orcamento = page.getByRole('dialog', { name: 'Orçamento de IA' })
+    await expect(orcamento).toContainText(nome)
+    await expect(orcamento.getByLabel('Valor por aluno por mês (R$)')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    await acionar(orcamento.getByRole('button', { name: 'Cancelar' }), hasTouch)
+    await expect(orcamento).toHaveCount(0)
+    await expect(definir).toBeFocused()
+  })
+
+  test('IA: "Ver meses" abre os 12 meses da escola da linha, com alvo de 24 px e sem rolagem de lado, e "Fechar" devolve o foco ao botão', async ({ page, hasTouch }) => {
+    test.slow()
+    const escola = await umaEscolaNoBanco()
+    const operador = await novoOperador()
+    await entrarNaOperacao(page, operador, hasTouch)
+    await irPelaNavegacao(page, 'Uso', hasTouch)
+    const verMeses = linhaDaEscola(page, hasTouch, escola.nome).getByRole('button', { name: /^Ver meses/ })
+    await expect(verMeses).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+    const caixa = await verMeses.boundingBox()
+    expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(ALVO_MINIMO_PX)
+    expect(caixa?.width ?? 0).toBeGreaterThanOrEqual(ALVO_MINIMO_PX)
+    // Os 12 meses anteriores a setembro de 2026: os três mais recentes com retrato, os outros nove "sem retrato (antes da medição)".
+    const meses: MesDoUsoDeIaDaEscola[] = Array.from({ length: 12 }, (_, posicao) => ({
+      mes: new Date(Date.UTC(2026, 8 - posicao, 1)).toISOString().slice(0, 7),
+      execucoes: 1,
+      chamadas: 12 + posicao,
+      tokens: 3400,
+      custoMicros: 1_500_000,
+      chamadasPeloProvedorDeReserva: 0,
+      alunosAtivos: posicao < 3 ? 10 : null,
+      valorPorAlunoMicros: posicao < 3 ? 5_000_000 : null,
+      origemDoValor: posicao < 3 ? 'rede' : null,
+      porcentagem: posicao < 3 ? 3 : null,
+      situacao: posicao < 3 ? 'definido' : 'sem_retrato',
+    }))
+    await page.route((url) => url.pathname === `/v1/operacao/escolas/${escola.id}/uso-ia`, (rota) => rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ meses }) }))
+    await acionar(verMeses, hasTouch)
+    const dialogo = page.getByRole('dialog', { name: 'Meses de IA' })
+    await expect(dialogo.getByRole('listitem')).toHaveCount(12, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(dialogo.getByRole('heading', { level: 3 }).first()).toHaveText('setembro de 2026')
+    await expect(dialogo.getByText('sem retrato (antes da medição)')).toHaveCount(9)
+    await expect(dialogo.getByText('3% do orçamento')).toHaveCount(3)
+    expect(await horizontalOverflow(page)).toBe(0)
+    await acionar(dialogo.getByRole('button', { name: 'Fechar' }), hasTouch)
+    await expect(dialogo).toHaveCount(0)
+    await expect(verMeses).toBeFocused()
+  })
+
+  test('Ver meses: erro com "Tentar de novo", o carregando e o vazio sem mês com retrato, sem rolagem de lado', async ({ page, hasTouch }) => {
+    test.slow()
+    const escola = await umaEscolaNoBanco()
+    const operador = await novoOperador()
+    await entrarNaOperacao(page, operador, hasTouch)
+    await irPelaNavegacao(page, 'Uso', hasTouch)
+    const verMeses = linhaDaEscola(page, hasTouch, escola.nome).getByRole('button', { name: /^Ver meses/ })
+    const doUsoDeIa = (url: URL) => url.pathname === `/v1/operacao/escolas/${escola.id}/uso-ia`
+    const semRetrato = Array.from({ length: 12 }, (_, posicao) => ({
+      mes: new Date(Date.UTC(2026, 8 - posicao, 1)).toISOString().slice(0, 7),
+      execucoes: 0,
+      chamadas: 0,
+      tokens: 0,
+      custoMicros: 0,
+      chamadasPeloProvedorDeReserva: 0,
+      alunosAtivos: null,
+      valorPorAlunoMicros: null,
+      origemDoValor: null,
+      porcentagem: null,
+      situacao: 'sem_retrato',
+    }))
+    // O 503 duas vezes (a tela repete uma): a mensagem e o "Tentar de novo". A leitura seguinte fica segura até o teste ver o carregando, e vem vazia.
+    let soltar: () => void = () => undefined
+    const segura = new Promise<void>((resolver) => {
+      soltar = resolver
+    })
+    let pedidos = 0
+    await page.route(doUsoDeIa, async (rota) => {
+      pedidos++
+      if (pedidos <= 2) return rota.fulfill({ status: 503, contentType: 'application/json', body: envelope('INDISPONIVEL_TENTE_DE_NOVO') })
+      await segura
+      return rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ meses: semRetrato }) })
+    })
+    await acionar(verMeses, hasTouch)
+    const dialogo = page.getByRole('dialog', { name: 'Meses de IA' })
+    await expect(dialogo.getByRole('alert')).toHaveText('Não foi possível carregar.', { timeout: SIGN_IN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+    await acionar(dialogo.getByRole('button', { name: 'Tentar de novo' }), hasTouch)
+    await expect(dialogo.getByRole('status').filter({ hasText: 'Carregando os meses…' })).toBeVisible()
+    soltar()
+    await expect(dialogo).toContainText('Ainda não há mês fechado com retrato.')
+    await expect(dialogo.getByRole('listitem')).toHaveCount(0)
     expect(await horizontalOverflow(page)).toBe(0)
     expect(await seriousViolations(page)).toEqual([])
   })

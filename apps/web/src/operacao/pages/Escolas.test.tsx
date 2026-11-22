@@ -226,6 +226,14 @@ describe('Escolas: as ações da página (RF21)', () => {
     expect(cheios.map((botao) => botao.textContent)).toEqual(['Nova escola'])
     expect(screen.getByRole('button', { name: 'Nova rede' }).classList.contains('bg-laranja')).toBe(false)
   })
+
+  it('a barra de ordem da lista oferece só "Nome" e "Mais uso no mês": a ordem por custo é do Uso (camada-ia, 8.0)', async () => {
+    fakeNetwork().responder(lista(UMA_ESCOLA_POR_ESTADO))
+    renderOperacaoScreen(<Escolas />)
+    await screen.findByRole('table')
+    const barra = screen.getByRole('button', { name: 'Mais uso no mês' }).parentElement as HTMLElement
+    expect(within(barra).getAllByRole('button').map((botao) => botao.textContent)).toEqual(['Nome', 'Mais uso no mês'])
+  })
 })
 
 describe('Escolas: o Orçamento de IA da rede e da escola, em cada linha (camada-ia, 7.0)', () => {

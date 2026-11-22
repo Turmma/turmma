@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import type { UsoDaEscolaDoPainel } from '@educa/shared'
+import type { RedeDoPainel, UsoDaEscolaDoPainel, UsoDeIaDaEscolaDoPainel } from '@educa/shared'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   OPERATOR_TEST_AUTHORIZATION,
   janelaDe,
+  redeDoPainel,
   setupOperacaoScreen,
   fakeNetwork,
   renderOperacaoScreen,
@@ -21,7 +22,16 @@ import { Uso } from './Uso'
  */
 setupOperacaoScreen()
 
-beforeEach(() => janelaDe(1366))
+beforeEach(() => {
+  janelaDe(1366)
+  // O `jsdom` não implementa o `dialog` modal: o teste instala o `showModal` e o `close`.
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute('open')
+  }
+})
 afterEach(() => vi.restoreAllMocks())
 
 const REFERENCIA = { dia: '2026-09-23', mes: '2026-09' }
@@ -39,7 +49,7 @@ describe('Uso: os estados da tela (RF22)', () => {
     expect(await screen.findByText('Carregando o uso das escolas…')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
     // O vazio só vem com a leitura terminada e sem erro (RF22).
-    expect(screen.queryByText('Nenhuma escola ainda.')).toBeNull()
+    expect(screen.queryByText('Nenhuma escola criada ainda.')).toBeNull()
 
     solta.liberar(lista([usoDaEscolaDoPainel(1)]))
     expect(await screen.findByRole('table')).toBeTruthy()
@@ -57,7 +67,7 @@ describe('Uso: os estados da tela (RF22)', () => {
     renderOperacaoScreen(<Uso />)
     expect((await screen.findByRole('alert', {}, { timeout: 4000 })).textContent).toBe('O Turmma está indisponível agora. Tente de novo em instantes.')
     expect(screen.queryByRole('table')).toBeNull()
-    expect(screen.queryByText('Nenhuma escola ainda.')).toBeNull()
+    expect(screen.queryByText('Nenhuma escola criada ainda.')).toBeNull()
 
     rede.responder(lista([usoDaEscolaDoPainel(1)]))
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
@@ -69,7 +79,7 @@ describe('Uso: os estados da tela (RF22)', () => {
   it('sem escola nenhuma, o vazio convida a ir para Escolas, e o botão leva a /operacao', async () => {
     fakeNetwork().responder(lista([]))
     const tela = renderOperacaoScreen(<Uso />, { caminho: '/uso' })
-    expect(await screen.findByText('Nenhuma escola ainda.')).toBeTruthy()
+    expect(await screen.findByText('Nenhuma escola criada ainda.')).toBeTruthy()
     expect(screen.getByText('O uso de cada escola aparece aqui assim que ela é criada.')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
     expect(screen.queryByRole('navigation', { name: 'Páginas do uso' })).toBeNull()
@@ -112,21 +122,13 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
     const grupos = within(tabela)
       .getAllByRole('columnheader')
       .map((cabecalho) => cabecalho.textContent)
-    expect(grupos).toEqual([
-      'Escola',
-      'Dia 23/09/2026',
-      'Mês: setembro de 2026, até 23/09',
-      'Requisições',
-      'Tarefas em segundo plano',
-      'Armazenamento',
-      'Requisições',
-      'Tarefas em segundo plano',
-      'Armazenamento',
-    ])
+    expect(grupos.slice(0, 4)).toEqual(['Escola', 'Dia 23/09/2026', 'Mês: setembro de 2026, até 23/09', 'IA (hoje, até agora, e mês)'])
+    expect(grupos.slice(4, 10)).toEqual(['Requisições', 'Tarefas em segundo plano', 'Armazenamento', 'Requisições', 'Tarefas em segundo plano', 'Armazenamento'])
     const linhas = within(tabela).getAllByRole('row').slice(2)
-    expect(linhas.map((linha) => ({ nome: within(linha).getByRole('rowheader').textContent, valores: within(linha).getAllByRole('cell').map((celula) => celula.textContent) }))).toEqual([
-      { nome: 'Escola Sintética 1', valores: ['1.234', '12', '1,2 GB', '56.789', '345', '2 KB'] },
-      { nome: 'Escola Sintética 2', valores: ['0', '0', '0 bytes', '7', '1', '1.023 bytes'] },
+    // Só as seis medidas da infra: as da IA são do grupo seguinte, e têm os casos delas.
+    expect(linhas.map((linha) => ({ nome: within(linha).getByRole('rowheader').textContent?.startsWith('Escola Sintética '), valores: within(linha).getAllByRole('cell').slice(0, 6).map((celula) => celula.textContent) }))).toEqual([
+      { nome: true, valores: ['1.234', '12', '1,2 GB', '56.789', '345', '2 KB'] },
+      { nome: true, valores: ['0', '0', '0 bytes', '7', '1', '1.023 bytes'] },
     ])
   })
 
@@ -139,8 +141,13 @@ describe('Uso: a tabela e a lista de cartões (RF21)', () => {
     expect(cartoes.map((cartao) => within(cartao).getByRole('heading', { level: 2 }).textContent)).toEqual(['Escola Sintética 1', 'Escola Sintética 2'])
     const primeiro = cartoes[0]
     if (primeiro === undefined) throw new Error('sem cartão')
-    expect(within(primeiro).getAllByRole('heading', { level: 3 }).map((titulo) => titulo.textContent)).toEqual(['Dia 23/09/2026', 'Mês: setembro de 2026, até 23/09'])
-    expect(within(primeiro).getAllByRole('definition').map((valor) => valor.textContent)).toEqual(['1.234', '12', '1,2 GB', '56.789', '345', '2 KB'])
+    expect(within(primeiro).getAllByRole('heading', { level: 3 }).map((titulo) => titulo.textContent)).toEqual(['Dia 23/09/2026', 'Mês: setembro de 2026, até 23/09', 'IA (hoje, até agora, e mês)'])
+    expect(
+      within(primeiro)
+        .getAllByRole('definition')
+        .slice(0, 6)
+        .map((valor) => valor.textContent),
+    ).toEqual(['1.234', '12', '1,2 GB', '56.789', '345', '2 KB'])
   })
 
   it('a data de referência é a que a API devolveu, não a de hoje no navegador', async () => {
@@ -182,8 +189,283 @@ describe('Uso: nenhum dado de pessoa (D76)', () => {
     const comPessoa = { ...usoDaEscolaDoPainel(1), aluno: 'Joana Pereira' }
     fakeNetwork().responderPor('/v1/operacao/uso', { status: 200, corpo: { itens: [comPessoa], pagina: 1, total: 1, ...REFERENCIA } })
     renderOperacaoScreen(<Uso />)
-    await screen.findByRole('alert', {}, { timeout: 4000 })
+    expect((await screen.findByRole('alert', {}, { timeout: 4000 })).textContent).toBe('Atualize a página: esta tela ficou desatualizada em relação ao Turmma.')
     expect(screen.queryByRole('table')).toBeNull()
     expect(document.body.textContent).not.toContain('Joana Pereira')
+  })
+})
+
+/** O grupo de IA do item: o que a API devolveu, com o que o caso muda. Os reais saem em micros (R$ 1,00 = 1_000_000). */
+function comIa(n: number, ia: Partial<UsoDeIaDaEscolaDoPainel>, extra: Partial<UsoDaEscolaDoPainel> = {}): UsoDaEscolaDoPainel {
+  const base = usoDaEscolaDoPainel(n)
+  return usoDaEscolaDoPainel(n, { ia: { ...base.ia, ...ia }, ...extra })
+}
+
+/** As nove medidas de IA da linha da tabela, depois das seis da infra, como estão escritas na tela (o botão leva o nome acessível dentro da célula, e por isso o texto vem sem ele). */
+function celulasDeIa(linha: HTMLElement): string[] {
+  return within(linha)
+    .getAllByRole('cell')
+    .slice(6)
+    .map((celula) => celula.firstElementChild?.textContent ?? celula.textContent ?? '')
+}
+
+describe('Uso: o grupo "IA" (camada-ia, 8.0; RF11)', () => {
+  it('o grupo "IA (hoje, até agora, e mês)" e a infra com "último dia fechado": a tela diz os dois períodos', async () => {
+    fakeNetwork().responder(lista([usoDaEscolaDoPainel(1)]))
+    renderOperacaoScreen(<Uso />)
+    const tabela = await screen.findByRole('table')
+    expect(within(tabela).getByRole('columnheader', { name: 'IA (hoje, até agora, e mês)' }).getAttribute('colspan')).toBe('9')
+    expect(within(tabela).getByRole('columnheader', { name: 'Dia 23/09/2026' })).toBeTruthy()
+    expect(screen.getByText('Último dia fechado:', { exact: false }).textContent).toContain('23/09/2026')
+    expect(screen.getByText('A infra mostra o último dia fechado; a IA mostra hoje, até agora, e o mês corrente.')).toBeTruthy()
+  })
+
+  it('a linha traz chamadas, tokens e reais de hoje e do mês, o custo por aluno contra o valor, a porcentagem e as chamadas da reserva', async () => {
+    const definida = comIa(1, {
+      hoje: { execucoes: 3, chamadas: 4, tokens: 1_200_000, custoMicros: 2_500_000, chamadasPeloProvedorDeReserva: 0 },
+      mes: { execucoes: 30, chamadas: 1234, tokens: 12_345_678, custoMicros: 31_000_000, chamadasPeloProvedorDeReserva: 3 },
+      alunosAtivos: 100,
+      valorPorAlunoMicros: 5_000_000,
+      origemDoValor: 'escola',
+      porcentagem: 62,
+      situacao: 'definido',
+    })
+    fakeNetwork().responder(lista([definida]))
+    renderOperacaoScreen(<Uso />)
+    const tabela = await screen.findByRole('table')
+    const linha = within(tabela).getAllByRole('row')[2]
+    if (linha === undefined) throw new Error('sem linha')
+    // R$ 31,00 sobre 100 alunos: R$ 0,31 de R$ 5,00; a porcentagem é a da API, e a tela não a calcula.
+    expect(celulasDeIa(linha)).toEqual(['4', '1.200.000', 'R$ 2,50', '1.234', '12.345.678', 'R$ 31,00', 'R$ 0,31 de R$ 5,00', '62% do orçamento', '3'])
+    expect(within(linha).queryByRole('button', { name: /Definir orçamento/ })).toBeNull()
+  })
+
+  it('nenhuma tela calcula porcentagem: a que a API devolveu é a que aparece, mesmo quando a conta da tela daria outra', async () => {
+    // R$ 31,00 sobre 100 alunos a R$ 5,00 daria 6,2%: a tela mostra os 62 que a API mandou.
+    fakeNetwork().responder(
+      lista([comIa(1, { mes: { execucoes: 1, chamadas: 1, tokens: 1, custoMicros: 31_000_000, chamadasPeloProvedorDeReserva: 0 }, alunosAtivos: 100, valorPorAlunoMicros: 5_000_000, origemDoValor: 'rede', porcentagem: 77, situacao: 'definido' })]),
+    )
+    renderOperacaoScreen(<Uso />)
+    expect(await screen.findByText('77% do orçamento')).toBeTruthy()
+    expect(screen.queryByText('6,2% do orçamento')).toBeNull()
+  })
+
+  it('o valor sem aluno ativo não divide: "sem aluno ativo", sem porcentagem, e os reais seguem à vista', async () => {
+    fakeNetwork().responder(lista([comIa(1, { alunosAtivos: 0, valorPorAlunoMicros: 5_000_000, origemDoValor: 'escola', porcentagem: null, situacao: 'sem_aluno_ativo' })]))
+    renderOperacaoScreen(<Uso />)
+    const tabela = await screen.findByRole('table')
+    const linha = within(tabela).getAllByRole('row')[2]
+    if (linha === undefined) throw new Error('sem linha')
+    const celulas = celulasDeIa(linha)
+    expect(celulas.slice(5)).toEqual(['R$ 20,00', 'sem aluno ativo', 'sem porcentagem', '1'])
+    expect(within(linha).queryByRole('button', { name: /Definir orçamento/ })).toBeNull()
+    expect(within(linha).queryByText(/%/)).toBeNull()
+  })
+
+  it('sem valor em nenhum lugar: "sem orçamento definido", com "Definir orçamento" na célula; o custo por aluno aparece sem o valor', async () => {
+    fakeNetwork().responder(lista([usoDaEscolaDoPainel(1)]))
+    renderOperacaoScreen(<Uso />)
+    const tabela = await screen.findByRole('table')
+    const linha = within(tabela).getAllByRole('row')[2]
+    if (linha === undefined) throw new Error('sem linha')
+    // R$ 20,00 do mês sobre 112 alunos: R$ 0,18, e não há valor para pôr ao lado.
+    expect(celulasDeIa(linha).slice(6, 8)).toEqual(['R$ 0,18', 'sem orçamento definido'])
+    const botao = within(linha).getByRole('button', { name: /^Definir orçamento\s*da escola Escola Sintética 1$/ })
+    expect(botao.textContent).toContain('Definir orçamento')
+  })
+
+  it('no celular, o cartão diz as mesmas nove medidas sob o título do grupo, com "Ver meses" e "Definir orçamento"', async () => {
+    janelaDe(360)
+    fakeNetwork().responder(lista([usoDaEscolaDoPainel(1)]))
+    renderOperacaoScreen(<Uso />)
+    const cartao = (await screen.findAllByRole('listitem'))[0]
+    if (cartao === undefined) throw new Error('sem cartão')
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(within(cartao).getByRole('heading', { level: 3, name: 'IA (hoje, até agora, e mês)' })).toBeTruthy()
+    const rotulos = within(cartao)
+      .getAllByRole('term')
+      .map((termo) => termo.textContent)
+    expect(rotulos.slice(6)).toEqual([
+      'Chamadas hoje',
+      'Tokens hoje',
+      'Reais hoje',
+      'Chamadas no mês',
+      'Tokens no mês',
+      'Reais no mês',
+      'Custo por aluno no mês, contra o valor',
+      'Orçamento do mês',
+      'Chamadas da reserva no mês',
+    ])
+    expect(within(cartao).getByText('sem orçamento definido')).toBeTruthy()
+    expect(within(cartao).getByRole('button', { name: /^Definir orçamento\s*da escola Escola Sintética 1$/ })).toBeTruthy()
+    expect(within(cartao).getByRole('button', { name: /^Ver meses\s*de IA da escola Escola Sintética 1$/ })).toBeTruthy()
+  })
+})
+
+describe('Uso: a ordem por custo (camada-ia, 8.0)', () => {
+  it('a barra oferece nome, mais uso e mais custo de IA, com a escolhida marcada; a escolha vai ao endereço e volta à primeira página', async () => {
+    fakeNetwork().responder(lista([usoDaEscolaDoPainel(1)], { total: 30, pagina: 2 }))
+    const tela = renderOperacaoScreen(<Uso />, { caminho: '/uso', busca: 'pagina=2' })
+    await screen.findByRole('table')
+    const grupo = screen.getByRole('group', { name: 'Ordenar as escolas por' })
+    expect(within(grupo).getAllByRole('button').map((botao) => botao.textContent)).toEqual(['Nome', 'Mais uso no mês', 'Mais custo de IA no mês'])
+    expect(within(grupo).getByRole('button', { name: 'Nome' }).getAttribute('aria-pressed')).toBe('true')
+    await userEvent.click(within(grupo).getByRole('button', { name: 'Mais custo de IA no mês' }))
+    expect(tela.navegou).toEqual(['/operacao/uso?pagina=1&ordem=custo'])
+  })
+
+  it('`?ordem=custo` no endereço pede `ordem=custo` à API e marca o botão', async () => {
+    const rede = fakeNetwork()
+    rede.responder(lista([usoDaEscolaDoPainel(1)]))
+    renderOperacaoScreen(<Uso />, { caminho: '/uso', busca: 'ordem=custo' })
+    await screen.findByRole('table')
+    expect(rede.chamadas.map(({ caminho }) => caminho)).toEqual(['/v1/operacao/uso?pagina=1&ordem=custo'])
+    expect(screen.getByRole('button', { name: 'Mais custo de IA no mês' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Nome' }).getAttribute('aria-pressed')).toBe('false')
+  })
+})
+
+describe('Uso: "Definir orçamento" abre o diálogo da escola da linha (camada-ia, 8.0)', () => {
+  const REDE: RedeDoPainel = redeDoPainel()
+
+  it('o diálogo abre com a escola da linha, a rede e o orçamento que o item trouxe, sem outra leitura de escola; salvar anuncia, e o foco volta à linha', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/operacao/uso', lista([usoDaEscolaDoPainel(1), comIa(2, { porcentagem: 10, situacao: 'definido', valorPorAlunoMicros: 5_000_000, origemDoValor: 'rede' })]))
+    rede.responderPor('/v1/operacao/redes', { status: 200, corpo: { itens: [REDE] } })
+    rede.responderPor(/\/orcamento-ia$/, {
+      status: 200,
+      corpo: {
+        proprio: { valorPorAlunoMicros: 4_000_000, tetoDeSegurancaPercentual: null },
+        vigente: { valorPorAlunoMicros: 4_000_000, origemDoValor: 'escola', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+      },
+    })
+    renderOperacaoScreen(<Uso />)
+    await screen.findByRole('table')
+    // Só a escola sem orçamento tem a ação, e nada foi salvo ainda: a região do anúncio não tem parágrafo.
+    expect(screen.getAllByRole('button', { name: /Definir orçamento/ })).toHaveLength(1)
+    expect(screen.getAllByRole('status').flatMap((regiao) => [...regiao.querySelectorAll('p')])).toHaveLength(0)
+    await userEvent.click(screen.getByRole('button', { name: /^Definir orçamento\s*da escola Escola Sintética 1$/ }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Orçamento de IA' })
+    expect(within(dialogo).getByText('Escola Sintética 1')).toBeTruthy()
+    // O que vale hoje é o do item (sem valor), e o diálogo leu só a lista de redes: a escola e a rede dela vieram da linha.
+    expect(await within(dialogo).findByText('Vale hoje: sem valor por aluno.')).toBeTruthy()
+    expect(rede.chamadas.map(({ caminho }) => caminho).filter((caminho) => caminho.startsWith('/v1/operacao/escolas'))).toEqual([])
+    await userEvent.type(within(dialogo).getByLabelText('Valor por aluno por mês (R$)'), '4,00')
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Salvar orçamento' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(rede.chamadas.some(({ caminho, metodo }) => metodo === 'PUT' && caminho === '/v1/operacao/escolas/0197a1c0-0000-7000-8000-000000001001/orcamento-ia')).toBe(true)
+    expect(screen.getAllByRole('status').map((regiao) => regiao.textContent)).toContain('Orçamento salvo.')
+    // O Uso foi marcado para ler de novo: a primeira leitura mais a do salvar.
+    await waitFor(() => expect(rede.chamadas.filter(({ caminho, metodo }) => metodo === 'GET' && caminho.startsWith('/v1/operacao/uso')).length).toBe(2))
+  })
+
+  it('o diálogo da escola usa a rede da linha, e não a primeira da lista', async () => {
+    const outraRede = redeDoPainel({ id: '0197a1c0-0000-7000-8000-000000002999', nome: 'Outra Rede', orcamento: { ...REDE.orcamento, proprio: { valorPorAlunoMicros: 9_000_000, tetoDeSegurancaPercentual: null } } })
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/operacao/uso', lista([usoDaEscolaDoPainel(1)]))
+    rede.responderPor('/v1/operacao/redes', { status: 200, corpo: { itens: [outraRede, REDE] } })
+    renderOperacaoScreen(<Uso />)
+    await screen.findByRole('table')
+    await userEvent.click(screen.getByRole('button', { name: /^Definir orçamento\s*da escola Escola Sintética 1$/ }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Orçamento de IA' })
+    await within(dialogo).findByLabelText('Valor por aluno por mês (R$)')
+    // A escola sem valor próprio abre com "Usar o valor da rede" marcada: o "Depois" é o da rede dela (R$ 5,00), e não o da outra (R$ 9,00).
+    expect((within(dialogo).getByLabelText('Usar o valor da rede') as HTMLInputElement).checked).toBe(true)
+    expect(within(dialogo).getByText(/Depois: R\$ 5,00 por aluno/)).toBeTruthy()
+    expect(within(dialogo).queryByText(/R\$ 9,00/)).toBeNull()
+  })
+})
+
+describe('Uso: o foco depois de salvar o orçamento (camada-ia, 8.0)', () => {
+  /** A rede responde `antes` até o `PUT` do orçamento e `depois` desde então: o Uso lido outra vez já traz o valor salvo. */
+  function responderComOrcamentoSalvo(antes: UsoDaEscolaDoPainel[], depois: UsoDaEscolaDoPainel[]) {
+    const rede = fakeNetwork()
+    let salvo = false
+    rede.responderPor('/v1/operacao/uso', () => lista(salvo ? depois : antes))
+    rede.responderPor('/v1/operacao/redes', { status: 200, corpo: { itens: [redeDoPainel()] } })
+    rede.responderPor(/\/orcamento-ia$/, () => {
+      salvo = true
+      return {
+        status: 200,
+        corpo: {
+          proprio: { valorPorAlunoMicros: 4_000_000, tetoDeSegurancaPercentual: null },
+          vigente: { valorPorAlunoMicros: 4_000_000, origemDoValor: 'escola', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+        },
+      }
+    })
+    return rede
+  }
+  async function salvarOOrcamentoDaPrimeira() {
+    await screen.findByRole('table')
+    await userEvent.click(screen.getByRole('button', { name: /^Definir orçamento\s*da escola Escola Sintética 1$/ }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Orçamento de IA' })
+    await userEvent.type(await within(dialogo).findByLabelText('Valor por aluno por mês (R$)'), '4,00')
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Salvar orçamento' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  }
+
+  it('o botão "Definir orçamento" sai da linha com o valor salvo, e o foco vai para o "Ver meses" da mesma escola', async () => {
+    const comValor = comIa(1, { porcentagem: 0, situacao: 'definido', valorPorAlunoMicros: 4_000_000, origemDoValor: 'escola' })
+    responderComOrcamentoSalvo([usoDaEscolaDoPainel(1)], [comValor])
+    renderOperacaoScreen(<Uso />)
+    await salvarOOrcamentoDaPrimeira()
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Definir orçamento/ })).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Ver meses\s*de IA da escola Escola Sintética 1$/ })))
+  })
+
+  it('a escola que saiu da página com o salvar: o foco vai para o anúncio "Orçamento salvo.", e não se perde no corpo', async () => {
+    responderComOrcamentoSalvo([usoDaEscolaDoPainel(1)], [usoDaEscolaDoPainel(2)])
+    renderOperacaoScreen(<Uso />)
+    await salvarOOrcamentoDaPrimeira()
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Ver meses\s*de IA da escola Escola Sintética 1$/ })).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText('Orçamento salvo.').parentElement))
+  })
+})
+
+describe('Uso: "Ver meses" (camada-ia, 8.0)', () => {
+  it('abre os 12 meses da escola da linha, lê só a rota dela, e "Fechar" devolve o foco ao botão', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/operacao/uso', lista([usoDaEscolaDoPainel(1), usoDaEscolaDoPainel(2)]))
+    rede.responderPor('/v1/operacao/escolas/0197a1c0-0000-7000-8000-000000001002/uso-ia', {
+      status: 200,
+      corpo: { meses: Array.from({ length: 12 }, (_, posicao) => mesDeIa(posicao)) },
+    })
+    renderOperacaoScreen(<Uso />)
+    await screen.findByRole('table')
+    const botao = screen.getByRole('button', { name: /^Ver meses\s*de IA da escola Escola Sintética 2$/ })
+    await userEvent.click(botao)
+    const dialogo = await screen.findByRole('dialog', { name: 'Meses de IA' })
+    expect(await within(dialogo).findAllByRole('listitem')).toHaveLength(12)
+    expect(rede.chamadas.filter(({ caminho }) => caminho.includes('uso-ia')).map(({ caminho }) => caminho)).toEqual(['/v1/operacao/escolas/0197a1c0-0000-7000-8000-000000001002/uso-ia'])
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(document.activeElement).toBe(botao)
+  })
+})
+
+/** Um mês fechado com retrato, do mais recente (posição 0, setembro de 2026) ao mais antigo. */
+function mesDeIa(posicao: number) {
+  return {
+    mes: new Date(Date.UTC(2026, 8 - posicao, 1)).toISOString().slice(0, 7),
+    execucoes: 1,
+    chamadas: 2,
+    tokens: 300,
+    custoMicros: 1_000_000,
+    chamadasPeloProvedorDeReserva: 0,
+    alunosAtivos: 10,
+    valorPorAlunoMicros: 5_000_000,
+    origemDoValor: 'escola',
+    porcentagem: 2,
+    situacao: 'definido',
+  }
+}
+
+describe('Uso: a resposta que a web não reconhece (camada-ia, 8.0)', () => {
+  it('a API nova com a web antiga: "Atualize a página", sem "Tentar de novo", que traria a mesma resposta', async () => {
+    fakeNetwork().responderPor('/v1/operacao/uso', { status: 200, corpo: { itens: [{ ...usoDaEscolaDoPainel(1), rede: undefined, ia: 'novo' }], pagina: 1, total: 1, ...REFERENCIA } })
+    renderOperacaoScreen(<Uso />)
+    expect((await screen.findByRole('alert', {}, { timeout: 4000 })).textContent).toBe('Atualize a página: esta tela ficou desatualizada em relação ao Turmma.')
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(screen.queryByRole('table')).toBeNull()
   })
 })

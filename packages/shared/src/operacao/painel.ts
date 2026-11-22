@@ -358,10 +358,14 @@ export type UsoDeIaDaEscolaDoPainel = z.infer<typeof usoDeIaDaEscolaDoPainelSche
 /**
  * O uso de uma escola: o do último dia fechado e o do mês dele, até esse dia (requisições e jobs somados, e o pico de
  * bytes), mais o grupo `ia` de hoje e do mês corrente. Zero quando não há linha. Só id, nome e número.
+ *
+ * `rede` e `orcamento` (o próprio e o vigente) são os de `EscolaDoPainel`, fora do `ia` (camada-ia, 8.0): a aba Uso monta com eles o alvo do diálogo "Orçamento de IA" da própria linha, sem outra rota.
  */
 export const usoDaEscolaDoPainelSchema = z.strictObject({
   id: z.uuid(),
   nome: z.string().min(1).max(TAMANHO_MAXIMO_NOME_DIGITADO),
+  rede: escolaDoPainelSchema.shape.rede,
+  orcamento: orcamentoDeIaDoPainelSchema,
   dia: usoDoPeriodoDoPainelSchema,
   mes: usoDoPeriodoDoPainelSchema,
   ia: usoDeIaDaEscolaDoPainelSchema,

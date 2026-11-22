@@ -174,7 +174,7 @@ export class PainelService {
     return usoDoPainelResponseSchema.parse({
       pagina,
       total: lida.total,
-      itens: lida.itens.map(({ ia, ...uso }) => ({ ...uso, ia: iaDaEscola(ia) })),
+      itens: lida.itens.map(({ ia, ...uso }) => ({ ...uso, orcamento: orcamentoDaEscolaNoPainel(ia.orcamento.escola, ia.orcamento.rede), ia: iaDaEscola(ia) })),
       dia: referencia.dia,
       mes: referencia.dia.slice(0, 7),
     })

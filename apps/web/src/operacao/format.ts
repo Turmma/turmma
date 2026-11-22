@@ -50,15 +50,19 @@ const FORMATO_DO_MES = /^(\d{4})-(0[1-9]|1[0-2])$/
 // O dia 15, em UTC: nenhum fuso (±14 h) tira o mês do lugar.
 const mesPorExtenso = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
+/** O mês `AAAA-MM` por extenso, em português: `2026-09` → `setembro de 2026`. Fora do formato, volta como veio, em vez de o `Intl` lançar e derrubar a tela. */
+export function formatMes(mes: string): string {
+  const partes = FORMATO_DO_MES.exec(mes)
+  return partes === null ? mes : mesPorExtenso.format(new Date(Date.UTC(Number(partes[1]), Number(partes[2]) - 1, 15)))
+}
+
 /**
  * O mês de referência e até onde ele vai, pelos dois campos que a API devolveu: `{ mes: '2026-09', dia: '2026-09-23' }`
  * → `setembro de 2026, até 23/09`. O mês é contado do dia 1 até o último dia fechado (Tech Spec da A0b, seção 5). A
  * referência fora do formato, que o contrato já recusa, volta como veio, em vez de o `Intl` lançar e derrubar a tela.
  */
 export function formatMesDeReferencia({ mes, dia }: Pick<UsoDoPainelResponse, 'mes' | 'dia'>): string {
-  const partes = FORMATO_DO_MES.exec(mes)
-  const nome = partes === null ? mes : mesPorExtenso.format(new Date(Date.UTC(Number(partes[1]), Number(partes[2]) - 1, 15)))
-  return `${nome}, até ${formatDia(dia).slice(0, 5)}`
+  return `${formatMes(mes)}, até ${formatDia(dia).slice(0, 5)}`
 }
 
 /** Os rótulos de cada medida de uso, em minúsculas, como entram no meio de uma frase. */

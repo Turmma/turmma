@@ -126,6 +126,11 @@ export function usoDaEscolaDoPainel(n: number, extra: Partial<UsoDaEscolaDoPaine
   return {
     id: id(1000 + n),
     nome: `Escola Sintética ${String(n)}`,
+    rede: { id: REDE_DE_TESTE_ID, nome: 'Rede Sintética' },
+    orcamento: {
+      proprio: { valorPorAlunoMicros: null, tetoDeSegurancaPercentual: null },
+      vigente: { valorPorAlunoMicros: null, origemDoValor: 'nenhuma', tetoDeSegurancaPercentual: 200, origemDoTeto: 'padrao' },
+    },
     dia: { requisicoes: 1234, jobs: 12, bytesStorage: 1_288_490_189 },
     mes: { requisicoes: 56_789, jobs: 345, bytesStorage: 2048 },
     ia: {

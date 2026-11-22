@@ -19,6 +19,11 @@ import {
   textoDoAntesEDepois,
   textoDoLimite,
   textoDoValeHoje,
+  textoDoCustoPorAluno,
+  textoDoOrcamentoDoMes,
+  TITULO_DO_GRUPO_DE_IA,
+  TEXTO_SEM_MES_FECHADO,
+  TEXTO_DO_MES_SEM_RETRATO,
   valorDoCampoEmReais,
 } from './textos'
 
@@ -162,5 +167,38 @@ describe('o diálogo Orçamento de IA: os textos', () => {
     // O que o diálogo do orçamento mostra ao salvar é o mesmo texto.
     expect(textoDoErroAoSalvar(new RespostaForaDoContrato())).toBe(TEXTO_PARA_ATUALIZAR)
     expect(textoDoErroAoSalvar(new ApiError(ErrorCode.ERRO_INTERNO))).toBe(MENSAGENS_DE_ERRO[ErrorCode.ERRO_INTERNO])
+  })
+})
+
+describe('os textos da IA na aba Uso (camada-ia, 8.0)', () => {
+  it('o título do grupo e os dois estados de "Ver meses" são os da seção 4 do cenário', () => {
+    expect(TITULO_DO_GRUPO_DE_IA).toBe('IA (hoje, até agora, e mês)')
+    expect(TEXTO_SEM_MES_FECHADO).toBe('Ainda não há mês fechado com retrato.')
+    expect(TEXTO_DO_MES_SEM_RETRATO).toBe('sem retrato (antes da medição)')
+  })
+
+  it('o custo por aluno é o custo do mês pelos alunos ativos, contra o valor quando há: R$ com vírgula', () => {
+    expect(textoDoCustoPorAluno(31_000_000, 100, 5_000_000)).toBe('R$ 0,31 de R$ 5,00')
+    expect(textoDoCustoPorAluno(31_000_000, 100, null)).toBe('R$ 0,31')
+    expect(textoDoCustoPorAluno(0, 10, 5_000_000)).toBe('R$ 0,00 de R$ 5,00')
+    expect(textoDoCustoPorAluno(1_234_567_890, 1, 5_000_000)).toBe('R$ 1.234,57 de R$ 5,00')
+  })
+
+  it('sem aluno ativo, ou sem número de alunos, não há divisão: "sem aluno ativo"', () => {
+    expect(textoDoCustoPorAluno(31_000_000, 0, 5_000_000)).toBe('sem aluno ativo')
+    expect(textoDoCustoPorAluno(31_000_000, null, 5_000_000)).toBe('sem aluno ativo')
+  })
+
+  it('cada situação do orçamento diz o seu texto, e a porcentagem é a que a API deu, dita com palavra', () => {
+    expect(textoDoOrcamentoDoMes('definido', 62)).toBe('62% do orçamento')
+    expect(textoDoOrcamentoDoMes('definido', 1250)).toBe('1.250% do orçamento')
+    expect(textoDoOrcamentoDoMes('definido', 0)).toBe('0% do orçamento')
+    expect(textoDoOrcamentoDoMes('sem_orcamento', null)).toBe('sem orçamento definido')
+    expect(textoDoOrcamentoDoMes('sem_aluno_ativo', null)).toBe('sem porcentagem')
+    // Sem aluno ativo não há porcentagem, mesmo que um número venha junto.
+    expect(textoDoOrcamentoDoMes('sem_aluno_ativo', 40)).toBe('sem porcentagem')
+    expect(textoDoOrcamentoDoMes('sem_retrato', null)).toBe('sem retrato (antes da medição)')
+    // Sem número, mesmo em `definido`, não se inventa porcentagem.
+    expect(textoDoOrcamentoDoMes('definido', null)).toBe('sem porcentagem')
   })
 })

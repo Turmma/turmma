@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes, formatDia, formatMedidaDoUso, formatMesDeReferencia, formatNumber, MEDIDAS_DO_USO, ROTULO_DO_USO } from './format'
+import { formatBytes, formatDia, formatMedidaDoUso, formatMes, formatMesDeReferencia, formatNumber, MEDIDAS_DO_USO, ROTULO_DO_USO } from './format'
 
 /** W5: os formatos da tela Uso, com os textos exatos do cenário, escritos aqui por extenso. */
 describe('W5: os formatos do uso por escola', () => {
@@ -67,5 +67,22 @@ describe('W5: os formatos do uso por escola', () => {
     expect(formatMedidaDoUso('jobs', 1024)).toBe('1.024')
     expect(formatMedidaDoUso('bytesStorage', 1024)).toBe('1 KB')
     expect(formatMedidaDoUso('bytesStorage', 0)).toBe('0 bytes')
+  })
+})
+
+describe('o mês por extenso (camada-ia, 8.0)', () => {
+  it('`AAAA-MM` vira o mês em português com o ano, sem fuso: janeiro e dezembro ficam no mês deles', () => {
+    expect(formatMes('2026-09')).toBe('setembro de 2026')
+    expect(formatMes('2026-01')).toBe('janeiro de 2026')
+    expect(formatMes('2025-12')).toBe('dezembro de 2025')
+    expect(formatMes('2026-03')).toBe('março de 2026')
+  })
+
+  it('o que não é um mês do contrato volta como veio, em vez de derrubar a tela', () => {
+    for (const fora of ['2026-13', '2026-9', '2026-09-01', 'setembro', '']) expect(formatMes(fora), fora).toBe(fora)
+  })
+
+  it('o mês de referência do uso continua dizendo "até" o dia fechado', () => {
+    expect(formatMesDeReferencia({ mes: '2026-09', dia: '2026-09-23' })).toBe('setembro de 2026, até 23/09')
   })
 })

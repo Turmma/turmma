@@ -71,12 +71,12 @@ reserva e avaliação, foram para a F5b (`tasks/prd-reserva-e-avaliacao/`, com a
   - [x] 7.4 `docs/interface.md` §5a (Escolas)
   - [x] 7.5 Testes
 
-- [ ] **8.0 — A aba Uso da Operação mostra o uso de IA por escola e os 12 meses**
-  - [ ] 8.1 O grupo "IA" na tabela e no cartão
-  - [ ] 8.2 A ordem por custo, "Definir orçamento" e "sem aluno ativo"
-  - [ ] 8.3 "Ver meses"
-  - [ ] 8.4 `docs/interface.md` §5a (Uso)
-  - [ ] 8.5 Testes
+- [x] **8.0 — A aba Uso da Operação mostra o uso de IA por escola e os 12 meses**
+  - [x] 8.1 O grupo "IA" na tabela e no cartão
+  - [x] 8.2 A ordem por custo, "Definir orçamento" e "sem aluno ativo"
+  - [x] 8.3 "Ver meses"
+  - [x] 8.4 `docs/interface.md` §5a (Uso)
+  - [x] 8.5 Testes
 
 ## Dependências e paralelismo
 
