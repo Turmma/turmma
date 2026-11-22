@@ -1,13 +1,14 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 a 1.0 (grande, 1ª tentativa, partida 22/11 12:19); L2 a 10.0 (retomada 22/11 12:21 depois da DIVERGÊNCIA de desenho, triada como (a), techspec §7b: o Implementador 2 faz o formato e as guardas e avisa com o formato pronto; o `Arquiteto`, na L2, faz a pesquisa da 10.1 e as amostras e os critérios por subagente, sem commit; partida 22/11 12:19).
+- **Espero:** L1 a 2.0 (grande, 1ª tentativa, partida 22/11 13:55); L3 a 3.0 (grande, 1ª tentativa, partida 22/11 13:55, linha aberta por `git worktree add`); L2 a 10.0 (amostras e critérios do `Arquiteto` prontos, 367, `pedagogia-reviewer` APROVADO na 2ª; portão verde, na 1ª rodada da `Mesa 2` desde 13:50; partida 22/11 12:19).
 - **Devo ainda:** depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `8fd6b2ad`
+- **Base:** `spec/reserva-e-avaliacao` em `eb3c63ab` (esteira verde em `b03e885`, 45040959694)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 1.0 | `7a4b4e84` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `eb3c63ab`; 4 recomendações sem aplicar no `1_task.md`; techspec §5 e `cenarios.md` linha 38 ajustados por 2 divergências |
 
 ## Esperando o Joaquim
 ## 22/11 12:52 — a regra fixa da D55 recusa rubrica legítima, no meu terminal
