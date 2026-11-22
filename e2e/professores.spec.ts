@@ -204,8 +204,14 @@ async function abrirPainel(page: Page, nome: string, hasTouch: boolean): Promise
   return painel
 }
 
+/** No celular a folha do painel cresce para cima quando as turmas chegam: o toque no cabeçalho só vem com ela parada (nenhum "Carregando…" no painel). */
+async function esperarOPainelAssentar(page: Page): Promise<void> {
+  await expect(paineisAbertos(page).getByRole('status').filter({ hasText: /^Carregando/ })).toHaveCount(0, { timeout: SIGN_IN_TIMEOUT_MS })
+}
+
 /** Fecha o painel aberto pelo "Fechar" dele: a página por trás é inerte enquanto ele está aberto. */
 async function fecharPainel(page: Page, hasTouch: boolean): Promise<void> {
+  await esperarOPainelAssentar(page)
   await activate(paineisAbertos(page).getByRole('button', { name: 'Fechar', exact: true }), hasTouch)
   await expect(paineisAbertos(page)).toHaveCount(0)
 }
@@ -455,6 +461,58 @@ test.describe('W4 (Professores): os quatro estados', () => {
     )
     await expect(linhasDaLista(page)).toHaveCount(10)
     expect(paginasSemFim).toBe(10)
+  })
+
+  test('o "Fechar" do painel só é tocado com a folha assentada', async ({
+    page,
+    hasTouch,
+    request,
+  }) => {
+    const coordenadora = await criarEquipeComSenha('coordenador')
+    // A leitura das disciplinas, que o painel de um professor alocável pede e a tela não, segurada até o teste soltar: o painel fica em "Carregando as turmas…".
+    const segurada = gate()
+    await page.route(
+      (url) => url.pathname === '/v1/disciplinas',
+      async (rota: Route) => {
+        if (rota.request().method() !== 'GET') return rota.fallback()
+        await segurada.aberta
+        return rota.fallback()
+      },
+    )
+    const { nome } = await convidarProfessorNoBanco(coordenadora.escolaId, 'pendente', 'Zuleica')
+    await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/professores', () => expect(linhasDaLista(page)).toHaveCount(1, { timeout: SIGN_IN_TIMEOUT_MS }))
+    await abrirPainel(page, nome, hasTouch)
+    const painel = paineisAbertos(page)
+    await expect(painel.getByRole('status').filter({ hasText: 'Carregando as turmas…' })).toBeVisible()
+    const fechar = painel.getByRole('button', { name: 'Fechar', exact: true })
+    // A altura do "Fechar" na tela, sempre com caixa: sem ela a comparação seria de -1 com -1 e passaria sem medir nada.
+    const yDoFechar = async (): Promise<number> => {
+      const caixa = await fechar.boundingBox()
+      expect(caixa, 'o "Fechar" do painel sem caixa').not.toBeNull()
+      return caixa?.y ?? 0
+    }
+    const aoCarregar = await yDoFechar()
+
+    // As turmas chegam 300 ms depois; quem espera a folha assentar volta quando o carregando saiu. A mutação (a espera sem efeito) só fica vermelha porque a
+    // primeira medida sai em poucos milissegundos, antes dos 300; o `finally` solta a leitura mesmo quando uma asserção antes dela cai.
+    const soltar = setTimeout(segurada.abrir, 300)
+    try {
+      await esperarOPainelAssentar(page)
+      // Medido logo ao sair da espera, antes de qualquer outra: é o lugar onde o toque cairia.
+      const aoAssentar = await yDoFechar()
+      // O que chegou está na tela, e dois quadros depois o "Fechar" continua onde estava: a folha não cresce mais.
+      await expect(painel.getByText('Nenhuma turma.')).toBeVisible()
+      await page.evaluate(() => new Promise<void>((resolver) => requestAnimationFrame(() => requestAnimationFrame(() => resolver()))))
+      expect(await yDoFechar()).toBe(aoAssentar)
+      // A folha de baixo é a que cresce para cima: o "Fechar" subiu quando as turmas chegaram. No computador o painel é fixo no topo e não se mexe.
+      if (hasTouch) expect(aoAssentar).toBeLessThan(aoCarregar)
+      else expect(aoAssentar).toBe(aoCarregar)
+    } finally {
+      clearTimeout(soltar)
+      segurada.abrir()
+    }
+
+    await fecharPainel(page, hasTouch)
   })
 })
 
@@ -1185,8 +1243,7 @@ test.describe('o painel do professor', () => {
     const painel = painelDe(page, professor.nome)
     await expect(painel).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(painel).toContainText(TEXTO_DO_ESTADO.pendente)
-    await tocar(painel, 'Fechar', hasTouch)
-    await expect(paineisAbertos(page)).toHaveCount(0)
+    await fecharPainel(page, hasTouch)
     await expect(page).toHaveURL(/\/coordenacao\/professores$/)
     await expect(tituloDaLista(page)).toBeFocused()
 
