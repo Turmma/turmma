@@ -1,7 +1,7 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 a 1.0 (grande, 1ª tentativa, partida 22/11 12:19); L2 a 10.0 (1ª tentativa, partida 22/11 12:19). Sem objeção até 12:11; na caixa do `Arquiteto` havia "aprovo, não cortar" digitado e não enviado, que não conta: a pergunta do corte segue aberta.
+- **Espero:** L1 a 1.0 (grande, 1ª tentativa, partida 22/11 12:19); L2 a 10.0 (parada em DIVERGÊNCIA de desenho, 22/11 12:20: 10.1 e 10.2 pedem subagente em contexto limpo, que o Implementador não tem; triagem pedida ao `Arquiteto`, reiniciado na L2; partida 22/11 12:19). Sem objeção até 12:11; na caixa do `Arquiteto` havia "aprovo, não cortar" digitado e não enviado, que não conta: a pergunta do corte segue aberta.
 - **Devo ainda:** a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
 - **Base:** `spec/reserva-e-avaliacao` em `8fd6b2ad`
 
