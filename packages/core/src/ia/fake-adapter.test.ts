@@ -24,6 +24,22 @@ async function terminouCom(chamada: Promise<unknown>): Promise<string | undefine
   return erro.codigoDeIa
 }
 
+describe('FakeAdapter: a identidade (reserva-e-avaliacao, 1.0)', () => {
+  it('o principal é `falso`, e a reserva, que não envia nada como ele, assume a identidade que a configuração dá', () => {
+    expect(new FakeAdapter().identidade).toBe('falso')
+    expect(new FakeAdapter({ latenciaMs: 5 }).identidade).toBe('falso')
+    expect(new FakeAdapter({ identidade: 'falso-reserva' }).identidade).toBe('falso-reserva')
+    // As duas são falsas: nenhuma envia, e por isso o `envio` não as distingue. É a identidade que as distingue.
+    expect(new FakeAdapter({ identidade: 'falso-reserva' }).envio).toEqual(new FakeAdapter().envio)
+  })
+
+  it('a identidade não muda o que o falso responde nem o modelo que ele diz', async () => {
+    const principal = await chamarFerramenta(new FakeAdapter())
+    const reserva = await chamarFerramenta(new FakeAdapter({ identidade: 'falso-reserva' }))
+    expect(reserva).toEqual(principal)
+  })
+})
+
 describe('FakeAdapter: a espera simulada por perfil (a carga da manhã, X6, 11.0)', () => {
   it('o `padrao` (a ferramenta) espera a latência do perfil dele, e o `rapido` (o turno do Tutor) a dos outros', async () => {
     expect(turnoDoTutor.perfil).toBe('rapido')

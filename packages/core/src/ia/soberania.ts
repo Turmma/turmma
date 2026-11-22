@@ -1,4 +1,4 @@
-import type { CategoriaDeDadoDoSuboperador } from '@educa/shared'
+import type { CategoriaDeDadoDoSuboperador, TarefaDeIa } from '@educa/shared'
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common'
 import type { LLMConfig } from '../config/llm-config.js'
 import { summarizeError } from '../error/summarize-error.js'
@@ -32,6 +32,14 @@ export type MotivoDaD62 = 'sem_suboperador_vigente' | 'pais_fora_do_brasil' | 't
 /** A união das categorias que as tarefas enviam ao provedor, sem repetir, na ordem em que aparecem. */
 export function categoriasEnviadasPelasTarefas(tarefas: Iterable<{ readonly categoriasEnviadas: readonly CategoriaDeDadoDoSuboperador[] }> = Object.values(TASK_CATALOG)): CategoriaDeDadoDoSuboperador[] {
   return [...new Set([...tarefas].flatMap((tarefa) => tarefa.categoriasEnviadas))]
+}
+
+/**
+ * As categorias que o contrato da reserva precisa cobrir: só as das tarefas aprovadas para ela (`tarefasAprovadasParaAReserva`, F5b, 1.0), e não as de todo o catálogo. A reserva aprovada só para a geração
+ * de atividade não precisa cobrir a conversa do aluno; a que também atende o Tutor, sim, e a categoria que falta tira a reserva de todas as tarefas (PRD RF2).
+ */
+export function categoriasDasTarefas(tarefas: readonly TarefaDeIa[]): CategoriaDeDadoDoSuboperador[] {
+  return categoriasEnviadasPelasTarefas(tarefas.map((nome) => TASK_CATALOG[nome]))
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { ChaveDeFuncao, EstadoDeConsumoDeIa, TarefaDeIa } from '@educa/shared'
 import { requireEscolaId } from '../context/context-escola.js'
 import { systemClock, type Clock } from '../clock.js'
+import { IDENTIDADE_DA_RESERVA_FALSA } from '../config/llm-config.js'
 import { diaDeUso } from '../usage/usage-day.js'
 import type { ModelAdapter } from './adapter.js'
 import type { LLMErrorCode } from './errors.js'
@@ -53,7 +54,7 @@ interface DadosDoConsumo {
 export type ConsumoDeIa = DadosDoConsumo & EnvioDaChamada
 
 /** Para onde o adaptador configurado manda o conteúdo: a origem, o envio (externo, e para quem) e o modelo de cada perfil. É o que a linha estimada de uma execução interrompida leva. */
-export type DestinoDoAdaptador = Pick<ModelAdapter, 'origem' | 'envio' | 'modeloDoPerfil'>
+export type DestinoDoAdaptador = Pick<ModelAdapter, 'origem' | 'envio' | 'identidade' | 'modeloDoPerfil'>
 
 /** Da tarefa, só o que a linha estimada lê: o catálogo (`TASK_CATALOG`) as entrega com os tipos de entrada e de saída de cada uma. */
 type DadosDaTarefaParaEstimar = Pick<TaskDefinition<never, unknown>, 'nome' | 'funcao' | 'perfil' | 'prompt' | 'maximoDeTokensDeEntrada' | 'maximoDeTokensDeSaida'>
@@ -126,6 +127,8 @@ const VIGENCIA_DO_FALSO = '2026-01-01T00:00:00Z'
 export const PRECO_DOS_MODELOS: TabelaDePrecos = {
   [chaveDoPreco('falso', MODELO_FALSO)]: [{ vigenteDesde: VIGENCIA_DO_FALSO, fonte: 'adaptador falso: não há cobrança', entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 }],
   [chaveDoPreco('falso', MODELO_FALSO_MENOR)]: [{ vigenteDesde: VIGENCIA_DO_FALSO, fonte: 'adaptador falso: não há cobrança', entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 }],
+  // A reserva falsa (F5b, 1.0): a identidade dela é outra, e a chave do preço também. Preço zero, como o do principal falso.
+  [chaveDoPreco(IDENTIDADE_DA_RESERVA_FALSA, MODELO_FALSO)]: [{ vigenteDesde: VIGENCIA_DO_FALSO, fonte: 'adaptador falso da reserva: não há cobrança', entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 }],
 }
 
 /** A vigência do `instante`: a mais recente que já começou. Sem preço declarado para a chave, ou só com vigência futura, `undefined`. */

@@ -4,7 +4,7 @@ import { MODELO_FALSO, MODELO_FALSO_MENOR } from './fake-adapter.js'
 import { proporFerramenta } from './tasks/propor-ferramenta.js'
 
 const EXECUCAO = '1d2e3f4a-5b6c-4d7e-8f90-a1b2c3d4e5f6'
-const DESTINO: DestinoDoAdaptador = { origem: 'falso', envio: { envioExterno: false, provedorId: null }, modeloDoPerfil: () => 'adaptador-falso' }
+const DESTINO: DestinoDoAdaptador = { origem: 'falso', envio: { envioExterno: false, provedorId: null }, identidade: 'falso', modeloDoPerfil: () => 'adaptador-falso' }
 const duracaoDa = (duracaoMs: number): number => consumoEstimadoDaInterrompida({ tarefa: proporFerramenta, destino: DESTINO, execucaoId: EXECUCAO, duracaoMs, em: new Date('2026-11-16T10:00:00Z') }).duracaoMs
 
 describe('consumoEstimadoDaInterrompida: a duração da linha', () => {
@@ -25,11 +25,14 @@ const AGORA = new Date('2026-11-20T12:00:00Z')
 const ZERO = { entradaMicrosPorMilTokens: 0, saidaMicrosPorMilTokens: 0 }
 
 describe('precoDoModelo: o que a subida conhece (49.0, D14)', () => {
-  it('os dois do adaptador falso custam zero; modelo que não está na tabela não tem preço', () => {
+  it('os do adaptador falso, do principal e da reserva, custam zero; modelo que não está na tabela não tem preço, nem o mesmo modelo com a identidade do outro falso', () => {
     expect(precoDoModelo(chaveDoPreco('falso', MODELO_FALSO), AGORA)).toMatchObject(ZERO)
     expect(precoDoModelo(chaveDoPreco('falso', MODELO_FALSO_MENOR), AGORA)).toMatchObject(ZERO)
+    expect(precoDoModelo(chaveDoPreco('falso-reserva', MODELO_FALSO), AGORA)).toMatchObject(ZERO)
+    // A reserva falsa não tem modelo menor: o degrau é do principal.
+    expect(precoDoModelo(chaveDoPreco('falso-reserva', MODELO_FALSO_MENOR), AGORA)).toBeUndefined()
     expect(precoDoModelo(chaveDoPreco('falso', 'qwen-pequeno'), AGORA)).toBeUndefined()
-    expect(Object.keys(PRECO_DOS_MODELOS).sort()).toEqual([chaveDoPreco('falso', MODELO_FALSO), chaveDoPreco('falso', MODELO_FALSO_MENOR)].sort())
+    expect(Object.keys(PRECO_DOS_MODELOS).sort()).toEqual([chaveDoPreco('falso', MODELO_FALSO), chaveDoPreco('falso', MODELO_FALSO_MENOR), chaveDoPreco('falso-reserva', MODELO_FALSO)].sort())
   })
 
   it('o nome que existe em todo objeto (`constructor`, `toString`, `__proto__`) não é modelo com preço', () => {

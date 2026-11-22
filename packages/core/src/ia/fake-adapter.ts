@@ -29,6 +29,8 @@ export interface FakeAdapterOptions {
   readonly latenciaMs?: number
   /** A espera do perfil `padrao` (a ferramenta), quando difere da dos outros: a ferramenta leva ~50 s, e o turno do Tutor, ~6 s (X6, 11.0). */
   readonly latenciaMsPadrao?: number
+  /** A identidade do adaptador (`adapter.ts`): `falso` no principal e o `IA_RESERVA_PROVEDOR_ID` (`falso-reserva`) na reserva. */
+  readonly identidade?: string
   /** Os tokens que a chamada informa, no lugar da estimativa pelo texto: o teste de carga os põe na escala de `docs/infra.md` 3.2 (X6, 11.0). */
   readonly tokens?: { readonly entrada: number; readonly saida: number }
 }
@@ -40,8 +42,11 @@ export interface FakeAdapterOptions {
 export class FakeAdapter implements ModelAdapter {
   readonly origem = 'falso'
   readonly envio = SEM_ENVIO_EXTERNO
+  readonly identidade: string
 
-  constructor(private readonly opcoes: FakeAdapterOptions = {}) {}
+  constructor(private readonly opcoes: FakeAdapterOptions = {}) {
+    this.identidade = opcoes.identidade ?? 'falso'
+  }
 
   modeloDoPerfil(_perfil: Perfil): string {
     return MODELO_FALSO

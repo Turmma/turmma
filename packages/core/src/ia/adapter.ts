@@ -37,6 +37,11 @@ export interface ModelAdapter {
   readonly origem: 'falso' | 'openai_compat'
   /** Se a chamada sai desta máquina e para qual provedor: nunca um sem o outro. */
   readonly envio: EnvioDaChamada
+  /**
+   * Quem é este adaptador para o balde de tokens, o rótulo `provedor` das medidas, o disjuntor, a chave do preço e a aprovação (F5b, 1.0): o `provedorId` do envio no `openai_compat` (`openai_compat`
+   * onde nada sai), `falso` no falso do principal e `falso-reserva` no da reserva. É o que distingue dois adaptadores que o `envio` não distingue: os dois falsos não enviam nada e têm `provedorId` nulo.
+   */
+  readonly identidade: string
   modeloDoPerfil(perfil: Perfil): string
   /** Falha com `LLMError` (`IA_INDISPONIVEL` ou `IA_TEMPO_ESGOTADO`); nunca devolve nem lança erro cru do provedor. */
   chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse>

@@ -785,7 +785,7 @@ describe('a execução interrompida: a reentrega e a varredura (adaptador falso)
 })
 
 describe('a execução interrompida com o adaptador externo configurado', () => {
-  const externo: DestinoDoAdaptador = { origem: 'openai_compat', envio: { envioExterno: true, provedorId: 'provedor-de-teste' }, modeloDoPerfil: (perfil) => `modelo-externo-${perfil}` }
+  const externo: DestinoDoAdaptador = { origem: 'openai_compat', envio: { envioExterno: true, provedorId: 'provedor-de-teste' }, identidade: 'provedor-de-teste', modeloDoPerfil: (perfil) => `modelo-externo-${perfil}` }
   let fila: FilaDeIa
   let a: Escola
   let b: Escola

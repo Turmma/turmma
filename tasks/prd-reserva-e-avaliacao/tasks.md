@@ -16,13 +16,13 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
 
 ## Lista
 
-- [ ] **1.0 — A reserva sobe configurada: identidade, aprovação por tarefa e modelo, e as recusas da subida**
-  - [ ] 1.1 As variáveis da reserva e `IA_RESERVA_ADAPTADOR`
-  - [ ] 1.2 A `identidade` de todo adaptador
-  - [ ] 1.3 `MODELOS_APROVADOS`, a guarda do sha256 e a entrada de `falso-reserva`
-  - [ ] 1.4 `reservaElegivel` e as categorias das tarefas aprovadas
-  - [ ] 1.5 As recusas da subida e o preço da reserva
-  - [ ] 1.6 Testes
+- [x] **1.0 — A reserva sobe configurada: identidade, aprovação por tarefa e modelo, e as recusas da subida**
+  - [x] 1.1 As variáveis da reserva e `IA_RESERVA_ADAPTADOR`
+  - [x] 1.2 A `identidade` de todo adaptador
+  - [x] 1.3 `MODELOS_APROVADOS`, a guarda do sha256 e a entrada de `falso-reserva`
+  - [x] 1.4 `reservaElegivel` e as categorias das tarefas aprovadas
+  - [x] 1.5 As recusas da subida e o preço da reserva
+  - [x] 1.6 Testes
 
 - [ ] **2.0 — O `main-worker` confere a reserva sem segurar o principal, com limitador próprio e alerta**
   - [ ] 2.1 A `SoberaniaNaSubida` da reserva, que confere de novo a cada 5 s

@@ -2,7 +2,9 @@ import { CHAVES_DE_CATEGORIA_DO_SUBOPERADOR, type CategoriaDeDadoDoSuboperador }
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loadLLMConfig } from '../config/llm-config.js'
 import type { SuboperadorParaAConferenciaDaD62 } from '../titular/suboperador-da-escola.repository.js'
-import { categoriasEnviadasPelasTarefas, motivosDaD62, SoberaniaNaSubida } from './soberania.js'
+import { MODELO_FALSO } from './fake-adapter.js'
+import { tarefasAprovadasParaAReserva, type ModeloAprovado } from './modelos-aprovados.js'
+import { categoriasDasTarefas, categoriasEnviadasPelasTarefas, motivosDaD62, SoberaniaNaSubida } from './soberania.js'
 import { TASK_CATALOG } from './tasks/index.js'
 
 const PROVEDOR = 'provedor-contratado'
@@ -269,5 +271,38 @@ describe('SoberaniaNaSubida', () => {
     await new Promise((resolver) => setTimeout(resolver, 30))
     expect(leitura.vigenteDoProvedor).toHaveBeenCalledTimes(1)
     soberania.encerrar()
+  })
+})
+
+describe('a D62 da reserva: as categorias são as das tarefas aprovadas para ela (reserva-e-avaliacao, 1.0)', () => {
+  const aprovada = (tarefa: ModeloAprovado['tarefa']): ModeloAprovado => ({ tarefa, provedorId: 'provedor-reserva', modelo: MODELO_FALSO, relatorio: 'docs/avaliacao/falso-reserva/relatorio.md', sha256: 'x', aprovadoPor: 'teste', aprovadoEm: '2026-11-22' })
+  const reserva = { identidade: 'provedor-reserva', modeloDoPerfil: () => MODELO_FALSO }
+  /** O que a subida da reserva exigiria do contrato dela, com a aprovação que o teste injeta. */
+  const exigidasDa = (...tarefas: ModeloAprovado['tarefa'][]) => categoriasDasTarefas(tarefasAprovadasParaAReserva(reserva, 'producao', tarefas.map(aprovada)))
+  const soMaterial: SuboperadorParaAConferenciaDaD62 = { pais: 'BR', vedaTreinamento: true, alcance: 'todas', categorias: ['material_da_escola'] }
+
+  it('as categorias saem das tarefas, sem repetir, na ordem em que aparecem; sem tarefa, nenhuma', () => {
+    expect(categoriasDasTarefas([])).toEqual([])
+    expect(categoriasDasTarefas(['gerar_atividade_objetiva'])).toEqual(['material_da_escola'])
+    expect(categoriasDasTarefas(['gerar_atividade_objetiva', 'turno_do_tutor'])).toEqual(['material_da_escola', 'conversa_do_aluno', 'trabalho_do_aluno'])
+  })
+
+  it('controle negativo: contrato só do material da escola, reserva aprovada para a geração e para o Tutor: a categoria da conversa do aluno falta', () => {
+    expect(motivosDaD62(soMaterial, exigidasDa('gerar_atividade_objetiva', 'turno_do_tutor'))).toContain('categoria_faltando:conversa_do_aluno')
+  })
+
+  it('controle positivo: o mesmo contrato, reserva aprovada só para a geração: conferida', () => {
+    expect(motivosDaD62(soMaterial, exigidasDa('gerar_atividade_objetiva'))).toEqual([])
+    // O catálogo inteiro exigiria a conversa do aluno: é o que a aprovação por tarefa evita.
+    expect(motivosDaD62(soMaterial, EXIGIDAS)).toContain('categoria_faltando:conversa_do_aluno')
+  })
+
+  it('fora do Brasil não é elegível, qualquer que seja a tarefa aprovada: a de trabalho do aluno sem texto de aluno e a só de material', () => {
+    // `relatorio_da_correcao` envia `trabalho_do_aluno` sem `levaTextoDeAluno`; a geração envia só o material da escola.
+    expect(TASK_CATALOG.relatorio_da_correcao.levaTextoDeAluno).toBe(false)
+    for (const tarefa of ['relatorio_da_correcao', 'gerar_atividade_objetiva'] as const) {
+      const todas: SuboperadorParaAConferenciaDaD62 = { pais: 'US', vedaTreinamento: true, alcance: 'todas', categorias: [...exigidasDa(tarefa)] }
+      expect(motivosDaD62(todas, exigidasDa(tarefa)), tarefa).toEqual(['pais_fora_do_brasil'])
+    }
   })
 })

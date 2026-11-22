@@ -1,6 +1,6 @@
 import type { Counter, Histogram, Meter } from '@opentelemetry/api'
 import { TAREFAS_DE_IA, type ChaveDeFuncao, type TarefaDeIa } from '@educa/shared'
-import type { LLMConfig } from '../config/llm-config.js'
+import type { LLMConfig, ReservaConfig } from '../config/llm-config.js'
 import { InvalidConfigError } from '../config/validate-config.js'
 import { currentContext } from '../context/context.js'
 import { summarizeError } from '../error/summarize-error.js'
@@ -8,7 +8,7 @@ import type { LoggerBase } from '../log/logger.js'
 import { METRICS } from '../telemetry/metrics.js'
 import { systemClock, type Clock } from '../clock.js'
 import type { ModelAdapter, ModelCall, ModelResponse, RepairHint } from './adapter.js'
-import { FakeAdapter } from './fake-adapter.js'
+import { FakeAdapter, type FakeAdapterOptions } from './fake-adapter.js'
 import { OpenAICompatAdapter } from './openai-compat-adapter.js'
 import { ResilientAdapter } from './resilient-adapter.js'
 import { chaveDoPreco, custoDaChamada, precoDoModelo, type ConsumoDeIa, type DestinoDoAdaptador, type OrcamentoDeIa, type RegistroDeConsumo, type TabelaDePrecos } from './consumo.js'
@@ -71,6 +71,8 @@ const TAREFAS_SEM_MODELO_MENOR: ReadonlySet<TarefaDeIa> = new Set<TarefaDeIa>(['
 
 export const MOTIVO_MODELO_MENOR_SEM_PRECO =
   'LLM_MODELO_MENOR_<PERFIL> precisa de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts): sem preço o degrau do gateway gastaria sem a conta da D14, e o modelo real só entra com a D37'
+export const MOTIVO_MODELO_DA_RESERVA_SEM_PRECO =
+  'LLM_RESERVA_MODELO e LLM_RESERVA_MODELO_<PERFIL> precisam de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts, chave identidade:modelo) fora de AMBIENTE=local: sem preço a chamada da reserva gravaria custo zero e o orçamento de IA subestimaria o gasto (D14)'
 export const MOTIVO_MODELO_SEM_PRECO =
   'LLM_MODELO e LLM_MODELO_<PERFIL> precisam de preço em PRECO_DOS_MODELOS (packages/core/src/ia/consumo.ts, chave provedor:modelo) fora de AMBIENTE=local: sem preço a chamada gravaria custo zero e o orçamento de IA subestimaria o gasto (D14)'
 
@@ -429,7 +431,7 @@ export class LLMGateway implements LLMProvider {
   /** Uma chamada ao adaptador, medida: a duração e, se falhou, o código. Só o que o provedor fez: a espera pela vaga e a repetição por saída inválida ficam de fora. */
   private async chamarModelo<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
     const { adaptador } = this.dependencias
-    const atributos = { provedor: adaptador.envio.provedorId ?? adaptador.origem, perfil: pedido.tarefa.perfil }
+    const atributos = { provedor: adaptador.identidade, perfil: pedido.tarefa.perfil }
     const inicio = performance.now()
     try {
       const resposta = await adaptador.chamar(chamada)
@@ -497,8 +499,7 @@ export class LLMGateway implements LLMProvider {
 
   /** O balde é do `provedor:modelo`: o modelo menor tem o seu, e dois provedores não dividem balde. */
   private chaveDoBalde(modelo: string): string {
-    const { adaptador } = this.dependencias
-    return `${adaptador.envio.provedorId ?? adaptador.origem}:${modelo}`
+    return `${this.dependencias.adaptador.identidade}:${modelo}`
   }
 
   private anotarUsoDoTeto(modelo: string, uso: number | undefined): void {
@@ -533,7 +534,7 @@ export class LLMGateway implements LLMProvider {
   private chamadaFeita(modelo: string, tokens: { readonly tokensDeEntrada: number; readonly tokensDeSaida: number }, inicioDaChamada: number): ChamadaEnviada {
     const { adaptador, precos } = this.dependencias
     const em = this.relogio.agora()
-    const preco = precoDoModelo(chaveDoPreco(adaptador.envio.provedorId ?? adaptador.origem, modelo), em, precos)
+    const preco = precoDoModelo(chaveDoPreco(adaptador.identidade, modelo), em, precos)
     return { modelo, ...tokens, custoMicros: custoDaChamada(tokens, preco), duracaoMs: Math.round(performance.now() - inicioDaChamada), em, codigoDeErro: 'IA_INDISPONIVEL' }
   }
 
@@ -649,19 +650,46 @@ export function createLLMGateway(config: LLMConfig, portas: LLMGatewayPorts): LL
 }
 
 /**
- * O modelo sem preço em `PRECO_DOS_MODELOS` recusa a subida (D14): o menor de um perfil em qualquer ambiente (49.0: o degrau gastaria sem conta) e o do principal fora de `AMBIENTE=local` com
- * `openai_compat` (`config.exigePreco`: a chamada gravaria custo zero onde há cobrança). A chave é `provedor:modelo` e o preço vale se há vigência que já começou. Diz a variável, nunca o valor dela.
+ * O modelo sem preço em `PRECO_DOS_MODELOS` recusa a subida (D14): o menor de um perfil em qualquer ambiente (49.0: o degrau gastaria sem conta), o do principal fora de `AMBIENTE=local` com
+ * `openai_compat` (`config.exigePreco`: a chamada gravaria custo zero onde há cobrança) e o da reserva nas mesmas condições (`config.reserva.exigePreco`, F5b, 1.0). A chave é `identidade:modelo` e o preço
+ * vale se há vigência que já começou. Diz a variável, nunca o valor dela.
  */
 function exigirPrecoDosModelos(config: LLMConfig, adaptador: ModelAdapter, precos: TabelaDePrecos | undefined, agora: Date): void {
-  const provedor = adaptador.envio.provedorId ?? adaptador.origem
-  const semPreco = (modelo: string): boolean => precoDoModelo(chaveDoPreco(provedor, modelo), agora, precos) === undefined
+  const semPreco = (identidade: string, modelo: string): boolean => precoDoModelo(chaveDoPreco(identidade, modelo), agora, precos) === undefined
   const doPrincipal =
-    config.exigePreco === true ? PERFIS.filter((perfil) => semPreco(config.modelo?.modelos[perfil] ?? '')).map((perfil) => config.modelo?.variaveisDosModelos?.[perfil] ?? 'LLM_MODELO') : []
+    config.exigePreco === true
+      ? PERFIS.filter((perfil) => semPreco(adaptador.identidade, config.modelo?.modelos[perfil] ?? '')).map((perfil) => config.modelo?.variaveisDosModelos?.[perfil] ?? 'LLM_MODELO')
+      : []
   const dosMenores = Object.entries(config.modelosMenores ?? {})
-    .filter(([, modelo]) => semPreco(modelo))
+    .filter(([, modelo]) => semPreco(adaptador.identidade, modelo))
     .map(([perfil]) => `LLM_MODELO_MENOR_${perfil.toUpperCase()}`)
-  if (doPrincipal.length === 0 && dosMenores.length === 0) return
-  throw new InvalidConfigError([...new Set([...doPrincipal, ...dosMenores])].sort(), [...(doPrincipal.length === 0 ? [] : [MOTIVO_MODELO_SEM_PRECO]), ...(dosMenores.length === 0 ? [] : [MOTIVO_MODELO_MENOR_SEM_PRECO])])
+  const grupos: readonly (readonly [readonly string[], string])[] = [
+    [doPrincipal, MOTIVO_MODELO_SEM_PRECO],
+    [dosMenores, MOTIVO_MODELO_MENOR_SEM_PRECO],
+    [variaveisDaReservaSemPreco(config.reserva, semPreco), MOTIVO_MODELO_DA_RESERVA_SEM_PRECO],
+  ]
+  const variaveis = [...new Set(grupos.flatMap(([citadas]) => citadas))].sort()
+  if (variaveis.length === 0) return
+  throw new InvalidConfigError(
+    variaveis,
+    grupos.filter(([citadas]) => citadas.length > 0).map(([, motivo]) => motivo),
+  )
+}
+
+/** As variáveis dos modelos da reserva que não têm preço na identidade dela, ou nenhuma se a reserva não exige (`local`, o falso, sem reserva). */
+function variaveisDaReservaSemPreco(reserva: ReservaConfig | undefined, semPreco: (identidade: string, modelo: string) => boolean): string[] {
+  if (reserva?.exigePreco !== true) return []
+  return PERFIS.filter((perfil) => semPreco(reserva.identidade, reserva.modelo?.modelos[perfil] ?? '')).map((perfil) => reserva.modelo?.variaveisDosModelos?.[perfil] ?? 'LLM_RESERVA_MODELO')
+}
+
+/** As opções do adaptador falso, as do principal e as da reserva: a espera simulada e os tokens informados. A identidade, só a da reserva (`falso-reserva`). */
+function opcoesDoFalso(config: LLMConfig, identidade?: string): FakeAdapterOptions {
+  return {
+    ...(identidade === undefined ? {} : { identidade }),
+    ...(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }),
+    ...(config.latenciaFalsaMsPadrao === undefined ? {} : { latenciaMsPadrao: config.latenciaFalsaMsPadrao }),
+    ...(config.tokensFalsos === undefined ? {} : { tokens: config.tokensFalsos }),
+  }
 }
 
 /** O adaptador que `IA_ADAPTADOR` escolhe, sem a resiliência: a única conta de qual é, e que `createLLMGateway` e `destinoDoAdaptador` dividem. */
@@ -669,11 +697,18 @@ function adaptadorInterno(config: LLMConfig): ModelAdapter {
   if (config.adaptador === 'openai_compat' && config.modelo === undefined) throw new InvalidConfigError(['LLM_BASE_URL', 'LLM_MODELO'])
   // A latência simulada é só do adaptador falso (teste de carga, regra 80, item 11): o do provedor tem a do provedor.
   if (config.modelo !== undefined) return new OpenAICompatAdapter(config.modelo)
-  return new FakeAdapter({
-    ...(config.latenciaFalsaMs === undefined ? {} : { latenciaMs: config.latenciaFalsaMs }),
-    ...(config.latenciaFalsaMsPadrao === undefined ? {} : { latenciaMsPadrao: config.latenciaFalsaMsPadrao }),
-    ...(config.tokensFalsos === undefined ? {} : { tokens: config.tokensFalsos }),
-  })
+  return new FakeAdapter(opcoesDoFalso(config))
+}
+
+/**
+ * O adaptador do provedor de reserva (F5b, 1.0), sem a resiliência, ou nenhum quando a reserva não está configurada: o `openai_compat` com o endereço, a chave e o modelo dela, ou o falso com a
+ * identidade dela (`falso-reserva`). Quem o põe no caminho, com a conferência da D62 e o limitador próprios, é o `main-worker` (2.0); nenhuma chamada vai a ele antes da 4.0.
+ */
+export function adaptadorDaReserva(config: LLMConfig): ModelAdapter | undefined {
+  const { reserva } = config
+  if (reserva === undefined) return undefined
+  if (reserva.modelo !== undefined) return new OpenAICompatAdapter(reserva.modelo)
+  return new FakeAdapter(opcoesDoFalso(config, reserva.identidade))
 }
 
 /**
@@ -683,5 +718,5 @@ function adaptadorInterno(config: LLMConfig): ModelAdapter {
  */
 export function destinoDoAdaptador(config: LLMConfig): DestinoDoAdaptador {
   const interno = adaptadorInterno(config)
-  return { origem: interno.origem, envio: interno.envio, modeloDoPerfil: (perfil) => interno.modeloDoPerfil(perfil) }
+  return { origem: interno.origem, envio: interno.envio, identidade: interno.identidade, modeloDoPerfil: (perfil) => interno.modeloDoPerfil(perfil) }
 }

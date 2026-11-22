@@ -64,6 +64,7 @@ const demora =
 class RoteiroAdapter implements ModelAdapter {
   readonly origem = 'openai_compat'
   readonly envio: EnvioDaChamada = { envioExterno: true, provedorId: 'provedor-de-teste' }
+  readonly identidade = 'provedor-de-teste'
   readonly chamadasPorPerfil: Perfil[] = []
   modelo = 'modelo-unico'
 
@@ -544,6 +545,7 @@ describe('AdaptadorResiliente: o que sobe', { timeout: LIMITE_DO_TESTE_MS }, () 
     expect(desfecho.valor).toEqual(RESPOSTA)
     expect(adaptador.origem).toBe(interno.origem)
     expect(adaptador.envio).toBe(interno.envio)
+    expect(adaptador.identidade).toBe(interno.identidade)
     interno.modelo = 'outro'
     expect(adaptador.modeloDoPerfil('visao')).toBe('outro')
   })
