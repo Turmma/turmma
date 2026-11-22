@@ -27,6 +27,7 @@ import { turnoDoTutor } from './tasks/turno-do-tutor.js'
 import { classificarSecoes } from './tasks/classificar-secoes.js'
 import { PROMPT_CLASSIFICAR_SECOES } from './prompts/classificar-secoes.js'
 import { ResilientAdapter } from './resilient-adapter.js'
+import { MATERIAL_DE_ESTEQUIOMETRIA } from './__fixtures__/estequiometria.js'
 import type { ModeloAprovado } from './modelos-aprovados.js'
 import type { Perfil } from './perfis.js'
 import { METRICS } from '../telemetry/metrics.js'
@@ -2345,6 +2346,95 @@ describe('LLMGateway: a queda do principal vai ao provedor de reserva, e cada ch
     expect(principal.correcoes[1]).toBeDefined()
     expect(reserva.correcoes[0]).toBeUndefined()
     expect(consumo.registros.map((linha) => [linha.provedorId, linha.peloProvedorDeReserva])).toEqual([[PRINCIPAL, false], [PRINCIPAL, false], [RESERVA, true], [RESERVA, true]])
+  })
+
+  it('no máximo quatro chamadas com principal e reserva do mesmo `provedorId` e modelos diferentes: o contador é por destino, e não pelo `provedorId`; quatro linhas e a execução para', async () => {
+    const principal = principalRoteirizado(['não é json', new LLMError('IA_INDISPONIVEL')])
+    const reserva = new ReservaRoteirizada(['não é json', 'não é json', saidaDeAtividade()], {}, PRINCIPAL)
+    const { ia, consumo } = montar({ adaptador: principal, reserva: daReserva(reserva, [aprovada('gerar_atividade_objetiva', 'reserva-padrao', PRINCIPAL)]), soberaniaDaReserva: CONFERIDA })
+    expect(await erroDe(ia.generate(pedidoDaFerramenta()))).toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+    expect([principal.chamadas, reserva.chamadas]).toEqual([2, 2])
+    expect(principal.correcoes[1]).toBeDefined()
+    expect(reserva.correcoes[0]).toBeUndefined()
+    expect(consumo.registros.map((linha) => [linha.provedorId, linha.modelo, linha.peloProvedorDeReserva])).toEqual([
+      [PRINCIPAL, 'roteirizado-padrao', false],
+      [PRINCIPAL, 'roteirizado-padrao', false],
+      [PRINCIPAL, 'reserva-padrao', true],
+      [PRINCIPAL, 'reserva-padrao', true],
+    ])
+  })
+
+  describe('duas inválidas na reserva: a saída de reserva da tarefa (`reservaQuandoInvalida`) vale com os `problemas` da última chamada da reserva (reserva-e-avaliacao, 6.0; RF3; D55)', () => {
+    const TEXTO_DA_BIA = 'Segue o que a Bia escreveu. A tecnologia mudou muito a vida das pessoas e hoje todo mundo conversa pelo celular.'
+    /** O modelo julgou o texto da aluna: reprovada **na conferência** pela D55, que é o único motivo que a tarefa aceita para a recusa fixa. */
+    const juizo = JSON.stringify({ tipo: 'texto', texto: 'O texto da Bia está confuso e fraco, sem coesão.', citacoes: [] })
+    /** Forma certa e conteúdo errado, mas **não** da D55: a citação aponta um material que a conversa não trouxe. */
+    const citacaoInvalida = JSON.stringify({ tipo: 'texto', texto: 'Está na página 1.', citacoes: [{ materialId: MATERIAL_DE_ESTEQUIOMETRIA, pagina: 1, trecho: 'O mol é…' }] })
+    const recusa = { tipo: 'texto' as const, texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO, citacoes: [] }
+    const APROVADA_A_CONVERSA = [aprovada('propor_ferramenta', 'reserva-rapido')]
+    const pedidoDoAssistente = () => ({ tarefa: proporFerramenta, entrada: entradaDoAssistente(TEXTO_DA_BIA), escolaId: ESCOLA_A, execucaoId: EXECUCAO })
+    const montarComAssistente = (principalRoteiro: readonly (string | Error)[], reservaRoteiro: readonly (string | Error)[], logger?: LLMLogger) => {
+      const principal = principalRoteirizado(principalRoteiro)
+      const reserva = new ReservaRoteirizada(reservaRoteiro)
+      const gateway = montar({ adaptador: principal, reserva: daReserva(reserva, APROVADA_A_CONVERSA), soberania: CONFERIDA, soberaniaDaReserva: CONFERIDA, ...(logger === undefined ? {} : { logger }) })
+      return { ...gateway, principal, reserva }
+    }
+
+    it('o principal reprovado por outro motivo e depois fora, e a reserva reprovada duas vezes pela D55: a recusa fixa, com quatro tentativas, e a reserva começa sem a correção do principal', async () => {
+      const logger = registrador()
+      const { ia, consumo, principal, reserva } = montarComAssistente([citacaoInvalida, new LLMError('IA_INDISPONIVEL')], [juizo, juizo], logger)
+      const { saida } = await ia.generate(pedidoDoAssistente())
+      expect(saida).toEqual(recusa)
+      expect([principal.chamadas, reserva.chamadas]).toEqual([2, 2])
+      expect(reserva.correcoes[0]).toBeUndefined()
+      expect(reserva.correcoes[1]?.problemas.join(' ')).toContain('julga texto de aluno')
+      expect(consumo.registros.map((linha) => [linha.provedorId, linha.peloProvedorDeReserva, linha.estado])).toEqual([
+        [PRINCIPAL, false, 'falhou'],
+        [PRINCIPAL, false, 'falhou'],
+        [RESERVA, true, 'falhou'],
+        [RESERVA, true, 'concluida'],
+      ])
+      expect(logger.linhas().filter((linha) => (linha as { evento?: string }).evento === 'ia.geracao.reserva')).toEqual([
+        { evento: 'ia.geracao.reserva', tipo: 'propor_ferramenta', escolaId: ESCOLA_A, execucaoId: EXECUCAO, tentativas: 4 },
+      ])
+      expect(JSON.stringify([consumo.registros, logger.linhas()])).not.toMatch(/Bia|confuso|sem coesão/u)
+    })
+
+    it('o principal reprovado pela D55 e depois fora, e a reserva reprovada duas vezes por outro motivo: os `problemas` do principal não valem, e termina `IA_SAIDA_INVALIDA`', async () => {
+      const { ia, principal, reserva } = montarComAssistente([juizo, new LLMError('IA_INDISPONIVEL')], [citacaoInvalida, citacaoInvalida])
+      expect(await erroDe(ia.generate(pedidoDoAssistente()))).toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      expect([principal.chamadas, reserva.chamadas]).toEqual([2, 2])
+    })
+
+    it('a última chamada da reserva é que decide: a D55 na primeira e outro motivo na segunda, `IA_SAIDA_INVALIDA`; o inverso, a recusa fixa', async () => {
+      const dePrimeira = montarComAssistente([new LLMError('IA_INDISPONIVEL')], [juizo, citacaoInvalida])
+      expect(await erroDe(dePrimeira.ia.generate(pedidoDoAssistente()))).toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      const dePorUltimo = montarComAssistente([new LLMError('IA_INDISPONIVEL')], [citacaoInvalida, juizo])
+      expect((await dePorUltimo.ia.generate(pedidoDoAssistente())).saida).toEqual(recusa)
+    })
+
+    it('a reserva que devolve JSON quebrado duas vezes segue sendo `IA_SAIDA_INVALIDA`: só a reprovação na conferência chega à saída de reserva', async () => {
+      const { ia, reserva } = montarComAssistente([new LLMError('IA_INDISPONIVEL')], ['não é json', 'não é json'])
+      expect(await erroDe(ia.generate(pedidoDoAssistente()))).toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      expect(reserva.chamadas).toBe(2)
+    })
+
+    it('o JSON quebrado na última chamada da reserva apaga a reprovação na conferência de antes: no Tutor, cuja saída de reserva não olha os `problemas`, é `IA_SAIDA_INVALIDA`, e não a recusa por regra', async () => {
+      const conferenciaReprovada = JSON.stringify({ classificacao: 'normal', resposta: 'Isso! Você acertou. Qual é a próxima dúvida?', citacoes: [] })
+      const duvida = 'é a letra B, né?'
+      const montarTutor = (reservaRoteiro: readonly string[]) => {
+        const reserva = new ReservaRoteirizada(reservaRoteiro)
+        const { ia } = montar({ adaptador: principalRoteirizado([disjuntor()]), reserva: daReserva(reserva, [aprovada('turno_do_tutor', 'reserva-rapido')]), soberania: CONFERIDA, soberaniaDaReserva: CONFERIDA })
+        return { ia, reserva }
+      }
+      // O controle: as duas reprovadas na conferência entregam a recusa por regra do Tutor.
+      const controle = montarTutor([conferenciaReprovada, conferenciaReprovada])
+      expect((await controle.ia.generate(pedidoDoTutor(duvida))).saida).toMatchObject({ classificacao: 'pediu_resposta_pronta' })
+      // A última é JSON quebrado: a reprovação da primeira não vale mais.
+      const quebrada = montarTutor([conferenciaReprovada, 'não é json'])
+      expect(await erroDe(quebrada.ia.generate(pedidoDoTutor(duvida)))).toMatchObject({ codigoDeIa: 'IA_SAIDA_INVALIDA' })
+      expect(quebrada.reserva.chamadas).toBe(2)
+    })
   })
 
   it('o principal fora e a reserva atende, com preço, provedor e modelo diferentes: cada linha leva os dela, e a `medicao` é a da reserva', async () => {
