@@ -1,0 +1,8 @@
+{
+  "name": "@educa/core",
+  "exports": {
+    ".": { "source": "./src/index.ts" },
+    "./ia": { "source": "./src/ia/index.ts" },
+    "./sem-fonte": { "default": "./dist/sem-fonte.js" }
+  }
+}

@@ -81,11 +81,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 10.4 A guarda da D55 e a dos ids retidos
   - [x] 10.5 Testes
 
-- [ ] **11.0 — A ferramenta de avaliação roda as amostras, julga cada resposta crua e escreve o relatório**
-  - [ ] 11.1 A ferramenta e a guarda do ponto de entrada
-  - [ ] 11.2 As execuções, as três contagens e as eliminatórias
-  - [ ] 11.3 O julgamento cego, `resultado.json` e `relatorio.md`
-  - [ ] 11.4 Testes
+- [x] **11.0 — A ferramenta de avaliação roda as amostras, julga cada resposta crua e escreve o relatório**
+  - [x] 11.1 A ferramenta e a guarda do ponto de entrada
+  - [x] 11.2 As execuções, as três contagens e as eliminatórias
+  - [x] 11.3 O julgamento cego, `resultado.json` e `relatorio.md`
+  - [x] 11.4 Testes
 
 - [ ] **12.0 — As medidas da avaliação: limiar em contagem, equidade por pares, números fiéis e a D36 das amostras**
   - [ ] 12.1 Limiar em contagem e gabarito
