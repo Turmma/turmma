@@ -1,7 +1,7 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 a 2.0 (grande, 1ª tentativa, partida 22/11 13:55); L3 a 3.0 (grande, 1ª tentativa, partida 22/11 13:55, linha aberta por `git worktree add`); L2 a 10.0 (amostras e critérios do `Arquiteto` prontos, 367, `pedagogia-reviewer` APROVADO na 2ª; r1 reprovada; DIVERGÊNCIA (ordem) 22/11 13:56, itens 6, 7d, 7e e 7f nos arquivos do `Arquiteto` (critérios e amostras), pedidos a ele na L2; o Implementador 2 faz os outros e pede a r2 depois do aviso; partida 22/11 12:19).
+- **Espero:** L1 a 2.0 (grande, 1ª tentativa, partida 22/11 13:55); L3 a 3.0 (grande, 1ª tentativa, partida 22/11 13:55, linha aberta por `git worktree add`); L2 a 10.0 (amostras e critérios do `Arquiteto` prontos, 367, `pedagogia-reviewer` APROVADO na 2ª; r1 reprovada; DIVERGÊNCIA (ordem) 22/11 13:56, itens 6, 7d, 7e e 7f nos arquivos do `Arquiteto` (critérios e amostras), aplicados pelo `Arquiteto` na árvore da L2 sem commit (o hash dos critérios mudou), aviso ao Implementador 2 num `PEDIDO de retomada` às ~14:20: ele registra em "Divergências resolvidas", leva os arquivos no commit e pede a r2, com o `pedagogia-reviewer` revendo `pessoa_d58.md`; partida 22/11 12:19).
 - **Devo ainda:** depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
 - **Base:** `spec/reserva-e-avaliacao` em `eb3c63ab` (esteira verde em `b03e885`, 45040959694)
 
