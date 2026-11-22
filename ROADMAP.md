@@ -642,7 +642,7 @@ espera; a Operação vê o uso de IA de cada escola; e a coordenação vê a por
 teste prova que prompt com texto de aluno não sai para provedor fora do Brasil; a escola tem teto e custo em
 reais; e a avaliação de modelos foi executada, com principal e reserva registrados (D37, D62).
 
-## F5b — `reserva-e-avaliacao` [ ]
+## F5b — `reserva-e-avaliacao` [~]
 **Depende de:** F5a; as chaves de teste dos finalistas, que são do Joaquim (`tasks/prd-reserva-e-avaliacao/prd.md` §10)
 
 Saiu da F5 no corte de 21/11/2026 (Joaquim), com o PRD aprovado e a Tech Spec aprovada lá (`tasks/prd-reserva-e-avaliacao/`,
