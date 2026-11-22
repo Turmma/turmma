@@ -1,0 +1,12 @@
+{
+  "versao": 1,
+  "linhas": [
+    {
+      "id": "rubrica_de_discursiva",
+      "tarefa": "propor_ferramenta",
+      "amostras": [
+        { "id": "rubrica_de_discursiva-001", "fonte": "sintetica", "esperado": "rubrica_por_competencia", "entrada": { "mensagem": "Monta uma rubrica por competência para a redação de argumentação do 9º ano, antes de eu aplicar.", "contexto": { "serie": "9º ano", "disciplina": "Língua Portuguesa" }, "trechos": [], "turnosAnteriores": [] } }
+      ]
+    }
+  ]
+}

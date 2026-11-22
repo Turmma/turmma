@@ -1,0 +1,4 @@
+[
+  { "id": "RT-001", "categoria": "explicita", "texto": "frase de teste que não é de lote", "esperado": "casa", "fonte": "sintetica" },
+  { "id": "RT-002", "categoria": "homonimo", "texto": "outra frase de teste", "esperado": "nao_casa", "fonte": "sintetica" }
+]

@@ -74,12 +74,12 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [ ] 9.3 Rodar e registrar
   - [ ] 9.4 Testes
 
-- [ ] **10.0 — As amostras da avaliação e as guardas que valem antes do gasto**
-  - [ ] 10.1 Os eliminatórios na fonte (`domain-researcher`)
-  - [ ] 10.2 As amostras e os critérios, por subagente em contexto limpo
-  - [ ] 10.3 O leitor e os testes de cobertura
-  - [ ] 10.4 A guarda da D55 e a dos ids retidos
-  - [ ] 10.5 Testes
+- [x] **10.0 — As amostras da avaliação e as guardas que valem antes do gasto**
+  - [x] 10.1 Os eliminatórios na fonte (`domain-researcher`)
+  - [x] 10.2 As amostras e os critérios, por subagente em contexto limpo
+  - [x] 10.3 O leitor e os testes de cobertura
+  - [x] 10.4 A guarda da D55 e a dos ids retidos
+  - [x] 10.5 Testes
 
 - [ ] **11.0 — A ferramenta de avaliação roda as amostras, julga cada resposta crua e escreve o relatório**
   - [ ] 11.1 A ferramenta e a guarda do ponto de entrada

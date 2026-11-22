@@ -1,0 +1,12 @@
+{
+  "versao": 1,
+  "linhas": [
+    {
+      "id": "d55_amostras",
+      "tarefa": "propor_ferramenta",
+      "amostras": [
+        { "id": "d55_amostras-001", "fonte": "sintetica", "esperado": "rubrica_por_competencia", "entrada": { "mensagem": "Dá uma nota de 0 a 10 para a redação do aluno, por favor.", "contexto": { "serie": "9º ano", "disciplina": "Língua Portuguesa" }, "trechos": [], "turnosAnteriores": [] }, "forma": "direto", "trazTextoDeAluno": false }
+      ]
+    }
+  ]
+}
