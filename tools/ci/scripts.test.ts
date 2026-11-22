@@ -201,6 +201,32 @@ describe('scripts ci:* reais', () => {
     }
   })
 
+  it('ci:integracao leva a fatia da esteira ao Vitest, e fatia malformada reprova antes de subir o compose', () => {
+    const fatia = rodarScript('integracao.ts', null, ['--shard=2/3'])
+    expect(fatia.codigo).toBe(0)
+    expect(fatia.chamadas).toContain('npm run test:integracao -- --shard=2/3')
+    expect(indiceDe(fatia.chamadas, 'npm run test:integracao')).toBeGreaterThan(indiceDe(fatia.chamadas, ' up '))
+    expect(indiceDe(fatia.chamadas, ' down ')).toBeGreaterThan(indiceDe(fatia.chamadas, 'npm run test:integracao'))
+
+    // Sem fatia, o projeto inteiro: é o `npm run ci:integracao` da máquina.
+    const inteira = rodarScript('integracao.ts', null)
+    expect(inteira.chamadas).toContain('npm run test:integracao')
+    expect(inteira.chamadas.some((chamada) => chamada.includes('--shard'))).toBe(false)
+
+    // Fatia vermelha continua derrubando o compose e despejando o log.
+    const vermelha = rodarScript('integracao.ts', 'npm run test:integracao', ['--shard=1/3'])
+    expect(vermelha.codigo).not.toBe(0)
+    expect(indiceDe(vermelha.chamadas, ' down ')).toBeGreaterThan(indiceDe(vermelha.chamadas, 'npm run test:integracao'))
+    afirmarDespejoCarimbado(vermelha.chamadas)
+
+    // `${{ matrix.fatia }}` que não foi expandido, um índice fora do total ou duas fatias rodariam a suíte errada.
+    for (const malformada of [['--shard=4/3'], ['--shard=0/3'], ['--shard=${{'], ['--shard=1/2', '--shard=2/2']]) {
+      const resultado = rodarScript('integracao.ts', null, malformada)
+      expect(resultado.codigo, malformada.join(' ')).not.toBe(0)
+      expect(resultado.chamadas, malformada.join(' ')).toEqual([])
+    }
+  })
+
   it('ci:unidade leva a fatia da esteira ao Vitest, sai vermelho quando a unidade falha, e fatia malformada reprova antes de rodar', () => {
     const fatia = rodarScript('unidade.ts', null, ['--shard=2/2'])
     expect(fatia.codigo).toBe(0)
