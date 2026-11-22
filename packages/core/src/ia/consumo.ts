@@ -46,7 +46,7 @@ interface DadosDoConsumo {
   readonly tentativas: number
   readonly estado: EstadoDeConsumoDeIa
   /**
-   * Verdadeira só na linha de uma chamada que **saiu para o provedor de reserva**, a atendida e a que falhou depois de sair (F5b, 4.0; `consumo_ia.pelo_provedor_de_reserva`, gravada na 5.0): é o que a Operação conta.
+   * Verdadeira só na linha de uma chamada que **saiu para o provedor de reserva**, a atendida e a que falhou depois de sair (F5b, 4.0; `consumo_ia.pelo_provedor_de_reserva`, que o `ConsumoRepository` grava desde a 5.0): é o que a Operação conta, as chamadas **enviadas** à reserva.
    * A estimada da execução interrompida leva o provedor da reserva e esta coluna falsa. Ausente vale falsa: só o gateway a escreve, e o escreve sempre.
    */
   readonly peloProvedorDeReserva?: boolean

@@ -1,4 +1,4 @@
-import { FOLGA_DO_PRAZO_MS, JobOutbox, LLMError, JobOutboxRepository, PRAZO_DA_EXECUCAO_MS, gerarAtividadeObjetiva, proporFerramenta, currentContext, runInContext, turnoDoTutor, type DatabaseTransaction } from '@educa/core'
+import { classificarSecoes, Compartilhamento, FOLGA_DO_PRAZO_MS, JobAdiadoError, JobOutbox, LLMError, JobOutboxRepository, PRAZO_DA_EXECUCAO_MS, gerarAtividadeObjetiva, proporFerramenta, currentContext, runInContext, SoberaniaNaSubida, SuboperadorDaEscolaRepository, turnoDoTutor, type ConsumoDeIa, type DatabaseTransaction } from '@educa/core'
 import { ErrorCode, JOB_DEFINITIONS, TAREFAS_DE_IA, TIPO_EXECUTAR_IA, type ResultadoGravado } from '@educa/shared'
 import { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
@@ -6,12 +6,14 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
+import { testConfig } from '../../test/test-config.js'
 import { compose, composeAssincronoOuFalha, aguardarSaudavel, PROCESSOS_DA_FILA } from '../../../../tools/testes/compose.ts'
 import { urlRedisDeFila } from '../../../worker/test/queue.fixture.js'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
 import { FilaDeIa, type FabricaDePrazo, type ModeloDeTeste } from '../../test/fila-de-ia.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import type { EntradaDaTarefa, ExecucaoCommand, SaidaDaTarefa } from './execucao-command.js'
+import { ConsumoRepository } from './consumo.repository.js'
 import { ExecucaoRepository } from './execucao.repository.js'
 import type { ExecucaoComComando } from './execucao.scheduler.js'
 import { buildComandos } from './montar-comandos.js'
@@ -854,4 +856,261 @@ describe('Redis de fila fora', () => {
       await aqui.fechar()
     }
   }, 180_000)
+})
+
+/**
+ * A chamada da reserva chega ao banco e ao compartilhamento do aluno (reserva-e-avaliacao, 5.0; `techspec.md` §3, §5 "A bancada", §7; `cenarios.md` §1: RF1, RF3 e RF5). Pela bancada do **gateway real** com dois
+ * adaptadores roteirizados de envio externo, cada um com o `provedorId` dele (`fila-de-ia.fixture.ts`, `gateway`): o processador, o worker e o `ConsumoRepository` são os do produto, e o que o teste lê é a linha
+ * que o banco guardou e a foto do compartilhamento que sai dela (`Compartilhamento`, a mesma que o arquivo do titular leva). Nenhuma chamada sai da máquina (regra 30, item 3).
+ */
+describe('a reserva pela bancada do gateway real', () => {
+  const linhasDaReserva: string[] = []
+  let fila: FilaDeIa
+  /** As chaves dos suboperadores semeados: globais, saem no fim de cada caso (o de `alcance = 'todas'` atende toda escola e entraria na foto alheia). */
+  const CHAVES: string[] = []
+  const ESCOLAS: string[] = []
+  const A_ENCERRAR: SoberaniaNaSubida[] = []
+  const ENTRADA_DA_CLASSIFICACAO: EntradaDaTarefa<typeof classificarSecoes> = {
+    candidatas: [{ codigo: 'EF07MA01', descricao: 'Resolver problemas com números naturais, inteiros e racionais.' }],
+    secoes: [{ secaoId: '0190f5a0-0000-7000-8000-0000000000a1', titulo: 'Capítulo', comeco: 'Texto do começo.', subtitulos: 'Subtítulo' }],
+  }
+  const SAIDA_DO_TUTOR = JSON.stringify(turnoDoTutor.falso(ENTRADA_DO_TUTOR))
+  const INDISPONIVEL = (motivo?: 'disjuntor') => new LLMError('IA_INDISPONIVEL', undefined, motivo)
+
+  /** O registro da bancada: o Tutor (interativa) e a classificação do material (lote), cada um com a entrada fixa. */
+  function registroComLote(): RegistroDeComandos {
+    const registro = registroDeTeste()
+    const classificacao: ExecucaoCommand<EntradaDaTarefa<typeof classificarSecoes>, SaidaDaTarefa<typeof classificarSecoes>, Record<string, never>> = {
+      tarefa: classificarSecoes,
+      fila: 'lote',
+      // A classificação roda da rotina: sem pessoa nem ano na execução.
+      daRotina: true,
+      preparar: () => Promise.resolve({ entrada: ENTRADA_DA_CLASSIFICACAO, lido: {} }),
+      concluir: (): Promise<ResultadoGravado> => Promise.resolve({ tipo: 'artefato', artefatoId: randomUUID(), entregaId: null }),
+    }
+    registro.registrar(classificacao)
+    return registro
+  }
+
+  beforeAll(async () => {
+    // O gateway de partida só existe para a bancada subir com o real: cada caso o troca por `roteirizar`, com os provedores dele.
+    fila = await FilaDeIa.subir(medidor.medidor, {}, linhasDaReserva, {
+      registro: registroComLote(),
+      gateway: { principal: { provedorId: 'principal-de-partida', roteiro: [] }, reserva: { provedorId: 'reserva-de-partida', roteiro: [] }, aprovadas: [] },
+    })
+  })
+
+  afterEach(async () => {
+    for (const soberania of A_ENCERRAR.splice(0)) soberania.encerrar()
+    fila.restaurar()
+    if (CHAVES.length > 0) {
+      await sql('delete from suboperador_escola where suboperador_id in (select id from suboperador where chave = any($1::text[]))', [CHAVES])
+      await sql('delete from suboperador where chave = any($1::text[])', [CHAVES])
+      CHAVES.length = 0
+    }
+  })
+
+  afterAll(async () => {
+    await fila.ociosa().catch(() => undefined)
+    await fila.fechar()
+    for (const tabela of ['consumo_ia', 'execucao_agente', 'configuracao_operacional_escola']) await sql(`delete from ${tabela} where escola_id = any($1::uuid[])`, [ESCOLAS])
+  })
+
+  const chaveNova = (rotulo: string): string => `${rotulo}-${randomUUID().slice(0, 8)}`
+
+  async function escolaNova(): Promise<Escola> {
+    const escola = await montarEscola(fila)
+    // A escola e o aluno existem desde antes dos suboperadores: a vigência de uma empresa nunca é anterior à escola dela.
+    await sql("update escola set criada_em = now() - interval '3 years' where id = $1", [escola.escolaId])
+    ESCOLAS.push(escola.escolaId)
+    return escola
+  }
+
+  /** Um suboperador `lista` das escolas dadas, ou `todas` (a conferência da D62 da reserva exige `todas`), com a chave que é o `provedorId` de um dos adaptadores. */
+  async function suboperador(chave: string, escolas: readonly Escola[], cadastro: { alcance?: 'lista' | 'todas'; pais?: string } = {}): Promise<string> {
+    const alcance = cadastro.alcance ?? 'lista'
+    const { rows } = await sql<{ id: string }>(
+      `insert into suboperador (chave, nome, finalidade, categorias, pais, contrato, veda_treinamento, alcance, inicio, registrado_por)
+       values ($1, $2, 'Modelo de linguagem sintético', array['conversa_do_aluno', 'conversa_do_professor', 'material_da_escola', 'trabalho_do_aluno'], $3, 'DPA-5-0', true, $4, now() - interval '1 year', 'equipe-de-teste') returning id`,
+      [chave, `Empresa ${chave}`, cadastro.pais ?? 'BR', alcance],
+    )
+    CHAVES.push(chave)
+    const id = rows[0]?.id ?? ''
+    if (alcance === 'lista') for (const escola of escolas) await sql("insert into suboperador_escola (escola_id, suboperador_id, inicio) values ($1, $2, now() - interval '1 year')", [escola.escolaId, id])
+    return id
+  }
+
+  /** As linhas de consumo da execução, na ordem das chamadas. */
+  const linhasDe = async (execucaoId: string) =>
+    (
+      await sql<{ provedor: string | null; pelo: boolean; estado: string; modelo: string; codigo_de_erro: string | null; aluno_id: string | null; envio_externo: boolean }>(
+        'select provedor, pelo_provedor_de_reserva as pelo, estado, modelo, codigo_de_erro, aluno_id, envio_externo from consumo_ia where execucao_id = $1 order by provedor',
+        [execucaoId],
+      )
+    ).rows
+
+  /** O turno do Tutor do aluno, pedido como o `POST` o faria, até o worker terminar. */
+  async function perguntar(escola: Escola): Promise<string> {
+    const { execucaoId } = await agendar(fila, escola, pedidoDe(escola, 'turno_do_tutor'))
+    await fila.ociosa()
+    return execucaoId
+  }
+
+  /** A foto do compartilhamento do aluno, como o `POST pedidos` do titular a grava, no contexto da escola dele. */
+  const fotoDoAluno = (escola: Escola) =>
+    fila.como(escola.escolaId, escola.aluno.usuarioId, () => new Compartilhamento(fila.banco).doTitular({ titularId: escola.aluno.usuarioId, papel: 'aluno' }))
+  const doRastro = (foto: Awaited<ReturnType<typeof fotoDoAluno>>, chaves: readonly string[]) =>
+    foto
+      .filter((linha) => linha.origem === 'rastro' && chaves.includes(linha.chave))
+      .map((linha) => linha.chave)
+      .sort()
+
+  it('o prazo no principal e a reserva que atende, pela bancada: duas linhas no banco, o `provedor` de cada uma, e `pelo_provedor_de_reserva` falso e verdadeiro', async () => {
+    const principal = chaveNova('principal')
+    const reserva = chaveNova('reserva')
+    fila.roteirizar({ principal: { provedorId: principal, roteiro: [new LLMError('IA_TEMPO_ESGOTADO')] }, reserva: { provedorId: reserva, roteiro: [SAIDA_DO_TUTOR] }, aprovadas: ['turno_do_tutor'] })
+    const escola = await escolaNova()
+    const execucaoId = await perguntar(escola)
+    expect(await execucaoDe(execucaoId)).toMatchObject({ estado: 'concluida', erro: null })
+    expect([fila.adaptadores?.principal.chamadas, fila.adaptadores?.reserva.chamadas]).toEqual([1, 1])
+    // Cada linha se acha pelo `provedor` que a identifica: as duas chamadas podem cair no mesmo milissegundo, e a ordem não é parte da regra.
+    const linhas = await linhasDe(execucaoId)
+    expect(linhas).toHaveLength(2)
+    expect(linhas.find((linha) => linha.provedor === principal)).toMatchObject({ pelo: false, estado: 'falhou', codigo_de_erro: 'IA_TEMPO_ESGOTADO', envio_externo: true, aluno_id: escola.aluno.usuarioId })
+    expect(linhas.find((linha) => linha.provedor === reserva)).toMatchObject({ pelo: true, estado: 'concluida', modelo: 'reserva-rapido', codigo_de_erro: null, envio_externo: true, aluno_id: escola.aluno.usuarioId })
+  })
+
+  it('o mesmo caso: o compartilhamento do aluno lista os dois suboperadores, cada um com o `suboperadorId` da empresa dele', async () => {
+    const principal = chaveNova('principal')
+    const reserva = chaveNova('reserva')
+    fila.roteirizar({ principal: { provedorId: principal, roteiro: [new LLMError('IA_TEMPO_ESGOTADO')] }, reserva: { provedorId: reserva, roteiro: [SAIDA_DO_TUTOR] }, aprovadas: ['turno_do_tutor'] })
+    const escola = await escolaNova()
+    const doPrincipal = await suboperador(principal, [escola])
+    const daReserva = await suboperador(reserva, [escola])
+    await perguntar(escola)
+    const foto = await fotoDoAluno(escola)
+    expect(doRastro(foto, [principal, reserva])).toEqual([principal, reserva].sort())
+    expect(foto.find((linha) => linha.origem === 'rastro' && linha.chave === principal)?.suboperadorId).toBe(doPrincipal)
+    expect(foto.find((linha) => linha.origem === 'rastro' && linha.chave === reserva)?.suboperadorId).toBe(daReserva)
+  })
+
+  it('a chamada só pela reserva (o disjuntor do principal aberto, nada saiu): o compartilhamento lista só o suboperador dela, e o principal não tem linha', async () => {
+    const principal = chaveNova('principal')
+    const reserva = chaveNova('reserva')
+    fila.roteirizar({ principal: { provedorId: principal, roteiro: [INDISPONIVEL('disjuntor')] }, reserva: { provedorId: reserva, roteiro: [SAIDA_DO_TUTOR] }, aprovadas: ['turno_do_tutor'] })
+    const escola = await escolaNova()
+    await suboperador(principal, [escola])
+    await suboperador(reserva, [escola])
+    const execucaoId = await perguntar(escola)
+    expect(await linhasDe(execucaoId)).toMatchObject([{ provedor: reserva, pelo: true, estado: 'concluida' }])
+    expect(doRastro(await fotoDoAluno(escola), [principal, reserva])).toEqual([reserva])
+  })
+
+  it('isolamento: a reserva que a escola B usou fica fora do compartilhamento do aluno da A, e a de cada escola é a dela, com a mesma reserva nas duas (a separação é por aluno)', async () => {
+    const principal = chaveNova('principal')
+    const reserva = chaveNova('reserva')
+    // O principal cai nas duas execuções, e a reserva responde a duas: cada escola tem o aluno dela.
+    const a = await escolaNova()
+    const b = await escolaNova()
+    await suboperador(reserva, [a, b])
+    fila.roteirizar({ principal: { provedorId: principal, roteiro: [INDISPONIVEL('disjuntor')] }, reserva: { provedorId: reserva, roteiro: [SAIDA_DO_TUTOR] }, aprovadas: ['turno_do_tutor'] })
+    // Só a B pergunta: a A nunca chamou a reserva.
+    const execucaoDaB = await perguntar(b)
+    expect(await linhasDe(execucaoDaB)).toMatchObject([{ provedor: reserva, pelo: true }])
+    expect(doRastro(await fotoDoAluno(b), [reserva])).toEqual([reserva])
+    expect(doRastro(await fotoDoAluno(a), [reserva])).toEqual([])
+    // A que a A perguntar depois vira linha da A, e a foto de cada um segue sendo a do seu aluno: a da A ganha a reserva, e a da B continua com a dela.
+    fila.roteirizar({ principal: { provedorId: principal, roteiro: [INDISPONIVEL('disjuntor')] }, reserva: { provedorId: reserva, roteiro: [SAIDA_DO_TUTOR] }, aprovadas: ['turno_do_tutor'] })
+    expect(await linhasDe(await perguntar(a))).toMatchObject([{ provedor: reserva, pelo: true }])
+    expect(doRastro(await fotoDoAluno(a), [reserva])).toEqual([reserva])
+    expect(doRastro(await fotoDoAluno(b), [reserva])).toEqual([reserva])
+  })
+
+  it('a reserva recusada na conferência e o principal fora: `IA_INDISPONIVEL`, sem chamar a reserva; o cadastro corrigido sem reiniciar, a chamada seguinte com o principal fora vai a ela', async () => {
+    const principal = chaveNova('principal')
+    const reserva = chaveNova('reserva')
+    // O contrato da reserva está fora do Brasil: a D62 recusa. `todas`, como a conferência exige, e `intervaloMs` curto para a nova conferência não esperar os 5 s.
+    await suboperador(reserva, [], { alcance: 'todas', pais: 'US' })
+    const conferencia = new SoberaniaNaSubida({
+      config: testConfig().ia,
+      daReserva: { envio: { envioExterno: true, provedorId: reserva }, tarefas: ['turno_do_tutor'] },
+      leitura: new SuboperadorDaEscolaRepository(fila.banco),
+      logger: { info: () => undefined, warn: () => undefined },
+      intervaloMs: 50,
+    })
+    A_ENCERRAR.push(conferencia)
+    await conferencia.start()
+    expect(conferencia.conferida).toBe(false)
+    fila.roteirizar({ principal: { provedorId: principal, roteiro: [INDISPONIVEL('disjuntor'), INDISPONIVEL('disjuntor')] }, reserva: { provedorId: reserva, roteiro: [SAIDA_DO_TUTOR] }, aprovadas: ['turno_do_tutor'], conferenciaDaReserva: conferencia })
+    const escola = await escolaNova()
+    const recusada = await perguntar(escola)
+    expect(await execucaoDe(recusada)).toMatchObject({ estado: 'falhou', erro: ErrorCode.IA_INDISPONIVEL })
+    expect([fila.adaptadores?.principal.chamadas, fila.adaptadores?.reserva.chamadas]).toEqual([1, 0])
+
+    // O cadastro é corrigido e ninguém reinicia: a mesma instância confere de novo e a chamada seguinte, com o principal fora, vai à reserva.
+    await sql("update suboperador set pais = 'BR' where chave = $1", [reserva])
+    await expect.poll(() => conferencia.conferida, { timeout: 10_000, interval: 50 }).toBe(true)
+    const corrigida = await perguntar(escola)
+    expect(await execucaoDe(corrigida)).toMatchObject({ estado: 'concluida', erro: null })
+    expect([fila.adaptadores?.principal.chamadas, fila.adaptadores?.reserva.chamadas]).toEqual([2, 1])
+    expect(await linhasDe(corrigida)).toMatchObject([{ provedor: reserva, pelo: true }])
+  })
+
+  it('principal e reserva fora no lote: o job é adiado com `JobAdiadoError(provedor)`, a execução volta a `pendente`, e a reserva é chamada uma vez, sem laço de volta ao principal', async () => {
+    const principal = chaveNova('principal')
+    const reserva = chaveNova('reserva')
+    fila.roteirizar({ principal: { provedorId: principal, roteiro: [INDISPONIVEL('disjuntor')] }, reserva: { provedorId: reserva, roteiro: [INDISPONIVEL()] }, aprovadas: ['classificar_secoes'] })
+    const escola = await escolaNova()
+    // O lote lê a configuração operacional da escola (o teto de segurança do orçamento e os dias letivos): sem dia letivo, a janela nunca o segura.
+    await sql("insert into configuracao_operacional_escola (escola_id, dias_letivos) values ($1, '{}')", [escola.escolaId])
+    const { rows } = await sql<{ id: string }>(
+      "insert into execucao_agente (escola_id, ano_letivo_id, funcao, tarefa, solicitada_por, chave_envio, entrada) values ($1, null, 'classificacao_do_material', 'classificar_secoes', null, $2, $3) returning id",
+      [escola.escolaId, randomUUID(), JSON.stringify({ tarefa: 'classificar_secoes' })],
+    )
+    const execucaoId = rows[0]?.id ?? ''
+    const erro = await fila.entregarDeNovo(execucaoId, escola.escolaId).then(
+      () => undefined,
+      (lancado: unknown) => lancado,
+    )
+    expect(erro).toBeInstanceOf(JobAdiadoError)
+    expect((erro as JobAdiadoError).motivo).toBe('provedor')
+    expect(await execucaoDe(execucaoId)).toMatchObject({ estado: 'pendente', erro: null })
+    expect([fila.adaptadores?.principal.chamadas, fila.adaptadores?.reserva.chamadas]).toEqual([1, 1])
+  })
+
+  it('o ConsumoRepository grava pelo_provedor_de_reserva verdadeiro na linha que o diz e falso na que não o traz (a estimada da interrompida, uma linha de antes)', async () => {
+    const escola = await escolaNova()
+    // Cada linha tem o `provedor` e o instante dela: a leitura acha a linha pelo `provedor`, sem depender da ordem em que o banco as devolve.
+    const base = Date.now()
+    const consumo = (indice: number, pelo?: boolean): ConsumoDeIa => ({
+      tarefa: 'gerar_atividade_objetiva',
+      funcao: 'conversa_e_ferramentas',
+      perfil: 'padrao',
+      origem: 'openai_compat',
+      modelo: 'modelo-de-teste',
+      promptVersao: 'v1',
+      tokensDeEntrada: 10,
+      tokensDeSaida: 20,
+      custoMicros: 0,
+      duracaoMs: 30,
+      tentativas: 1,
+      estado: 'concluida',
+      envioExterno: true,
+      provedorId: `provedor-do-repository-${String(indice)}`,
+      em: new Date(base + indice),
+      ...(pelo === undefined ? {} : { peloProvedorDeReserva: pelo }),
+    })
+    await fila.como(escola.escolaId, escola.professor.usuarioId, async () => {
+      const repositorio = new ConsumoRepository(fila.banco)
+      await repositorio.registrar(consumo(0, true))
+      await repositorio.registrar(consumo(1, false))
+      await repositorio.registrar(consumo(2))
+    })
+    const { rows } = await sql<{ provedor: string; pelo: boolean }>('select provedor, pelo_provedor_de_reserva as pelo from consumo_ia where escola_id = $1', [escola.escolaId])
+    const peloProvedor = new Map(rows.map((linha) => [linha.provedor, linha.pelo]))
+    expect(rows).toHaveLength(3)
+    expect(peloProvedor.get('provedor-do-repository-0')).toBe(true)
+    expect(peloProvedor.get('provedor-do-repository-1')).toBe(false)
+    expect(peloProvedor.get('provedor-do-repository-2')).toBe(false)
+  })
 })

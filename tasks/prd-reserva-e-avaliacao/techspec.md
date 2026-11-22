@@ -92,7 +92,7 @@ A reserva que atende depois do sem vaga começa sem a correção do principal, c
 
 **O destino por chamada.** `ChamadaEnviada` e o `Gasto` guardam o destino de cada chamada (origem, envio, identidade e
 `peloProvedorDeReserva`); o preço, o rótulo, o balde, a linha de consumo e a `medicao` devolvida leem o destino da chamada, e
-a `medicao` é a do provedor que respondeu. `ConsumoDeIa` ganha `peloProvedorDeReserva` (opcional no tipo, e a falta vale `false`: o `ConsumoDeIa` também é construído fora do gateway, e o campo obrigatório é da 5.0; a linha que o gateway entrega sempre o traz preenchido), e o `ConsumoRepository` o grava.
+a `medicao` é a do provedor que respondeu. `ConsumoDeIa` ganha `peloProvedorDeReserva` (opcional no tipo, e a falta vale `false`: o `ConsumoDeIa` também é construído fora do gateway, e o campo obrigatório é da 5.0; a linha que o gateway entrega sempre o traz preenchido), e o `ConsumoRepository` o grava (`?? false`). **A 5.0 o manteve opcional** (tarefa 5.0, divergência): a estimada da interrompida (`consumoEstimadoDaInterrompida`, da 8.0) também constrói `ConsumoDeIa` e leva a coluna falsa, e tornar o campo obrigatório quebraria esse construtor sem ganho para a linha do gateway.
 A reserva soma `ia.degradacao{degrau="provedor_de_reserva"}` (o degrau entra em `DEGRAUS`, nascendo em zero) e loga
 `ia.geracao.provedor_de_reserva`. `usosDoTeto` e `ia.tokens.uso_do_teto` passam a ser por `provedor:modelo`.
 
@@ -113,7 +113,12 @@ categorias das tarefas que `tarefasAprovadasParaAReserva` devolve para a reserva
 
 **A bancada.** `fila-de-ia.fixture.ts` ganha a montagem do gateway real com principal e reserva (`ScriptedAdapter` com envio
 externo, `provedorId` e suboperador próprios). Os cenários de roteamento e de compartilhamento usam essa montagem, e não
-`comModelo`, que troca o gateway inteiro.
+`comModelo`, que troca o gateway inteiro. A montagem é a opção `gateway` de `FilaDeIa.subir` (o `LLMGateway` real, com o
+`ConsumoRepository`, o processador e o worker do produto) e `fila.roteirizar(...)` a refaz entre um caso e outro, com os
+roteiros e o contador de chamadas de cada adaptador em zero (`fila.adaptadores`); a conferência da reserva pode ser a
+`SoberaniaNaSubida` de verdade (`conferenciaDaReserva`), para provar a reconferência sem reiniciar. Os casos moram em
+`fila-de-ia.int.test.ts` (a linha de cada chamada e a foto do compartilhamento) e `arquivo-do-titular.int.test.ts` (o arquivo, o
+contador fora dele e o isolamento).
 
 ## 7. Dado pessoal (obrigatório)
 
@@ -171,6 +176,8 @@ o núcleo **módulo a módulo** do `dist` (`ia/llm-gateway`, `ia/consumo`, `ia/s
 `ia/openai-compat-adapter`), nunca o barril `packages/core/dist/index.js` nem `@educa/core`, que reexportam `db/schema` e os
 repositories; a guarda segue cada caminho `packages/<pacote>/dist/<x>.js` que a ferramenta carrega até o `src/<x>.ts`, e daí os
 imports relativos (`./y.js` resolve `./y.ts`), e reprova o barril pelo grafo (divergência da 11.0, Arquiteto, 22/11/2026). O relatório aprovado vira entrada em `MODELOS_APROVADOS`.
+
+As medidas da 12.0 (`tools/ia/medidas-da-avaliacao.ts`) vêm em três regras que a letra de `avaliacao.md` deixava a escolher. O **limiar** é em contagem inteira (`ceil(95 × n / 100)`: 19 de 20, 29 de 30, sem ponto flutuante), na pior das três execuções, e vale só para as partes de limiar das linhas mistas; a parte de 100% e as eliminatórias seguem a 100%. A **equidade** passa o julgamento pelos critérios das linhas de recusa e de citação (os mesmos nas duas versões do par, conforme o `esperado`), e a peça do juiz não traz os campos `registro` e `par` (o id da amostra, no nome do arquivo e no `codigo`, e o texto da dúvida continuam nela, e o registro informal se denuncia no texto: o cego da equidade vale pelos campos, não pelo conteúdo, limite conhecido). Os **números fiéis** são os de uma resposta crua, não da saída final: "número do texto existe na fixture" quer dizer que, no texto de uma questão, o número sem `%` sai das contagens **dela** (as marcações, as em branco, o total, os acertos e os erros) ou dos números que valem para a prova inteira (o número de qualquer questão, os respondentes e quantas questões há), e o percentual sai das contagens dela, inteiro ou com uma casa (0% quando ninguém respondeu, como o núcleo calcula); na `visaoGeral`, o número e o percentual podem ser os de qualquer questão; o título e a habilidade, que a entrada escreveu, ficam de fora; e o decimal só vale com `%` ("80,6%"), pois sem ele "2,3" são dois números. O que o texto exige é que a questão em que alguns acertaram e outros não traga os acertos ou o percentual deles.
 
 Custo: cerca de 2.100 chamadas (as linhas de três execuções e os lotes retidos), de R$ 150 a R$ 250 por finalista
 (o real no relatório). Sem chamada nova por usuário. A reserva custa a diferença de preço nas

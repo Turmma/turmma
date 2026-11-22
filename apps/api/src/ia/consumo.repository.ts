@@ -7,6 +7,9 @@ import type { InterrompidaEncerrada } from './execucao.repository.js'
  * (`requireEscolaId()`, lida a cada chamada): o registro não a traz, e sem escola no contexto lança antes de
  * gravar. Não há leitura aqui, só a inserção de uma linha na escola dele.
  *
+ * `pelo_provedor_de_reserva` é a do destino da chamada (`ConsumoDeIa.peloProvedorDeReserva`, camada do gateway, F5b 4.0): verdadeira só na linha que saiu para a reserva, e falsa na que o gateway grava
+ * para o principal e na estimada da interrompida (que leva o provedor do adaptador configurado). `provedor` é o id de quem recebeu o conteúdo de cada chamada, e é ele que o arquivo do titular lê.
+ *
  * `entrada` e `saida` chegam ausentes nas tarefas que levam texto livre de pessoa e são gravadas nulas; nas funções do
  * Tutor o banco recusa qualquer outra coisa (`consumo_ia_sem_conversa_de_pessoa`). Nada daqui vai a log.
  */
@@ -30,6 +33,7 @@ export class ConsumoRepository implements RegistroDeConsumo {
       duracaoMs: consumo.duracaoMs,
       envioExterno: consumo.envioExterno,
       provedor: consumo.provedorId,
+      peloProvedorDeReserva: consumo.peloProvedorDeReserva ?? false,
       tentativas: consumo.tentativas,
       estado: consumo.estado,
       codigoDeErro: consumo.codigoDeErro ?? null,
