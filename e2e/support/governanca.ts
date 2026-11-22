@@ -217,6 +217,34 @@ export async function montarEscolaComEntregas(escolaId: string, coordenadoraId: 
 }
 
 /**
+ * Põe a escola do `montarEscolaComEntregas` **acima do previsto de IA do mês**, por SQL, como o resto do suporte (camada-ia, 6.0): define o valor por
+ * aluno (R$ 1) e põe o custo de uma das linhas de consumo em 120% do que a escola tem de orçamento (valor vezes alunos ativos). Não cria linha
+ * nova, para a parte e as execuções de cada função ficarem as de `montarEscolaComEntregas` (75% e 25%). A tela passa a dizer "IA do mês: 120% do
+ * previsto." e o aviso de 100%, que é a frase mais longa da linha.
+ */
+export async function passarDoPrevistoDeIa(escolaId: string): Promise<void> {
+  await comBanco(async (banco) => {
+    const { rows } = await banco.query<{ total: number }>(
+      `select count(distinct v.usuario_id)::int as total from vinculo v
+         join usuario pessoa on pessoa.escola_id = v.escola_id and pessoa.id = v.usuario_id
+         join ano_letivo ano on ano.escola_id = v.escola_id and ano.id = v.ano_letivo_id and ano.situacao = 'em_curso'
+        where v.escola_id = $1 and v.papel = 'aluno' and v.encerrado_em is null and pessoa.desativado_em is null`,
+      [escolaId],
+    )
+    const alunos = rows[0]?.total ?? 0
+    if (alunos === 0) throw new Error('a escola do e2e não tem aluno ativo: não há previsto a passar')
+    const valorPorAlunoMicros = 1_000_000
+    await banco.query('insert into configuracao_operacional_escola (escola_id) values ($1) on conflict do nothing', [escolaId])
+    await banco.query('update configuracao_operacional_escola set ia_valor_por_aluno_micros = $2 where escola_id = $1', [escolaId, valorPorAlunoMicros])
+    const gasto = await banco.query(
+      'update consumo_ia set custo_micros = $2 where id = (select id from consumo_ia where escola_id = $1 order by id limit 1)',
+      [escolaId, Math.round((valorPorAlunoMicros * alunos * 120) / 100)],
+    )
+    if (gasto.rowCount !== 1) throw new Error('a escola do e2e não tem consumo de IA para passar do previsto')
+  })
+}
+
+/**
  * Acrescenta à escola do `montarEscolaComEntregas` uma série de **um professor só**: o 3º ano, com uma turma, uma professora e uma versão
  * adaptada dela esperando decisão. A entrega conta nos números (um artefato original, a versão adaptada e uma entrega pendente) e não
  * entra na lista, porque a linha diria o que ela fez (D45, D64). O nome da professora é o que nunca pode aparecer.

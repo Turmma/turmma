@@ -4,7 +4,7 @@ import { codigoDoOperador, criarOperadorComSegundoFator as criarOperador, encerr
 import { criarEquipeComSenha } from './support/seed.ts'
 import { esperarNovaConversa } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
-import { activate, entrarNaOperacao, esperarCasca, SIGN_IN_TIMEOUT_MS } from './support/operacao-screen.ts'
+import { activate, entrarNaOperacao, esperarAListaDeEscolas, esperarCasca, SIGN_IN_TIMEOUT_MS } from './support/operacao-screen.ts'
 import { ALVO_DE_TOQUE_PRINCIPAL_PX, corDoToken, horizontalOverflow, seriousViolations } from './support/checks.ts'
 
 const ROTA_EU_DO_OPERADOR = '**/v1/operacao/eu'
@@ -351,6 +351,7 @@ test.describe('área do operador Turmma', () => {
     const operador = await criarOperadorComSegundoFator()
     await page.clock.install()
     await entrarNaOperacao(page, operador, hasTouch)
+    await esperarAListaDeEscolas(page)
     const aviso = page.getByRole('region', { name: 'Aviso de inatividade' })
 
     // Aos 26 min e meio parada, nada: ninguém é interrompido antes da hora.

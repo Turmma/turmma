@@ -18,8 +18,8 @@ import {
   fraseDoAlerta,
   nomeDaFuncao,
   OPCOES_DO_ESTADO,
-  textoDoConsumo,
-  textoDoCusto,
+  textoDaParte,
+  textoDoOrcamento,
   textoDoPacoteDoTutor,
   VAZIO_DO_FILTRO,
 } from './textos-da-governanca'
@@ -59,16 +59,53 @@ describe('a linha da governança diz que uma pessoa decidiu, nunca quem (D45, D6
 })
 
 describe('o consumo', () => {
-  it('soma os tokens de entrada e de saída e diz as execuções', () => {
-    expect(textoDoConsumo({ execucoes: 1, tokensDeEntrada: 1200, tokensDeSaida: 34 })).toBe('1.234 tokens · 1 execução')
-    expect(textoDoConsumo({ execucoes: 8, tokensDeEntrada: 0, tokensDeSaida: 1 })).toBe('1 token · 8 execuções')
+  it('a parte da função é dita em porcentagem do que a IA trabalhou no mês, com as execuções', () => {
+    expect(textoDaParte({ parte: 41, execucoes: 128 })).toBe('41% do que a IA trabalhou no mês · 128 execuções')
+    expect(textoDaParte({ parte: 100, execucoes: 1 })).toBe('100% do que a IA trabalhou no mês · 1 execução')
+    expect(textoDaParte({ parte: 0, execucoes: 0 })).toBe('0% do que a IA trabalhou no mês · 0 execuções')
   })
 
-  it('com o custo em zero, a tela diz que não é medido, e nunca "R$ 0,00"', () => {
-    const texto = textoDoCusto({ custoMicros: 0 })
-    expect(texto).toContain('não é medido')
-    expect(texto).not.toContain('R$')
-    expect(textoDoCusto({ custoMicros: 12_340_000 })).toMatch(/^Custo do mês: R\$\s12,34\.$/)
+  it('o orçamento do mês: o texto exato de cada estado, e o aviso só em `definido` (`docs/interface.md` 3)', () => {
+    expect(textoDoOrcamento({ situacao: 'definido', porcentagem: 62, aviso: null })).toEqual({ linha: 'IA do mês: 62% do previsto.', aviso: null })
+    expect(textoDoOrcamento({ situacao: 'definido', porcentagem: 79, aviso: null }).aviso).toBeNull()
+    expect(textoDoOrcamento({ situacao: 'definido', porcentagem: 80, aviso: 80 })).toEqual({
+      linha: 'IA do mês: 80% do previsto.',
+      aviso: 'A escola já usou 80% do previsto para a IA neste mês. Nada é cortado.',
+    })
+    expect(textoDoOrcamento({ situacao: 'definido', porcentagem: 1020, aviso: 100 })).toEqual({
+      linha: 'IA do mês: 1.020% do previsto.',
+      aviso: 'A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir.',
+    })
+    expect(textoDoOrcamento({ situacao: 'sem_orcamento', porcentagem: null, aviso: null })).toEqual({
+      linha: 'O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.',
+      aviso: null,
+    })
+    expect(textoDoOrcamento({ situacao: 'sem_aluno_ativo', porcentagem: null, aviso: null })).toEqual({ linha: 'A porcentagem aparece quando a escola tiver aluno ativo.', aviso: null })
+    // O mês que fechou antes da medição (`?mes=` de antes da camada-ia): a tela diz por que não há número.
+    expect(textoDoOrcamento({ situacao: 'sem_retrato', porcentagem: null, aviso: null })).toEqual({ linha: 'Este mês fechou antes de o previsto de IA ser medido, por isso não há porcentagem.', aviso: null })
+    // A tela não confia só no esquema: fora de `definido` não há número nem aviso, e `definido` sem porcentagem cai na frase do mês sem medição.
+    expect(textoDoOrcamento({ situacao: 'sem_orcamento', porcentagem: 10, aviso: 80 })).toEqual({
+      linha: 'O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.',
+      aviso: null,
+    })
+    expect(textoDoOrcamento({ situacao: 'definido', porcentagem: null, aviso: 100 })).toEqual({
+      linha: 'Este mês fechou antes de o previsto de IA ser medido, por isso não há porcentagem.',
+      aviso: null,
+    })
+  })
+
+  it('nenhum texto do consumo e do orçamento diz "R$", "token" nem "crédito" (RF12, D40)', () => {
+    const textos = [
+      ...(['definido', 'sem_orcamento', 'sem_aluno_ativo', 'sem_retrato'] as const).flatMap((situacao) =>
+        ([null, 80, 100] as const).flatMap((aviso) => {
+          const { linha, aviso: avisoEscrito } = textoDoOrcamento({ situacao, porcentagem: situacao === 'definido' ? 90 : null, aviso: situacao === 'definido' ? aviso : null })
+          return [linha, avisoEscrito ?? '']
+        }),
+      ),
+      textoDaParte({ parte: 41, execucoes: 128 }),
+      textoDoPacoteDoTutor({ trocasNoMes: 412, pacoteDoMes: 9600 }),
+    ]
+    for (const texto of textos) expect(texto).not.toMatch(/R\$|token|crédito/i)
   })
 
   it('o pacote do Tutor é dito em trocas, contra o pacote da escola', () => {

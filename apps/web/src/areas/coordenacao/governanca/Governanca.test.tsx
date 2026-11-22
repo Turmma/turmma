@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
@@ -59,15 +59,12 @@ const resumo = (numeros: typeof NUMEROS_DA_ESCOLA, itens: readonly ReturnType<ty
   status: 200,
   corpo: { numeros, itens, ...(proxima === undefined ? {} : { proxima }) },
 })
-const CONSUMO: FakeResponse = {
+/** O consumo do mês como a API o devolve (camada-ia 6.0): o orçamento, a parte de cada função e o pacote do Tutor, sem token e sem real. */
+const consumoCom = (orcamento: unknown = { situacao: 'definido', porcentagem: 0, aviso: null }, porFuncao: readonly unknown[] = []): FakeResponse => ({
   status: 200,
-  corpo: {
-    mes: '2026-10',
-    total: { execucoes: 0, tokensDeEntrada: 0, tokensDeSaida: 0, custoMicros: 0, comEnvioExterno: 0 },
-    porFuncao: [],
-    tutor: { trocasNoMes: 0, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 },
-  },
-}
+  corpo: { mes: '2026-10', orcamento, porFuncao, tutor: { trocasNoMes: 12, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 } },
+})
+const CONSUMO: FakeResponse = consumoCom()
 
 /** As respostas de cada estado. Registrar os filtros antes do geral: o primeiro que casa responde. */
 function responderPorEstado(rede: FakeNetwork, porEstado: Readonly<Partial<Record<Estado, FakeResponse | (() => FakeResponse | Promise<FakeResponse>)>>>, geral: FakeResponse): void {
@@ -436,5 +433,117 @@ describe('Registros › IA: os números, o link e o consumo', () => {
     expect(tabela.compareDocumentPosition(consumo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(tabela).getByText(/A lista não mostra turma nem quem decidiu/)).toBeTruthy()
     expect(await within(consumo).findByText('Nenhuma função trabalhou neste mês')).toBeTruthy()
+  })
+})
+
+describe('Registros › IA: o consumo do mês por função e o orçamento (camada-ia 6.0)', () => {
+  const NAO_CARREGA = 'Não foi possível concluir agora. Tente de novo em instantes.'
+  const doConsumo = () => screen.getByRole('region', { name: 'Consumo do mês por função' })
+  /** Monta a tela com o resumo em dia e o consumo dado. */
+  function montarComConsumo(consumo: FakeResponse | (() => FakeResponse | Promise<FakeResponse>)) {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/governanca/resumo', resumo(NUMEROS_DA_ESCOLA, TODAS))
+    rede.responderPor('/v1/governanca/consumo', consumo)
+    montar()
+    return rede
+  }
+
+  it('o consumo por função fica depois da tabela, com a parte e as execuções escritas, e sem token nem real', async () => {
+    montarComConsumo(
+      consumoCom({ situacao: 'definido', porcentagem: 62, aviso: null }, [
+        { funcao: 'conversa_e_ferramentas', parte: 41, execucoes: 128 },
+        { funcao: 'tutor_com_o_aluno', parte: 59, execucoes: 1 },
+      ]),
+    )
+    const consumo = await screen.findByRole('region', { name: 'Consumo do mês por função' })
+    expect(await within(consumo).findByText('Assistente de ensino · Conversa e ferramentas')).toBeTruthy()
+    expect(within(consumo).getByText('41% do que a IA trabalhou no mês · 128 execuções')).toBeTruthy()
+    expect(within(consumo).getByText('Tutor · Tutor com o aluno')).toBeTruthy()
+    expect(within(consumo).getByText('59% do que a IA trabalhou no mês · 1 execução')).toBeTruthy()
+    // O traço de cada função tem o tamanho da parte dela: o enchimento é o segundo retângulo do desenho que vem logo depois da linha escrita.
+    const enchimentoDe = (texto: string) => within(consumo).getByText(texto).closest('p')?.nextElementSibling?.querySelectorAll('rect')[1]?.getAttribute('width')
+    expect(enchimentoDe('41% do que a IA trabalhou no mês · 128 execuções')).toBe('41%')
+    expect(enchimentoDe('59% do que a IA trabalhou no mês · 1 execução')).toBe('59%')
+    expect(within(consumo).getByText('IA do mês: 62% do previsto.')).toBeTruthy()
+    // O pacote do Tutor segue, em trocas.
+    expect(within(consumo).getByText('12 de 9.600 trocas')).toBeTruthy()
+    expect(consumo.textContent).not.toMatch(/R\$|token|crédito|não é medido/i)
+  })
+
+  it('o texto de cada estado do orçamento: sem aviso a 79%, o aviso de 80, o de 100, sem previsto e sem aluno ativo', async () => {
+    const casos: Array<{ orcamento: unknown; texto: string; aviso: string | null }> = [
+      { orcamento: { situacao: 'definido', porcentagem: 79, aviso: null }, texto: 'IA do mês: 79% do previsto.', aviso: null },
+      { orcamento: { situacao: 'definido', porcentagem: 80, aviso: 80 }, texto: 'IA do mês: 80% do previsto.', aviso: 'A escola já usou 80% do previsto para a IA neste mês. Nada é cortado.' },
+      {
+        orcamento: { situacao: 'definido', porcentagem: 120, aviso: 100 },
+        texto: 'IA do mês: 120% do previsto.',
+        aviso: 'A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir.',
+      },
+      { orcamento: { situacao: 'sem_orcamento', porcentagem: null, aviso: null }, texto: 'O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.', aviso: null },
+      { orcamento: { situacao: 'sem_aluno_ativo', porcentagem: null, aviso: null }, texto: 'A porcentagem aparece quando a escola tiver aluno ativo.', aviso: null },
+    ]
+    for (const { orcamento, texto, aviso } of casos) {
+      montarComConsumo(consumoCom(orcamento, [{ funcao: 'conversa_e_ferramentas', parte: 100, execucoes: 1 }]))
+      const consumo = await screen.findByRole('region', { name: 'Consumo do mês por função' })
+      expect(await within(consumo).findByText(texto), texto).toBeTruthy()
+      // O aviso é texto com o glifo do alerta (não é só cor), e só aparece quando o limiar foi cruzado.
+      const avisos = [...consumo.querySelectorAll('[data-aviso]')].map((caixa) => caixa.textContent)
+      expect(avisos, texto).toEqual(aviso === null ? [] : [aviso])
+      cleanup()
+    }
+  })
+
+  it('o mês sem execução: o orçamento aparece e a lista diz que nenhuma função trabalhou, sem barra', async () => {
+    montarComConsumo(consumoCom({ situacao: 'definido', porcentagem: 0, aviso: null }, []))
+    const consumo = await screen.findByRole('region', { name: 'Consumo do mês por função' })
+    expect(await within(consumo).findByText('Nenhuma função trabalhou neste mês')).toBeTruthy()
+    expect(within(consumo).getByText('IA do mês: 0% do previsto.')).toBeTruthy()
+    expect(consumo.querySelector('svg')).toBeNull()
+  })
+
+  it('carregando: só o aviso de leitura, sem o orçamento e sem o vazio', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/governanca/resumo', resumo(NUMEROS_DA_ESCOLA, TODAS))
+    const lida = rede.segurar()
+    montar()
+    await screen.findByText('Carregando o consumo…')
+    expect(screen.queryByText('Nenhuma função trabalhou neste mês')).toBeNull()
+    expect(screen.queryByText(/IA do mês/)).toBeNull()
+    // Carregando não é falha: a mensagem de erro e o "Tentar de novo" só vêm com o erro da leitura.
+    expect(within(doConsumo()).queryByRole('alert')).toBeNull()
+    expect(within(doConsumo()).queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    lida.liberar(consumoCom())
+    expect(await screen.findByText('IA do mês: 0% do previsto.')).toBeTruthy()
+  })
+
+  it('erro: diz o que fazer, "Tentar de novo" lê só o consumo e o orçamento volta; nenhum vazio aparece com a leitura falha', async () => {
+    const usuario = userEvent.setup()
+    let leituras = 0
+    const rede = montarComConsumo(() => (++leituras === 1 ? FORA : consumoCom({ situacao: 'definido', porcentagem: 62, aviso: null }, [{ funcao: 'adaptacao', parte: 100, execucoes: 3 }])))
+    await within(await screen.findByRole('region', { name: 'Consumo do mês por função' })).findByRole('alert')
+    expect(screen.queryByText('Nenhuma função trabalhou neste mês')).toBeNull()
+    const antes = rede.chamadas.length
+    await usuario.click(within(doConsumo()).getByRole('button', { name: 'Tentar de novo' }))
+    expect(await within(doConsumo()).findByText('IA do mês: 62% do previsto.')).toBeTruthy()
+    expect(rede.chamadas.slice(antes).map((chamada) => chamada.caminho)).toEqual(['/v1/governanca/consumo'])
+  })
+
+  it('a resposta fora do contrato (o consumo com tokens e sem orçamento, de uma API anterior): "Atualize a página", sem "Tentar de novo", que traria a mesma', async () => {
+    montarComConsumo({
+      status: 200,
+      corpo: {
+        mes: '2026-10',
+        total: { execucoes: 2, tokensDeEntrada: 1000, tokensDeSaida: 500, custoMicros: 0, comEnvioExterno: 0 },
+        porFuncao: [{ funcao: 'conversa_e_ferramentas', execucoes: 2, tokensDeEntrada: 1000, tokensDeSaida: 500, custoMicros: 0, comEnvioExterno: 0 }],
+        tutor: { trocasNoMes: 12, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 },
+      },
+    })
+    const consumo = await screen.findByRole('region', { name: 'Consumo do mês por função' })
+    const alerta = await within(consumo).findByRole('alert')
+    expect(alerta.textContent).toContain('Atualize a página')
+    expect(alerta.textContent).not.toBe(NAO_CARREGA)
+    expect(within(consumo).queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    // Nem o número que a API antiga mandou aparece: a tela não lê o que o contrato não reconhece.
+    expect(consumo.textContent).not.toMatch(/1\.500|tokens/)
   })
 })

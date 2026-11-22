@@ -1,6 +1,7 @@
 import { ErrorCode, avisosResponseSchema, MENSAGENS_DE_ERRO } from '@educa/shared'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { shouldRetry } from './query-client'
+import { RespostaForaDoContrato } from './contrato/resposta-fora-do-contrato'
 import { baixarPdfDoArtefato } from '../areas/professor/artefatos/api/artefatos'
 import { sendEdicao } from '../areas/coordenacao/material/api/material'
 import { apiGet, apiRequest, ApiError, comPrazo, errorMessage, estourouNoCliente, EMPTY_BODY, PRAZOS_DA_CHAMADA_MS } from './client'
@@ -155,6 +156,11 @@ describe('deveTentarDeNovo', () => {
     expect(shouldRetry(0, new ApiError(ErrorCode.TEMPO_ESGOTADO))).toBe(true)
     expect(shouldRetry(0, new ApiError(ErrorCode.ERRO_INTERNO))).toBe(true)
     expect(shouldRetry(0, new TypeError('falha fora do cliente'))).toBe(true)
+  })
+
+  it('a resposta fora do contrato não se repete: o erro é interno, mas a mesma resposta voltaria, e o que resolve é atualizar a página', () => {
+    expect(new RespostaForaDoContrato().codigo).toBe(ErrorCode.ERRO_INTERNO)
+    expect(shouldRetry(0, new RespostaForaDoContrato())).toBe(false)
   })
 })
 

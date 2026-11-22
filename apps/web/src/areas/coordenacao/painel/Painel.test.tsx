@@ -63,7 +63,8 @@ const INCIDENTE_SEM_CONFIRMACAO = {
   avisadoEm: MOMENTO,
   confirmadoEm: null,
 }
-const CONSUMO_DO_MES = { execucoes: 2, tokensDeEntrada: 1000, tokensDeSaida: 500, custoMicros: 0, comEnvioExterno: 0 }
+/** O orçamento do mês como a API o devolve: a porcentagem pronta, sem real e sem token (camada-ia 6.0). */
+const ORCAMENTO_A_62 = { situacao: 'definido', porcentagem: 62, aviso: null }
 
 const ok = (itens: readonly unknown[], extra: Record<string, unknown> = {}): FakeResponse => ({ status: 200, corpo: { itens, ...extra } })
 const FORA = { status: 404, corpo: { erro: { codigo: 'NAO_ENCONTRADO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
@@ -79,9 +80,9 @@ const funcoes = (suspensas: readonly ChaveDeFuncao[] = []): FakeResponse => ({
   },
 })
 const resumo = (numeros = { geradoPorIa: 7, aprovadoPorPessoa: 3, rejeitado: 0, esperando: 1 }): FakeResponse => ({ status: 200, corpo: { numeros, itens: [] } })
-const consumo = (porFuncao: readonly unknown[] = [{ ...CONSUMO_DO_MES, funcao: 'conversa_e_ferramentas' }]): FakeResponse => ({
+const consumo = (orcamento: unknown = ORCAMENTO_A_62, porFuncao: readonly unknown[] = [{ funcao: 'conversa_e_ferramentas', parte: 100, execucoes: 2 }]): FakeResponse => ({
   status: 200,
-  corpo: { mes: '2026-10', total: CONSUMO_DO_MES, porFuncao, tutor: { trocasNoMes: 12, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 } },
+  corpo: { mes: '2026-10', orcamento, porFuncao, tutor: { trocasNoMes: 12, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 } },
 })
 
 /** O que cada leitura do Painel responde. Cada caso muda só o que importa para ele. */
@@ -189,7 +190,7 @@ const esperarTudoLido = () => waitFor(() => expect(screen.queryAllByText(/^(Carr
 const REGIOES = { ia: 'A IA nesta escola', fila: 'Esperando você', escola: 'Para terminar a escola' } as const
 
 describe('o Painel da escola montada', () => {
-  it('mostra os quatro números da escola e o consumo do mês numa linha, com o caminho até Registros', async () => {
+  it('mostra os quatro números da escola, a IA do mês em porcentagem do previsto e as trocas do Tutor, com o caminho até Registros', async () => {
     const rede = fakeNetwork()
     instalar(rede, TUDO_EM_DIA)
     montar()
@@ -198,7 +199,10 @@ describe('o Painel da escola montada', () => {
     for (const [rotulo, valor] of [['Gerado por IA', '7'], ['Aprovado por gente', '3'], ['Esperando o professor', '1'], ['Rejeitado', '0']] as const) {
       expect(ia.getByText(rotulo).parentElement?.textContent).toContain(valor)
     }
-    expect(ia.getByText('Consumo do mês: 1.500 tokens · 2 execuções. Trocas dos alunos com o Tutor: 12 de 9.600 trocas.')).toBeTruthy()
+    expect(ia.getByText('IA do mês: 62% do previsto.')).toBeTruthy()
+    expect(ia.getByText('Trocas dos alunos com o Tutor: 12 de 9.600 trocas.')).toBeTruthy()
+    // Nenhum token e nenhum real no Painel (RF12, D40).
+    expect(screen.getByRole('region', { name: REGIOES.ia }).textContent ?? '').not.toMatch(/R\$|token|crédito/i)
     expect(ia.getByRole('link', { name: 'Ver em Registros' }).getAttribute('href')).toBe('/governanca')
   })
 
@@ -519,7 +523,7 @@ describe('os quatro estados de cada bloco', () => {
     montar()
     expect(await bloco(REGIOES.ia).findByText('Carregando os números da IA…')).toBeTruthy()
     // Um bloco que não chegou não derruba os outros: o consumo e a fila aparecem.
-    expect(await bloco(REGIOES.ia).findByText(/Consumo do mês: /)).toBeTruthy()
+    expect(await bloco(REGIOES.ia).findByText('IA do mês: 62% do previsto.')).toBeTruthy()
     cleanup()
 
     const rede = fakeNetwork()
@@ -542,16 +546,15 @@ describe('os quatro estados de cada bloco', () => {
     expect([...document.querySelectorAll('.t-numero')].map((no) => no.textContent)).toEqual(['0', '0', '0', '0'])
   })
 
-  it('o consumo do mês: carregando, erro que relê só o consumo, vazio e com dado', async () => {
+  it('o consumo do mês: carregando, erro que relê só o consumo, e com dado', async () => {
     const usuario = userEvent.setup()
     const lenta = fakeNetwork()
     instalar(lenta, { ...TUDO_EM_DIA, consumo: nuncaResponde })
     montar()
     expect(await bloco(REGIOES.ia).findByText('Carregando o consumo do mês…')).toBeTruthy()
     expect(await bloco(REGIOES.ia).findByText('Gerado por IA')).toBeTruthy()
-    // O vazio do consumo só vem com a leitura terminada e sem erro (RF22): carregando, nem "Nenhuma função…" nem a linha do mês.
-    expect(bloco(REGIOES.ia).queryByText('Nenhuma função da IA trabalhou neste mês.')).toBeNull()
-    expect(bloco(REGIOES.ia).queryByText(/Consumo do mês: /)).toBeNull()
+    // Carregando, nem a porcentagem, nem o "sem previsto", nem as trocas do Tutor: a leitura não terminou (RF22).
+    expect(bloco(REGIOES.ia).queryByText(/IA do mês|previsto|Trocas dos alunos/)).toBeNull()
     cleanup()
 
     const rede = fakeNetwork()
@@ -559,23 +562,65 @@ describe('os quatro estados de cada bloco', () => {
     instalar(rede, { ...TUDO_EM_DIA, consumo: () => (fora ? FORA : consumo()) })
     montar()
     await esperarTudoLido()
-    // Com o erro, o consumo não afirma o vazio nem mostra a linha do mês: o alerta do bloco está na tela antes de conferir.
+    // Com o erro, o consumo não mostra a porcentagem: o alerta do bloco está na tela antes de conferir.
     await bloco(REGIOES.ia).findByRole('alert')
-    expect(bloco(REGIOES.ia).queryByText('Nenhuma função da IA trabalhou neste mês.')).toBeNull()
-    expect(bloco(REGIOES.ia).queryByText(/Consumo do mês: /)).toBeNull()
+    expect(bloco(REGIOES.ia).queryByText(/IA do mês/)).toBeNull()
     const antes = rede.chamadas.length
     fora = false
     await usuario.click(bloco(REGIOES.ia).getByRole('button', { name: 'Tentar de novo' }))
-    expect(await bloco(REGIOES.ia).findByText(/Consumo do mês: 1\.500 tokens/)).toBeTruthy()
+    expect(await bloco(REGIOES.ia).findByText('IA do mês: 62% do previsto.')).toBeTruthy()
     expect(rede.chamadas.slice(antes).map((chamada) => semConsulta(chamada.caminho))).toEqual(['/v1/governanca/consumo'])
     cleanup()
 
+    // O mês sem execução tem orçamento e porcentagem (0%): o Painel não afirma que "nenhuma função trabalhou".
     const vazio = fakeNetwork()
-    instalar(vazio, { ...TUDO_EM_DIA, consumo: consumo([]) })
+    instalar(vazio, { ...TUDO_EM_DIA, consumo: consumo({ situacao: 'definido', porcentagem: 0, aviso: null }, []) })
     montar()
     await esperarTudoLido()
-    expect(bloco(REGIOES.ia).getByText('Nenhuma função da IA trabalhou neste mês.')).toBeTruthy()
-    expect(bloco(REGIOES.ia).queryByText(/Consumo do mês: /)).toBeNull()
+    expect(bloco(REGIOES.ia).getByText('IA do mês: 0% do previsto.')).toBeTruthy()
+  })
+
+  it('o texto de cada estado do orçamento: sem aviso a 79%, o aviso de 80, o de 100, sem previsto e sem aluno ativo', async () => {
+    const casos: Array<{ orcamento: unknown; texto: string; aviso: string | null }> = [
+      { orcamento: { situacao: 'definido', porcentagem: 79, aviso: null }, texto: 'IA do mês: 79% do previsto.', aviso: null },
+      { orcamento: { situacao: 'definido', porcentagem: 80, aviso: 80 }, texto: 'IA do mês: 80% do previsto.', aviso: 'A escola já usou 80% do previsto para a IA neste mês. Nada é cortado.' },
+      {
+        orcamento: { situacao: 'definido', porcentagem: 120, aviso: 100 },
+        texto: 'IA do mês: 120% do previsto.',
+        aviso: 'A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir.',
+      },
+      { orcamento: { situacao: 'sem_orcamento', porcentagem: null, aviso: null }, texto: 'O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.', aviso: null },
+      { orcamento: { situacao: 'sem_aluno_ativo', porcentagem: null, aviso: null }, texto: 'A porcentagem aparece quando a escola tiver aluno ativo.', aviso: null },
+    ]
+    for (const { orcamento, texto, aviso } of casos) {
+      instalar(fakeNetwork(), { ...TUDO_EM_DIA, consumo: consumo(orcamento) })
+      montar()
+      await esperarTudoLido()
+      expect(bloco(REGIOES.ia).getByText(texto), texto).toBeTruthy()
+      // O aviso é texto com o glifo do alerta (não é só cor), e só aparece quando o limiar foi cruzado.
+      const avisos = [...within(screen.getByRole('region', { name: REGIOES.ia })).queryAllByText(/Nada é cortado/)].map((no) => no.textContent)
+      expect(avisos, texto).toEqual(aviso === null ? [] : [aviso])
+      cleanup()
+    }
+  })
+
+  it('a resposta fora do contrato (o consumo com tokens e sem orçamento): "Atualize a página", sem "Tentar de novo", e o resto do Painel segue', async () => {
+    const antiga: FakeResponse = {
+      status: 200,
+      corpo: {
+        mes: '2026-10',
+        total: { execucoes: 2, tokensDeEntrada: 1000, tokensDeSaida: 500, custoMicros: 0, comEnvioExterno: 0 },
+        porFuncao: [],
+        tutor: { trocasNoMes: 12, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 },
+      },
+    }
+    instalar(fakeNetwork(), { ...TUDO_EM_DIA, consumo: antiga })
+    montar()
+    const alerta = await bloco(REGIOES.ia).findByRole('alert')
+    expect(alerta.textContent).toContain('Atualize a página')
+    expect(bloco(REGIOES.ia).queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(bloco(REGIOES.ia).queryByText(/IA do mês|1\.500|tokens/)).toBeNull()
+    expect(await bloco(REGIOES.ia).findByText('Gerado por IA')).toBeTruthy()
   })
 
   it('a fila: carregando enquanto alguma leitura não chegou, sem item (nem os das leituras que já vieram) e sem "Tudo em dia"', async () => {

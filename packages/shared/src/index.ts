@@ -945,7 +945,9 @@ export type {
 export {
   consumoQuerySchema,
   resumoDaGovernancaQuerySchema,
-  consumoSomadoSchema,
+  consumoDaFuncaoSchema,
+  parteDosTokens,
+  orcamentoDoConsumoSchema,
   funcaoDaGovernancaSchema,
   itemDaGovernancaSchema,
   suspenderFuncaoRequestSchema,
@@ -960,7 +962,8 @@ export {
 export type {
   ConsumoQuery,
   ResumoDaGovernancaQuery,
-  ConsumoSomado,
+  ConsumoDaFuncaoDoMes,
+  OrcamentoDoConsumo,
   FuncaoDaGovernanca,
   ItemDaGovernanca,
   MotivoDeSuspensao,

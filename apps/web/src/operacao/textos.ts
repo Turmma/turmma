@@ -14,6 +14,7 @@ import {
   type TipoDeRede,
 } from '@educa/shared'
 import { ApiError, estourouNoCliente } from '../api/client'
+import { RespostaForaDoContrato, TEXTO_PARA_ATUALIZAR } from '../api/contrato/resposta-fora-do-contrato'
 import { formatNumber } from '../format'
 import type { FalhaDoConvite } from '../components/DialogoDoConvite'
 import { errorText as textoDaFalhaPeloCodigo } from '../components/error-text'
@@ -43,20 +44,8 @@ export const TEXTO_DO_CODIGO_RECUSADO = 'O código não foi aceito. Entre de nov
 export const TEXTO_DA_SAIDA_NAO_CONFIRMADA =
   'Não foi possível confirmar a saída com o servidor. Se este computador é compartilhado, feche o navegador antes de deixá-lo.'
 
-/**
- * A resposta da API que o contrato da web não reconhece: a web antiga com a API nova (camada-ia, 7.0). Continua sendo o
- * `ERRO_INTERNO` para quem decide pelo código (`isResultadoIncerto`), e a tela a distingue pela classe para dizer o que
- * resolve, que é atualizar a página, e não tentar de novo.
- */
-export class RespostaForaDoContrato extends ApiError {
-  constructor() {
-    super(ErrorCode.ERRO_INTERNO)
-    this.name = 'RespostaForaDoContrato'
-  }
-}
-
-/** A resposta fora do contrato: tentar de novo traz a mesma, e o que resolve é a página nova. */
-export const TEXTO_PARA_ATUALIZAR = 'Atualize a página: esta tela ficou desatualizada em relação ao Turmma.'
+// A resposta fora do contrato e o texto que a acompanha moram em `api/` (a Governança da coordenação também os usa, camada-ia 6.0): aqui só se reexportam.
+export { RespostaForaDoContrato, TEXTO_PARA_ATUALIZAR }
 
 /** O código da falha, ou erro interno para o que não veio da API. */
 function codigoDe(erro: unknown): ErrorCode {

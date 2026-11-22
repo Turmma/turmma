@@ -646,7 +646,13 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       await expect(tabela).toContainText(SERIE)
       await expect(principal(coordenacao).getByRole('columnheader', { name: /professor/i })).toHaveCount(0)
       for (const nome of [helena.nome, marta.nome, davi.nome, ana.nome, bruno.nome, carla.nome, turmaA]) await expect(principal(coordenacao)).not.toContainText(nome)
-      await expect(principal(coordenacao).getByRole('region', { name: 'Consumo do mês por função' })).toContainText('Assistente de ensino · Conversa e ferramentas')
+      const consumo = principal(coordenacao).getByRole('region', { name: 'Consumo do mês por função' })
+      await expect(consumo).toContainText('Assistente de ensino · Conversa e ferramentas')
+      // A parte de cada função e a linha do orçamento, sem real, sem token e sem crédito (camada-ia 6.0; D40).
+      await expect(consumo).toContainText(/\d+% do que a IA trabalhou no mês · \d+ execuç/)
+      // A escola do roteiro tem aluno ativo e nenhum valor por aluno (nem dela nem da rede): é o estado `sem_orcamento`, e é esse texto que a coordenação lê.
+      await expect(consumo).toContainText('O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.')
+      await expect(consumo).not.toContainText(/R\$|token|crédito/i)
     })
 
     await test.step('a coordenação suspende a Adaptação, o servidor recusa, e ela retoma, com tudo na auditoria', async () => {

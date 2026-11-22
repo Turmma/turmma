@@ -1,10 +1,11 @@
 import type { Locator, Page } from '@playwright/test'
-import { montarEscolaComEntregas } from './support/governanca.ts'
+import { montarEscolaComEntregas, passarDoPrevistoDeIa } from './support/governanca.ts'
 import { abrirSeletorDeEscola, entrarComoCoordenacaoNaMesmaAba, entrarPorEmail, esperarPainel, linhaDoSeletor, nomeNoSeletor, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { expect, test } from './support/profiles.ts'
 import { campoCodigo } from './support/mfa.ts'
 import { codigoDoAutenticador, codigoDoPassoAnterior, convidarProfessorNoBanco, criarEquipeComSenha, criarUsuarioEmOutraEscola } from './support/seed.ts'
 import { horizontalOverflow, seriousViolations } from './support/checks.ts'
+import { paginaNaoRola } from './support/coordenacao.ts'
 
 /**
  * O Painel da coordenação (telas da coordenação, 2.0; RF6, RF7 e RF22), pela tela, nos projetos `chromebook` e `celular`: os
@@ -45,6 +46,7 @@ test.describe('o Painel da coordenação', () => {
     test.slow()
     const coordenadora = await criarEquipeComSenha('coordenador')
     const escola = await montarEscolaComEntregas(coordenadora.escolaId, coordenadora.usuarioId)
+    await passarDoPrevistoDeIa(coordenadora.escolaId)
     const pedidos: string[] = []
     page.on('request', (pedido) => pedidos.push(new URL(pedido.url()).pathname))
     await page.goto('/entrar')
@@ -59,8 +61,11 @@ test.describe('o Painel da coordenação', () => {
     await expect(numero(page, 'Esperando o professor')).toContainText('1')
     await expect(numero(page, 'Rejeitado')).toContainText('0')
     await expect(principal(page).getByRole('link', { name: 'Ver em Registros' })).toHaveAttribute('href', '/coordenacao/governanca')
-    await expect(principal(page)).toContainText('Consumo do mês: 2.000 tokens · 3 execuções')
-    await expect(principal(page)).not.toContainText('R$')
+    // A escola passou do previsto de IA (120%): o Painel escreve a porcentagem e o aviso de 100%, a frase mais longa da linha, sem real, sem token e sem crédito (camada-ia 6.0; D40).
+    // O estado sem valor por aluno é o da escola sem ano letivo, logo abaixo.
+    await expect(principal(page)).toContainText('IA do mês: 120% do previsto.')
+    await expect(principal(page).locator('[data-aviso="atencao"]').filter({ hasText: 'A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir.' })).toBeVisible()
+    await expect(principal(page)).not.toContainText(/R\$|token|crédito/i)
 
     // "Esperando você": a fila do sino e a porta fixa dos pedidos, sem número (contar seria ler a lista, que é auditada).
     await expect(principal(page).getByRole('heading', { name: 'Esperando você' })).toBeVisible()
@@ -76,7 +81,8 @@ test.describe('o Painel da coordenação', () => {
     // O Painel não lê a lista de nomes, os pedidos dos titulares nem as reivindicações: cada leitura iria para a auditoria.
     expect(pedidos.filter((caminho) => /\/v1\/privacidade\/pedidos|\/lista$|\/reivindicacoes/.test(caminho))).toEqual([])
 
-    expect(await horizontalOverflow(page)).toBe(0)
+    // A página não rola de lado, nem a 360 px com o aviso mais longo, e o aviso não tem violação de acessibilidade.
+    await paginaNaoRola(page)
     expect(await seriousViolations(page)).toEqual([])
   })
 
@@ -93,7 +99,8 @@ test.describe('o Painel da coordenação', () => {
     await expect(principal(page).getByText('Comece pelo ano letivo')).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
     await expect(principal(page).getByText('Tudo em dia')).toBeVisible()
     await expect(numero(page, 'Gerado por IA')).toContainText('0')
-    await expect(principal(page).getByText('Nenhuma função da IA trabalhou neste mês.')).toBeVisible()
+    // Sem valor por aluno, a linha do orçamento diz por que não há porcentagem (camada-ia 6.0); a frase de "nenhuma função trabalhou" saiu do Painel.
+    await expect(principal(page).getByText('O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.')).toBeVisible()
     await expect(principal(page).getByRole('button', { name: 'Criar o ano letivo' })).toBeVisible()
     expect(pedidos).toContain('/v1/anos-letivos')
     expect(pedidos.filter((caminho) => caminho === '/v1/turmas' || caminho === '/v1/vinculos')).toEqual([])

@@ -31,6 +31,20 @@ export async function entrarNaOperacao(page: Page, operador: OperadorDeTeste, ha
   await esperarCasca(page, operador)
 }
 
+/**
+ * A lista de Escolas assentada: a lista com dado ou o estado vazio na tela (o sinal de que a consulta terminou, e não só a
+ * ausência do "Carregando as escolas…", que passaria sem esperar nada se a tela ainda não tivesse montado). Quem salta o
+ * relógio (`page.clock.fastForward`) logo depois de entrar espera por isto antes: o banner aparece com o `/eu`, e o `GET` da
+ * lista pode ainda estar no ar; o salto estoura o prazo dele (`comPrazo`, um `setTimeout` do relógio falso), o TanStack
+ * repete, a repetição renova o token vencido no relógio falso e é aceita, e essa aceitação conta como uso e apaga o aviso de
+ * inatividade que o teste espera ver.
+ */
+export async function esperarAListaDeEscolas(page: Page): Promise<void> {
+  const comDado = page.getByRole('region', { name: 'Lista de escolas' })
+  const vazia = page.getByText('Nenhuma escola ainda.')
+  await expect(comDado.or(vazia)).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+}
+
 /** O quanto a página inteira passa da janela, em px: zero é a página que não rola. */
 export function alturaExcedente(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight)

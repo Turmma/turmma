@@ -285,7 +285,7 @@ o mesmo sistema na turma dela. É o que deixa a coordenação ver o número da s
 
 1. Perfil **Coordenação** → **IA** (recarregue). **Aparece:** Gerado por IA **6**, Aprovado por gente **3**,
    Esperando o professor **0**, Rejeitado **0**; a tabela "O que a IA gerou e quem aprovou" com a correção e a
-   adaptação, por série; o texto do que chega ao aluno; o consumo do mês por função, em tokens. **Diga:** "A coordenação vê o que a IA fez e que uma
+   adaptação, por série; o texto do que chega ao aluno; a linha "IA do mês: N% do previsto" (ou, sem valor definido para a escola, o motivo de não haver porcentagem) e o consumo do mês por função, como a parte de cada uma ("41% do que a IA trabalhou no mês · 128 execuções"), sem real e sem token. **Diga:** "A coordenação vê o que a IA fez e que uma
    pessoa decidiu, em agregado. Não há coluna nem filtro por professor: ninguém é ranqueado pelo uso da ferramenta."
 2. **Agentes** → os três agentes (Assistente de ensino, Tutor, Analista de desempenho escolar), cada função com o que
    faz sozinha e o que espera aprovação. Em **Adaptação**, **Suspender esta função: Adaptação** → a confirmação diz o
@@ -414,8 +414,8 @@ Nada disto existe nesta fatia. Não abra, não prometa data.
 | "Por que 60%?" | "É um limite provisório desta versão, a definir com a escola. Qual indicador usar e com que limite é decisão que ainda vamos tomar com vocês." |
 | "Se eu suspender os sinais, o aviso de aluno em risco para?" | "Não. O aviso de que um aluno precisa de um adulto continua chegando ao professor, e o uso do Tutor pela turma continua visível a ele. Param só os avisos de aprendizagem (quem travou, quem pediu a resposta pronta)." |
 | "Quando sai o resumo semanal?" | "O resumo sai quando a coordenação pede, no botão Gerar resumo. Não há envio automático." |
-| "Quanto custa em reais?" | "O custo de cada chamada ainda não é medido nesta versão; o consumo aparece em tokens, por função. O preço para a escola é por aluno, com o uso normal incluso, sem crédito para controlar (D40)." |
-| "O que são tokens e execuções?" | "Execução é cada vez que a IA trabalhou, como gerar uma atividade ou responder ao aluno; tokens são o tamanho do texto que ela leu e escreveu nesse trabalho, a medida que os provedores de IA usam para cobrar." |
+| "Quanto custa em reais?" | "A tela não mostra real nem token: mostra quanto do previsto para a IA a escola já usou no mês, e a equipe Turmma define o previsto com vocês. Passou de 80% ou de 100%, a escola é avisada, e nada é cortado. O preço para a escola é por aluno, com o uso normal incluso, sem crédito para controlar (D40)." |
+| "O que são execuções e a parte de cada função?" | "Execução é cada vez que a IA trabalhou, como gerar uma atividade ou responder ao aluno. A parte é a fatia de cada função no trabalho da IA no mês: 41% quer dizer que, de tudo o que a IA trabalhou, 41% foi dessa função." |
 
 ## 14. Depois da demonstração
 

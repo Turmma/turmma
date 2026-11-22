@@ -2,7 +2,7 @@ import type { APIRequestContext, Locator, Page, Request, Route } from '@playwrig
 import { entrarPelaTelaComSegundoFator, esperarPainel, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { irPelaCoordenacao, linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
-import { acrescentarSerieDeUmProfessorSo, montarEscolaComEntregas, type EscolaComEntregas } from './support/governanca.ts'
+import { acrescentarSerieDeUmProfessorSo, montarEscolaComEntregas, passarDoPrevistoDeIa, type EscolaComEntregas } from './support/governanca.ts'
 import { expect, test } from './support/profiles.ts'
 import { criarEquipeComSenha, type EquipeDeTeste } from './support/seed.ts'
 import { horizontalOverflow, seriousViolations } from './support/checks.ts'
@@ -51,16 +51,17 @@ interface Cenario {
  * A coordenadora entra, abre no Painel e vai à aba IA de Registros, que é a Governança. Com `comEntregas`, a escola já tem o que
  * o roteiro deixa até o passo 4.
  */
-async function entrar(page: Page, request: APIRequestContext, hasTouch: boolean, comEntregas = true): Promise<Cenario> {
+async function entrar(page: Page, request: APIRequestContext, hasTouch: boolean, comEntregas = true, passouDoPrevisto = false): Promise<Cenario> {
   const coordenadora = await criarEquipeComSenha('coordenador')
   const escola = comEntregas ? await montarEscolaComEntregas(coordenadora.escolaId, coordenadora.usuarioId) : undefined
+  if (passouDoPrevisto) await passarDoPrevistoDeIa(coordenadora.escolaId)
   await abrirPelaApiSemMedirAPrimeiraCarga(page, request, coordenadora, '/coordenacao/painel', () => esperarPainel(page))
   await irPelaCoordenacao(page, 'IA', hasTouch)
   return { coordenadora, escola }
 }
 
 test.describe('Governança de IA', () => {
-  test('a coordenação vai à aba IA de Registros e vê o que a IA gerou e se uma pessoa aprovou, sem professor, e o consumo em tokens', async ({ page, hasTouch, request }) => {
+  test('a coordenação vai à aba IA de Registros e vê o que a IA gerou e se uma pessoa aprovou, sem professor', async ({ page, hasTouch, request }) => {
     const { escola } = await entrar(page, request, hasTouch)
     if (escola === undefined) throw new Error('escola sem entregas')
     await expect(page).toHaveTitle('Registros: IA · Turmma')
@@ -86,17 +87,21 @@ test.describe('Governança de IA', () => {
     // Nenhum nome de professor nem de aluno, nem turma, em lugar nenhum da tela.
     for (const nome of [...Object.values(escola.professoras), escola.aluno, escola.turmas.doB.nome, escola.turmas.doC.nome]) await expect(principal(page)).not.toContainText(nome)
 
-    const consumo = principal(page).getByRole('region', { name: 'Consumo do mês por função' })
-    await expect(consumo).toContainText('Assistente de ensino · Conversa e ferramentas')
-    await expect(consumo).toContainText('1.500 tokens · 2 execuções')
-    await expect(consumo).toContainText('Tutor · Tutor com o aluno')
-    await expect(consumo).toContainText('não é medido')
-    await expect(consumo).not.toContainText('R$')
-
     // O dado nominal de uma turma não abre aqui: mora no fim da página do Analista (X2, 4.0), e a Governança é só agregado.
     await expect(principal(page).getByRole('button', { name: 'Abrir dado nominal de uma turma' })).toHaveCount(0)
     expect(await horizontalOverflow(page)).toBe(0)
-    expect(await seriousViolations(page)).toEqual([])
+  })
+
+  test('o consumo do mês por função diz a parte de cada uma e o previsto da escola, sem token, real nem crédito', async ({ page, hasTouch, request }) => {
+    await entrar(page, request, hasTouch)
+    const consumo = principal(page).getByRole('region', { name: 'Consumo do mês por função' })
+    await expect(consumo).toContainText('Assistente de ensino · Conversa e ferramentas', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(consumo).toContainText('75% do que a IA trabalhou no mês · 2 execuções')
+    await expect(consumo).toContainText('Tutor · Tutor com o aluno')
+    await expect(consumo).toContainText('25% do que a IA trabalhou no mês · 1 execução')
+    await expect(consumo).toContainText('O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês.')
+    await expect(consumo).not.toContainText(/R\$|token|crédito/i)
+    // A acessibilidade desta página, com a tabela e o consumo, é conferida nos casos de 45 s (o filtro por estado e o tamanho nas duas larguras): o axe sozinho passa de 4 s aqui.
   })
 
   test('os quatro estados: carregando, erro com "Tentar de novo", com dado, e a escola sem nada gerado explica o que vai aparecer', async ({ page, hasTouch, request }) => {
@@ -306,11 +311,16 @@ test.describe('Registros › IA: o recomeço pela pessoa seguinte', () => {
 test.describe('Registros › IA: o tamanho nas duas larguras', () => {
   test('a página não rola, a tabela vira lista no celular, e o consumo fica ao lado da tabela no computador e embaixo dela no celular', async ({ page, hasTouch, request }) => {
     test.slow()
-    const { escola } = await entrar(page, request, hasTouch)
+    // A escola passou do previsto de IA (120%): a linha e o aviso de 100%, a frase mais longa, têm de caber nas duas larguras.
+    const { escola } = await entrar(page, request, hasTouch, true, true)
     if (escola === undefined) throw new Error('escola sem entregas')
     await expect(estadosDaLista(page)).toHaveCount(4, { timeout: SIGN_IN_TIMEOUT_MS })
     const consumo = principal(page).getByRole('region', { name: 'Consumo do mês por função' })
-    await expect(consumo).toContainText('1.500 tokens · 2 execuções')
+    await expect(consumo).toContainText('75% do que a IA trabalhou no mês · 2 execuções')
+    await expect(consumo).toContainText('IA do mês: 120% do previsto.')
+    const aviso = consumo.locator('[data-aviso="atencao"]')
+    await expect(aviso).toContainText('A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir.')
+    await expect(consumo).not.toContainText(/R\$|token|crédito/i)
 
     await paginaNaoRola(page)
     const largura = page.viewportSize()?.width ?? 0
@@ -320,6 +330,17 @@ test.describe('Registros › IA: o tamanho nas duas larguras', () => {
       .getByRole('radio')
       .evaluateAll((opcoes) => opcoes.filter((opcao) => opcao.scrollWidth > opcao.clientWidth).map((opcao) => opcao.textContent))
     expect(rotulosQueSaem).toEqual([])
+    // O valor escrito de cada barra do consumo ("75% do que a IA trabalhou no mês · 2 execuções") fica dentro do cartão, a 360 px também.
+    const valoresForaDoCartao = await consumo.locator('p > span.font-semibold').evaluateAll((valores) =>
+      valores.filter((valor) => valor.getBoundingClientRect().right > (valor.closest('.rounded-cartao')?.getBoundingClientRect().right ?? 0) + 0.5).map((valor) => valor.textContent),
+    )
+    expect(valoresForaDoCartao).toEqual([])
+    // O aviso de 100% fica dentro da largura da janela, com o texto inteiro à vista (nenhuma palavra cortada).
+    const caixaDoAviso = await aviso.boundingBox()
+    if (caixaDoAviso === null) throw new Error('o aviso de 100% precisa estar na tela')
+    expect(caixaDoAviso.x).toBeGreaterThanOrEqual(0)
+    expect(caixaDoAviso.x + caixaDoAviso.width).toBeLessThanOrEqual(largura + 0.5)
+    expect(await aviso.evaluate((caixa) => caixa.scrollWidth - caixa.clientWidth)).toBeLessThanOrEqual(0)
     const tabela = regiaoDaTabela(page)
     await expect(linhasDaTabela(tabela)).toHaveCount(4)
     if (largura < 768) {

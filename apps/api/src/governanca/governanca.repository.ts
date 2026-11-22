@@ -40,14 +40,14 @@ export interface EntregaDaGovernanca {
   readonly ano: number
 }
 
-/** O consumo de uma função no período, somado. Sem origem, sem aluno, sem entrada e sem saída. */
+/**
+ * O consumo de uma função no período, somado: as execuções e os tokens, que o serviço **converte na `parte`** e não devolve (camada-ia 6.0; RF12). Sem custo, sem origem, sem aluno, sem entrada e sem saída (o texto).
+ */
 export interface ConsumoDaFuncao {
   readonly funcao: ChaveDeFuncao
   readonly execucoes: number
   readonly tokensDeEntrada: number
   readonly tokensDeSaida: number
-  readonly custoMicros: number
-  readonly comEnvioExterno: number
 }
 
 export interface SuspensaoLida {
@@ -163,20 +163,26 @@ export class GovernancaRepository {
   }
 
   /**
-   * O consumo de IA da escola entre os dois dias (o primeiro entra, o segundo não), **somado por função** (D14, D64). `execucoes` conta **execuções**, não linhas: uma execução com a repetição por saída
+   * O consumo de IA da escola entre os dois dias (o primeiro entra, o segundo não), **somado por função** (D14, D64). O custo em reais não sai daqui: quem o lê é o `OrcamentoDoMesRepository`, e a coordenação só vê a porcentagem (D40). `execucoes` conta **execuções**, não linhas: uma execução com a repetição por saída
    * inválida ou a troca de modelo tem uma linha por chamada (camada-ia 1.0), e a linha sem execução vale uma.
-   * `consumo_ia` não tem ano letivo nem usuário; o índice `(escola_id, funcao, em)` serve a consulta. Não abre por
+   * `consumo_ia` não tem ano letivo nem usuário; o `consumo_ia_mes_idx` (`escola_id`, `em`, com o resto no `include`) serve a consulta. Não abre por
    * origem nem por aluno: `regra_fixa` com `aluno_id` marcaria quem caiu no encaminhamento da D36.
    */
   consumoPorFuncao(desde: string, ate: string): Promise<ConsumoDaFuncao[]> {
+    return this.consultaDoConsumoPorFuncao(desde, ate)
+  }
+
+  /**
+   * A consulta do `consumoPorFuncao`, sem executá-la: o `EXPLAIN` do teste lê o plano **desta** consulta (camada-ia 6.0; Tech Spec, seção 7c). Só lê colunas do `consumo_ia_mes_idx` (`escola_id`, `em` e o `include` dele),
+   * então a soma do mês sai do índice, sem a tabela.
+   */
+  consultaDoConsumoPorFuncao(desde: string, ate: string) {
     return this.banco
       .select({
         funcao: consumoIa.funcao,
         execucoes: sql<number>`(count(distinct ${consumoIa.execucaoId}) + count(*) filter (where ${consumoIa.execucaoId} is null))::int`,
         tokensDeEntrada: sql<number>`coalesce(sum(${consumoIa.tokensDeEntrada}), 0)::int`,
         tokensDeSaida: sql<number>`coalesce(sum(${consumoIa.tokensDeSaida}), 0)::int`,
-        custoMicros: sql<number>`coalesce(sum(${consumoIa.custoMicros}), 0)::float8`,
-        comEnvioExterno: sql<number>`count(*) filter (where ${consumoIa.envioExterno})::int`,
       })
       .from(consumoIa)
       .where(and(eq(consumoIa.escolaId, requireEscolaId()), gte(consumoIa.em, this.#inicioDoDia(desde)), lt(consumoIa.em, this.#inicioDoDia(ate))))

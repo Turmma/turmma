@@ -4,6 +4,7 @@ import { paginationQuerySchema } from '../estrutura/pagination.js'
 import { serieSchema } from '../estrutura/serie.js'
 import { AGENTES, CHAVES_DE_FUNCAO } from '../time/funcoes.js'
 import { chaveDeFuncaoSchema, funcaoDoTimeSchema } from '../time/time.js'
+import type { SituacaoDoOrcamento } from './orcamento-de-ia.js'
 
 /**
  * A governança de IA da coordenação (MVP, A5; D9, D45, D60, D64; regra 70, itens 5, 6, 8 e 9): o que a IA gerou e se uma
@@ -96,28 +97,42 @@ export type FuncaoDaGovernancaResponse = FuncaoDaGovernanca
 export const consumoQuerySchema = z.strictObject({ mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional() })
 export type ConsumoQuery = z.infer<typeof consumoQuerySchema>
 
-/**
- * O consumo somado: execuções (cada uma pode ter mais de uma chamada ao modelo: a repetição por saída inválida e a troca de modelo), tokens de entrada e de saída, custo e quantas chamadas saíram para provedor
- * externo. O custo é em **milionésimos de real** (`custoMicros`), inteiro, para a soma não perder centavo.
- */
-export const consumoSomadoSchema = z.strictObject({
-  execucoes: z.number().int().nonnegative(),
-  tokensDeEntrada: z.number().int().nonnegative(),
-  tokensDeSaida: z.number().int().nonnegative(),
-  custoMicros: z.number().int().nonnegative(),
-  comEnvioExterno: z.number().int().nonnegative(),
-})
-export type ConsumoSomado = z.infer<typeof consumoSomadoSchema>
+/** Como está o orçamento de IA do mês, para a coordenação (camada-ia 6.0; D40): o mesmo `situacao` da Operação, sem valor, sem teto e sem real. */
+const situacaoDoOrcamentoSchema = z.enum(['definido', 'sem_orcamento', 'sem_aluno_ativo', 'sem_retrato'] satisfies readonly SituacaoDoOrcamento[])
 
 /**
- * Resposta de `GET /v1/governanca/consumo` (D14, D38): o consumo do mês, total e por função, e o pacote do Tutor (as
- * trocas do mês contra o pacote configurado, somando as turmas). **Por função, nunca por pessoa**: não existe consumo
- * por professor, em tela nenhuma nem no banco (D64).
+ * O orçamento do mês como a coordenação o lê (RF9, RF12; D40: nada é cortado e nada é dito em reais): a `situacao`, a `porcentagem` do previsto que já foi usada (inteira, para baixo; **só** em `definido`) e o
+ * `aviso`, o limiar já cruzado no mês corrente (80 ou 100; nulo no mês fechado e fora de `definido`). Nenhum valor por aluno, teto, custo nem número de alunos sai por aqui: é a conta do servidor, e a tela só a mostra.
+ */
+export const orcamentoDoConsumoSchema = z
+  .strictObject({
+    situacao: situacaoDoOrcamentoSchema,
+    porcentagem: z.number().int().nonnegative().nullable(),
+    aviso: z.union([z.literal(80), z.literal(100)]).nullable(),
+  })
+  // Porcentagem e aviso só existem em `definido`: nas outras situações a tela diz por que não há número, e a resposta que traz um número ali é recusada.
+  .refine(({ situacao, porcentagem, aviso }) => (situacao === 'definido' ? porcentagem !== null : porcentagem === null && aviso === null), { message: 'porcentagem e aviso só valem em `definido`' })
+export type OrcamentoDoConsumo = z.infer<typeof orcamentoDoConsumoSchema>
+
+/**
+ * O que uma função da IA trabalhou no mês: a `parte` (0 a 100, inteira) é a fatia dela nos tokens do mês da escola, e `execucoes` conta execuções (cada uma pode ter mais de uma chamada ao modelo: a repetição por
+ * saída inválida e a troca de modelo). **Sem token e sem custo**: a coordenação não lê o número bruto (RF12).
+ */
+export const consumoDaFuncaoSchema = z.strictObject({
+  funcao: chaveDeFuncaoSchema,
+  parte: z.number().int().min(0).max(100),
+  execucoes: z.number().int().nonnegative(),
+})
+export type ConsumoDaFuncaoDoMes = z.infer<typeof consumoDaFuncaoSchema>
+
+/**
+ * Resposta de `GET /v1/governanca/consumo` (D14, D38, D40; camada-ia 6.0): o orçamento do mês, a parte de cada função e o pacote do Tutor (as trocas do mês contra o pacote configurado, somando as turmas).
+ * **Por função, nunca por pessoa**: não existe consumo por professor, em tela nenhuma nem no banco (D64). **Sem reais e sem tokens**: o schema é estrito, e `tokens*` e `custoMicros` são recusados.
  */
 export const consumoResponseSchema = z.strictObject({
   mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-  total: consumoSomadoSchema,
-  porFuncao: z.array(consumoSomadoSchema.extend({ funcao: chaveDeFuncaoSchema }).strict()).max(CHAVES_DE_FUNCAO.length),
+  orcamento: orcamentoDoConsumoSchema,
+  porFuncao: z.array(consumoDaFuncaoSchema).max(CHAVES_DE_FUNCAO.length),
   tutor: z.strictObject({
     trocasNoMes: z.number().int().nonnegative(),
     pacoteDoMes: z.number().int().nonnegative(),
@@ -126,3 +141,12 @@ export const consumoResponseSchema = z.strictObject({
   }),
 })
 export type ConsumoResponse = z.infer<typeof consumoResponseSchema>
+
+/**
+ * A fatia de uma função nos tokens do mês da escola, em % inteira (0 a 100), arredondada ao mais próximo: a soma das funções fica a ±1 por função de 100. **Sem token no mês, zero** em todas (nunca divisão por
+ * zero). É a conta do servidor; a tela só mostra o número.
+ */
+export function parteDosTokens(tokensDaFuncao: number, tokensDoMes: number): number {
+  if (tokensDoMes <= 0) return 0
+  return Math.round((tokensDaFuncao * 100) / tokensDoMes)
+}

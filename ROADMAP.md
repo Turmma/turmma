@@ -6,7 +6,7 @@ O alvo é o sistema inteiro, não um MVP fatiado, porque a venda acontece em reu
 coordenação e em assembleia de pais, e o que convence é o fluxo completo. Um pedaço não
 vende.
 
-**A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 com a X6 parcial, F18, F6, F6b, F7 mínima (rubrica), F11 mínima, trio da F12
+**A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 (F5a e F5b) com a X6 parcial, F18, F6, F6b, F7 mínima (rubrica), F11 mínima, trio da F12
 (Auditoria, Conformidade, Denúncias), portal da família (F19) e F9, nesta ordem de construção. O Tutor fica pronto e
 alinhado antes da entrada da escola, mas desligado na escola até a Turmma liberá-lo, por chave no painel da Operação (D84). Ficam fora: o resto de F7, F11 e F12,
 F17, F14, F15 e F16.
@@ -521,7 +521,7 @@ dela, e não as refazem. PRD em `tasks/prd-reengenharia-continuacao/prd.md`.
 filas separadas (42.0, 47.0); o limite de tokens por minuto com a degradação da regra 80.4 e as métricas de IA (49.0); a
 subida que recusa provedor sem processamento no Brasil, e o gateway que recusa, a cada chamada, a que leva texto de aluno
 (50.0, D62); o prazo de toda chamada da web, com "Tentar de novo", e a tela de falha na raiz (52.0, 56.0); e o Redis fora
-no segundo fator e na escolha de escola (54.0). O roteamento para o provedor de reserva continua no F5.
+no segundo fator e na escolha de escola (54.0). O roteamento para o provedor de reserva continua na F5 (F5b, no corte de 21/11/2026).
 
 **O resto vai para a fase dona** (mesma decisão). Os números são os da X5 (`tasks/prd-reengenharia/tasks.md`), com o desenho
 nos `onda-<n>.md`, a conferir contra o código quando a tarefa partir:
@@ -608,7 +608,7 @@ habilidade é revista nela.
 **Pronto quando:** o material é classificado por habilidade da BNCC e a geração usa isso; a coordenação corrige e a correção vence;
 e a coordenação vê as habilidades da série sem material.
 
-## F5 — `camada-ia` [~]
+## F5a — `camada-ia` [~]
 **Depende de:** F0 · **paralelo com F1–F4**; o gateway vem da X6
 
 Conferido contra o código em 24/10/2026. **Já existe** (A2, X5): a porta `LLMProvider`; o adaptador OpenAI-compatível, que atende o Ollama e o
@@ -627,12 +627,36 @@ operação (D76); a avaliação de modelos de `docs/avaliacao-de-modelos.md` exe
 eliminatórios da seção 3.1 e o principal e a reserva registrados (D37); e, se o teste de carga pedir, cache e
 streaming simulado no adaptador falso.
 
-**Pronto quando:** com o limite estourado, o pedido interativo espera e degrada em vez de falhar (com a X6);
+**Corte de 21/11/2026 (Joaquim):** a lista da F5 tinha 13 tarefas, uma acima do teto, e a última espera as chaves de teste
+dos finalistas. A **F5a** (esta, `tasks/prd-camada-ia/`) fica com o custo e o orçamento: o custo em reais de cada chamada,
+numa linha só dela; o valor de IA por aluno e o teto de segurança por rede e por escola, definidos pela Operação; o lote
+que espera acima do teto; os avisos de 80% e 100%; o uso de IA na aba Uso da Operação; e "IA do mês: N% do previsto" na
+coordenação. O provedor de reserva, o roteamento por soberania em cada chamada, o custo da execução interrompida e a
+avaliação dos modelos foram para a **F5b**.
+
+**Pronto quando (F5a):** a escola tem orçamento de IA e custo em reais por chamada; acima do teto de segurança só o lote
+espera; a Operação vê o uso de IA de cada escola; e a coordenação vê a porcentagem do previsto, sem reais nem tokens.
+
+**Pronto quando (a F5 inteira, com a F5b):** com o limite estourado, o pedido interativo espera e degrada em vez de falhar (com a X6);
 teste prova que prompt com texto de aluno não sai para provedor fora do Brasil; a escola tem teto e custo em
 reais; e a avaliação de modelos foi executada, com principal e reserva registrados (D37, D62).
 
+## F5b — `reserva-e-avaliacao` [ ]
+**Depende de:** F5a; as chaves de teste dos finalistas, que são do Joaquim (`tasks/prd-reserva-e-avaliacao/prd.md` §10)
+
+Saiu da F5 no corte de 21/11/2026 (Joaquim), com o PRD aprovado e a Tech Spec aprovada lá (`tasks/prd-reserva-e-avaliacao/`,
+com os números de RF e de seção da F5, e o roteiro da abertura em `abertura.md`): o provedor de reserva (D29), aprovado por
+tarefa e modelo, conferido na subida como o principal (D62) e usado na queda e na falta de vaga; o roteamento por soberania
+em cada chamada; o custo da execução interrompida, uma linha por destino; a fase `reserva` da carga; e a avaliação dos
+modelos executada, com o principal e a reserva registrados na D37 revista e as AIAs revistas. As tarefas que a F5 escreveu
+para isso (a 9.0 à 13.0) estão em `rascunho-das-tarefas/`.
+
+**Pronto quando:** teste prova que prompt com texto de aluno não sai para provedor fora do Brasil, também na reserva; com o
+principal fora, a reserva aprovada atende; e a avaliação de modelos foi executada, com principal e reserva registrados
+(D37, D62).
+
 ## F6 — `avaliacao-e-correcao` [ ]
-**Depende de:** F4, F4b (o diagnóstico por habilidade passa a ser BNCC), F5
+**Depende de:** F4, F4b (o diagnóstico por habilidade passa a ser BNCC), F5a, F5b
 
 Conferido contra o código em 24/10/2026. **Já existe** (A3, X3, X5): atividade objetiva a partir do material, com página citada; gabarito que
 nunca vai ao aluno; aplicação e encerramento, com a flag `avaliativa` travando o Tutor; correção pela conta do

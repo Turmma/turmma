@@ -18,6 +18,7 @@ import {
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 import type { CicloDeExecucao } from '../../../../api/ciclo-de-execucao'
 import { createTabStore } from '../../../../api/tab-store'
+import { lidoPeloContrato } from '../../../../api/contrato/resposta-fora-do-contrato'
 import { authedGet, authedRequest } from '../../../../api/sessao'
 
 /**
@@ -86,10 +87,13 @@ export const primeiraPaginaDoResumoQueryOptions = queryOptions({
   queryFn: ({ signal }) => readPaginaDoResumo(undefined, signal),
 })
 
-/** O consumo do mês corrente, somado por função. */
+/**
+ * O consumo do mês corrente: o orçamento (`IA do mês: N% do previsto`), a parte de cada função e o pacote do Tutor, sem token e sem real (camada-ia 6.0). A resposta que o
+ * contrato não reconhece (a web antiga com a API nova, ou o contrário) é `RespostaForaDoContrato`, e a tela diz "Atualize a página".
+ */
 export const consumoQueryOptions = queryOptions({
   queryKey: [...GOVERNANCA_QUERY_KEY, 'consumo'],
-  queryFn: ({ signal }) => authedGet(`${CAMINHO_DA_GOVERNANCA}/consumo`, consumoResponseSchema, signal),
+  queryFn: ({ signal }) => authedGet(`${CAMINHO_DA_GOVERNANCA}/consumo`, lidoPeloContrato(consumoResponseSchema), signal),
 })
 
 /** Os três agentes e as funções, com a autonomia em português comum e a suspensão vigente na escola. */

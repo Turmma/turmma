@@ -18,6 +18,7 @@ import {
   suspenderFuncaoRequestSchema,
   consumoResponseSchema,
   funcoesDaGovernancaResponseSchema,
+  parteDosTokens,
   resumoDaGovernancaResponseSchema,
 } from './governanca.js'
 import { execucaoInputSchema, FUNCAO_DA_TAREFA_DE_IA, TAREFAS_DE_IA } from '../time/execucao.js'
@@ -75,15 +76,53 @@ describe('governança da coordenação: agregada, sem professor (D45, D64; regra
   })
 
   it('o consumo é por função, com o pacote do Tutor; não existe consumo por professor nem por aluno', () => {
-    const somado = { execucoes: 120, tokensDeEntrada: 48000, tokensDeSaida: 21000, custoMicros: 0, comEnvioExterno: 0 }
-    const consumo = { mes: '2026-10', total: somado, porFuncao: [{ ...somado, funcao: 'tutor_com_o_aluno' }], tutor: { trocasNoMes: 412, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 } }
+    const consumo = {
+      mes: '2026-10',
+      orcamento: { situacao: 'definido', porcentagem: 62, aviso: null },
+      porFuncao: [{ funcao: 'tutor_com_o_aluno', parte: 41, execucoes: 128 }],
+      tutor: { trocasNoMes: 412, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 },
+    }
     expect(consumoResponseSchema.safeParse(consumo).success).toBe(true)
     for (const campo of [...CAMPOS_DE_PROFESSOR, { porAluno: [{ alunoId: UM_ID, trocas: 60 }] }, { porUsuario: [] }]) {
       expect(consumoResponseSchema.safeParse({ ...consumo, ...campo }).success, Object.keys(campo)[0]).toBe(false)
-      expect(consumoResponseSchema.safeParse({ ...consumo, porFuncao: [{ ...somado, funcao: 'tutor_com_o_aluno', ...campo }] }).success, Object.keys(campo)[0]).toBe(false)
+      expect(consumoResponseSchema.safeParse({ ...consumo, porFuncao: [{ funcao: 'tutor_com_o_aluno', parte: 41, execucoes: 128, ...campo }] }).success, Object.keys(campo)[0]).toBe(false)
     }
     expect(consumoQuerySchema.safeParse({ mes: '2026-10' }).success).toBe(true)
     for (const consulta of [{ mes: '2026-13' }, { mes: 'outubro' }, { professorId: UM_ID }, { alunoId: UM_ID }]) expect(consumoQuerySchema.safeParse(consulta).success, JSON.stringify(consulta)).toBe(false)
+  })
+
+  it('a coordenação não lê tokens nem reais: o schema estrito recusa `tokens*`, `custoMicros` e o resto do orçamento, no topo, na função e no orçamento (RF12, D40)', () => {
+    const consumo = {
+      mes: '2026-10',
+      orcamento: { situacao: 'definido', porcentagem: 62, aviso: 80 },
+      porFuncao: [{ funcao: 'tutor_com_o_aluno', parte: 41, execucoes: 128 }],
+      tutor: { trocasNoMes: 412, pacoteDoMes: 9600, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 },
+    }
+    const proibidos = [{ tokens: 1 }, { tokensDeEntrada: 1 }, { tokensDeSaida: 1 }, { custoMicros: 1 }, { custo: 1 }, { total: { execucoes: 1, tokensDeEntrada: 1, tokensDeSaida: 1, custoMicros: 0, comEnvioExterno: 0 } }, { comEnvioExterno: 1 }, { valorPorAlunoMicros: 5_000_000 }, { tetoPercentual: 200 }, { alunosAtivos: 100 }]
+    for (const campo of proibidos) {
+      expect(consumoResponseSchema.safeParse({ ...consumo, ...campo }).success, `topo ${Object.keys(campo)[0] ?? ''}`).toBe(false)
+      expect(consumoResponseSchema.safeParse({ ...consumo, porFuncao: [{ ...consumo.porFuncao[0], ...campo }] }).success, `função ${Object.keys(campo)[0] ?? ''}`).toBe(false)
+      expect(consumoResponseSchema.safeParse({ ...consumo, orcamento: { ...consumo.orcamento, ...campo } }).success, `orçamento ${Object.keys(campo)[0] ?? ''}`).toBe(false)
+    }
+  })
+
+  it('a situação, a porcentagem inteira e o aviso de 80 ou 100: o resto é recusado; a parte vai de 0 a 100', () => {
+    const base = { mes: '2026-10', porFuncao: [], tutor: { trocasNoMes: 0, pacoteDoMes: 0, trocasPorDiaPorAluno: 60, trocasPorMesPorAluno: 300 } }
+    const com = (orcamento: unknown) => consumoResponseSchema.safeParse({ ...base, orcamento }).success
+    for (const situacao of ['sem_orcamento', 'sem_aluno_ativo', 'sem_retrato']) expect(com({ situacao, porcentagem: null, aviso: null }), situacao).toBe(true)
+    expect(com({ situacao: 'definido', porcentagem: 0, aviso: null })).toBe(true)
+    expect(com({ situacao: 'definido', porcentagem: 120, aviso: 100 })).toBe(true)
+    expect(com({ situacao: 'definido', porcentagem: 80, aviso: 80 })).toBe(true)
+    for (const invalido of [{ situacao: 'zerado', porcentagem: null, aviso: null }, { situacao: 'definido', porcentagem: 62.5, aviso: null }, { situacao: 'definido', porcentagem: -1, aviso: null }, { situacao: 'definido', porcentagem: 90, aviso: 90 }, { situacao: 'definido', porcentagem: 62 }, { situacao: 'definido', porcentagem: null, aviso: null }, { situacao: 'sem_orcamento', porcentagem: 10, aviso: null }, { situacao: 'sem_retrato', porcentagem: null, aviso: 80 }]) {
+      expect(com(invalido), JSON.stringify(invalido)).toBe(false)
+    }
+    const comParte = (parte: number) => consumoResponseSchema.safeParse({ ...base, orcamento: { situacao: 'definido', porcentagem: 0, aviso: null }, porFuncao: [{ funcao: 'tutor_com_o_aluno', parte, execucoes: 1 }] }).success
+    expect([comParte(0), comParte(100), comParte(101), comParte(-1), comParte(40.5)]).toEqual([true, true, false, false, false])
+  })
+
+  it('a parte é a fatia da função nos tokens do mês, arredondada ao mais próximo; sem token no mês é zero, nunca divisão por zero', () => {
+    expect([parteDosTokens(1, 3), parteDosTokens(2, 3), parteDosTokens(41, 100), parteDosTokens(100, 100)]).toEqual([33, 67, 41, 100])
+    expect([parteDosTokens(0, 0), parteDosTokens(5, 0)]).toEqual([0, 0])
   })
 })
 

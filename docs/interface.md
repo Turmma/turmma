@@ -563,7 +563,18 @@ de hoje (A5), que o F12 completa:
 - desempenho por série, turma e habilidade
 - alertas em agregado, como hipótese com contexto: média fora da curva, habilidade em
   queda, aluno em risco. Nada de ranking de professor
-- consumo de IA do mês contra o orçamento
+- **"IA do mês: N% do previsto"** (camada-ia, 6.0; RF9 e RF12; D40): uma linha, com a porcentagem do previsto para a IA que a
+  escola já usou no mês, **sem real, sem token e sem crédito**, e as trocas dos alunos com o Tutor contra o pacote. A conta é do
+  servidor; a tela só a escreve. Os textos, por estado (a Governança diz os mesmos, acima do consumo por função):
+  - `definido`: "IA do mês: 62% do previsto."
+  - a 80%: "A escola já usou 80% do previsto para a IA neste mês. Nada é cortado."
+  - a 100%: "A escola passou do previsto para a IA neste mês. Nada é cortado, e a equipe Turmma vai conversar com vocês se isso se repetir."
+  - `sem_orcamento`: "O previsto de IA da escola ainda não foi definido. A equipe Turmma define com vocês."
+  - `sem_aluno_ativo`: "A porcentagem aparece quando a escola tiver aluno ativo."
+  - `sem_retrato` (o mês fechado antes de a medição existir, e só no `?mes=` da API): "Este mês fechou antes de o previsto de IA ser medido, por isso não há porcentagem."
+  - carregando: "Carregando o consumo do mês…"; erro: "Não foi possível carregar." com "Tentar de novo"; a web antiga com a API nova:
+    "Atualize a página: esta tela ficou desatualizada em relação ao Turmma.", **sem** "Tentar de novo", que traria a mesma resposta.
+  A porcentagem e o aviso são texto, o aviso leva o glifo do alerta (não é só cor), e nada depende de hover. A 360 px a linha quebra, sem rolagem horizontal
 
 **Analista** é o **Analista de desempenho escolar**: resumo de segunda de manhã e alertas na hora,
 em agregado; recorte com um professor só conta como nominal (D32 e D45 revistas). Hoje existe o
@@ -713,7 +724,10 @@ item Agentes e o item Privacidade de hoje.
   cada função faz sozinha e o que espera aprovação, em português comum (D9 revista). É a tela para
   apontar quando alguém pergunta "o que essa IA faz sozinha?". Cada função de alto risco mostra o
   **resumo da avaliação de impacto**, o que ela **não** faz e o botão de **suspender só aquela
-  função**, sem desligar o resto (D60 revista; P19)
+  função**, sem desligar o resto (D60 revista; P19). Depois da tabela, **"Consumo do mês por função"** (camada-ia, 6.0): a linha
+  "IA do mês: N% do previsto" do Painel e, por função, a **parte** dela, escrita ao lado do nome: "Assistente de ensino: 41% do que a
+  IA trabalhou no mês · 128 execuções". A parte é a fatia da função no trabalho da IA do mês (0 a 100, e a soma fecha em 100 com
+  folga de arredondamento; sem trabalho no mês, 0). **Sem token e sem real** (D40). Mês sem execução: "Nenhuma função trabalhou neste mês"
 - **Pedidos** e **Privacidade** recebem as quatro abas de "Seus dados e a lei", do F3: os pedidos
   dos titulares numa, e retenção, empresas e incidentes na outra. O que cada uma faz não muda, e é
   o que o item seguinte descreve
@@ -1892,7 +1906,7 @@ prova isso (RF6 da X1).
 | `CountBadge` (N) | Pílula na face da família, texto `sobre-cor` em 700, tabular, de 24 px (produto: um tamanho só) | O que ele conta é texto escondido depois do número (produto: não `role="img"`, para a aba e a linha lerem o mesmo texto). Sem item, não aparece, e não pisca |
 | `Alert` (N) | Canto 12, borda 2 na `borda` da família, fundo `claro`, sem degrau. Glifo num círculo de 28, uma forma por tom. Título em `t-cartao`; corpo em 15 / 21 px, `tinta`. Informação azul, atenção amarelo, erro vermelho, certo verde | `role="alert"` só no erro, e só no texto dele (a ação fica fora). Os outros três tons não têm papel vivo (produto: o `status` do mockup em texto parado é ruído). Não fecha |
 | `Banner` (R) | O aviso permanente, que não fecha (D8), na família `info` | `role="note"`. Não tem botão |
-| `ProgressBar` (R) | Trilho em `ia-cx` (produto), de 12 px e ponta redonda, com o enchimento em `sutil`: a mesma cor nos dois, vazia ou cheia. O texto ("2 de 8") vai fora. Só mede o que tem fim | Só desenho, `aria-hidden` (produto): o valor está escrito ao lado, e `role="progressbar"` o diria duas vezes. Barra de acerto é neutra |
+| `ProgressBar` (R) | Trilho em `ia-cx` (produto), de 12 px e ponta redonda, com o enchimento em `sutil`: a mesma cor nos dois, vazia ou cheia. O texto ("2 de 8") vai fora, e quebra de linha dentro do cartão quando não cabe, a 360 px também. Só mede o que tem fim | Só desenho, `aria-hidden` (produto): o valor está escrito ao lado, e `role="progressbar"` o diria duas vezes. Barra de acerto é neutra |
 | `StatCard` (R) | O valor em `t-numero`, o rótulo em `t-selo`, `sutil` | Sem variação "boa" ou "ruim" em cor |
 | As de `components/ui/ai/` (R) | O avatar da 9.7; o nome da função em 15 px e 700; o selo "IA" neutro; o chip de página, pílula de 28 px com borda de 2 px e sem degrau (corre dentro da linha de texto); o chip "da web", com a borda tracejada, que **nasce com a busca na web (F9, D68)**: hoje nenhuma citação vem da web, e a peça não desenha o que não tem dado; a linha de quem aprovou, em `ok`. As duas opções da `ChoicePrompt` são uma constante só: borda de 2 px e degrau `borda`, nenhuma na face do primário nem na do oficial. A `PromptInput` mede o texto de exemplo, quando vazia, num espelho fora do campo (o campo em uso nunca é escrito, e o desfazer do navegador fica inteiro), para ele aparecer inteiro a 360 px. O "Tentar de novo" do `QueueAlert` é `secundario`: é uma tentativa dentro da conversa, que não decide nada e convive com o primário da caixa de pedido; o `ErrorState` de página, que é a única ação da tela, usa o primário laranja | O chip abre por clique e por teclado |
 

@@ -28,7 +28,7 @@ export function ProgressBar({ rotulo, valor, maximo = 100, texto, detalhe }: Pro
     <div className="flex min-w-0 flex-col gap-1.5">
       <p className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
         <span className="min-w-0 font-medium break-words text-tinta">{rotulo}</span>
-        <span className="shrink-0 font-semibold text-tinta tabular-nums">{texto ?? percentualDaBarra(valor, maximo)}</span>
+        <span className="min-w-0 font-semibold break-words text-tinta tabular-nums">{texto ?? percentualDaBarra(valor, maximo)}</span>
       </p>
       <svg aria-hidden="true" focusable="false" className="block h-3 w-full" preserveAspectRatio="none">
         <rect width="100%" height="100%" rx="6" className="fill-ia-cx" />
