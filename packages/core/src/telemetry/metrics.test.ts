@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import type { DatabasePool } from '../db/pool.js'
 import { loadTelemetryConfig } from './start.js'
-import { METRICS, METRICS_WITH_ESCOLA, httpMetricsMiddleware, observeDatabasePool, observeRedis, observeInsuranceLimiter, ROTA_NAO_ENCONTRADA, requestRoute } from './metrics.js'
+import { METRICS, METRICS_WITH_ESCOLA, httpMetricsMiddleware, observeDatabasePool, observeRedis, observeInsuranceLimiter, observeProvedorDeReserva, ROTA_NAO_ENCONTRADA, requestRoute } from './metrics.js'
 
 const ID = '0190f5a0-0000-7000-8000-0000000000c1'
 
@@ -116,6 +116,21 @@ describe('limite.seguro_ativo', () => {
     login.proporcaoDoSeguro = 0
     limite.proporcaoDoSeguro = 0.5
     expect((await medidor.pontos(METRICS.seguroAtivo)).map((ponto) => ponto.valor)).toEqual([0.5])
+  })
+})
+
+describe('ia.provedor_de_reserva.conferido', () => {
+  it('1 com a reserva conferida e 0 sem ela, no rótulo `provedor`, e a série acompanha a conferência sem registrar de novo', async () => {
+    let conferida = false
+    observeProvedorDeReserva(medidor.medidor, 'reserva-contratada', () => conferida)
+    expect(await medidor.pontos('ia.provedor_de_reserva.conferido')).toEqual([{ atributos: { provedor: 'reserva-contratada' }, valor: 0 }])
+    conferida = true
+    expect(await medidor.pontos('ia.provedor_de_reserva.conferido')).toEqual([{ atributos: { provedor: 'reserva-contratada' }, valor: 1 }])
+  })
+
+  it('não leva escola, e o nome é o que o alerta lê', () => {
+    expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.provedorDeReservaConferido)
+    expect(METRICS.provedorDeReservaConferido).toBe('ia.provedor_de_reserva.conferido')
   })
 })
 

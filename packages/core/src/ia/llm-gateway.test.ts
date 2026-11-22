@@ -1699,7 +1699,7 @@ describe('createLLMGateway: fora de `local`, o modelo da reserva precisa de pre�
 
 describe('a identidade do adaptador: a reserva falsa é outro provedor para o balde, o rótulo, o disjuntor e o preço (reserva-e-avaliacao, 1.0)', () => {
   const TOKENS = { entrada: 100, saida: 20 }
-  const CONFIG: LLMConfig = { adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 100, replicas: 1, tokensFalsos: TOKENS, reserva: { adaptador: 'falso', identidade: 'falso-reserva' } }
+  const CONFIG: LLMConfig = { adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 100, replicas: 1, tokensFalsos: TOKENS, reserva: { adaptador: 'falso', identidade: 'falso-reserva', ambiente: 'local' } }
   const PRECO = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_000, saidaMicrosPorMilTokens: 1_000 }
   /** Os dois falsos têm o mesmo modelo, e o preço que o teste injeta é diferente para cada identidade. */
   const PRECOS: TabelaDePrecos = {

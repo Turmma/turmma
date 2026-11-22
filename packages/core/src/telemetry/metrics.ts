@@ -265,6 +265,11 @@ export const METRICS = {
    * do mês passou do teto de segurança). Sem escola, execução nem valor no rótulo.
    */
   loteAdiado: 'ia.lote.adiado',
+  /**
+   * 1 enquanto o contrato do provedor de reserva passa na D62 desta instância (`SoberaniaNaSubida` da reserva), 0 enquanto não passa (reserva-e-avaliacao, tarefa 2.0; RF1), por `provedor` (a
+   * `IA_RESERVA_PROVEDOR_ID`). **Só existe com reserva configurada**: sem ela a série não é publicada, e o alerta (`noDataState = OK`, sem `absent()`) não dispara. Em memória, por réplica.
+   */
+  provedorDeReservaConferido: 'ia.provedor_de_reserva.conferido',
 } as const
 
 /**
@@ -346,6 +351,13 @@ export function httpMetricsMiddleware(medidor: Meter): (requisicao: IncomingMess
     })
     proximo()
   }
+}
+
+/** `ia.provedor_de_reserva.conferido{provedor}`: 1 se a reserva passa na D62 desta instância, 0 se não. O chamador só a registra com reserva configurada. */
+export function observeProvedorDeReserva(medidor: Meter, provedor: string, conferida: () => boolean): void {
+  medidor
+    .createObservableGauge(METRICS.provedorDeReservaConferido, { description: '1 se o contrato do provedor de reserva passa na D62 desta instância, 0 se não, por provedor' })
+    .addCallback((observador) => observador.observe(conferida() ? 1 : 0, { provedor }))
 }
 
 /** Uso do pool do banco: conexões emprestadas agora e conexões descartadas desde o boot. */

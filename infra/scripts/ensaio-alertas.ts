@@ -78,6 +78,7 @@ export const REGRAS_PROVISIONADAS = {
   iaEsperaEstourada: 'educa-ia-espera-estourada-uma-escola',
   iaEsperaEstouradaEmVarias: 'educa-ia-espera-estourada-varias-escolas',
   iaProvedorFora: 'educa-ia-provedor-fora',
+  iaProvedorDeReserva: 'educa-ia-provedor-de-reserva',
   iaTokensAcimaDe70: 'educa-ia-tokens-acima-de-70',
   iaTokensAcimaDe80: 'educa-ia-tokens-acima-de-80',
   iaOrcamentoAos80: 'educa-ia-orcamento-80',

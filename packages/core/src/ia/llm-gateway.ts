@@ -44,6 +44,13 @@ export interface LLMGatewayDependencies {
    * nem desce de degrau.
    */
   readonly limiteDeTokens?: LimiteDeTokens
+  /**
+   * O limitador **da reserva** (F5b, 2.0): o `TokenLimiter` dela, com o contratado dela (`LLM_RESERVA_TOKENS_POR_MINUTO`) e os mesmos baldes por fila. Entregue ao gateway; quem o lê é o ramo sem vaga (7.0).
+   * Sem ele (reserva sem contratado, só no `local`, ou sem reserva) a reserva não tem balde.
+   */
+  readonly limiteDeTokensDaReserva?: LimiteDeTokens
+  /** A conferência da D62 **da reserva** (F5b, 2.0): a porta de `reservaElegivel`. Ausente vale não conferida, e a reserva não é elegível. Quem a lê é o roteamento (4.0). */
+  readonly soberaniaDaReserva?: DeclaracaoDeSoberania
   /** O modelo menor de cada perfil que tem o seu (`LLM_MODELO_MENOR_<PERFIL>`): o degrau depois da espera. O turno do Tutor nunca o usa. */
   readonly modelosMenores?: Readonly<Partial<Record<Perfil, string>>>
   /** O preço de cada modelo (`provedor:modelo`, com as vigências). Sem ele vale `PRECO_DOS_MODELOS`; o teste injeta a tabela com os preços que prova. */
@@ -624,6 +631,10 @@ export class LLMGateway implements LLMProvider {
 export interface LLMGatewayPorts {
   readonly precos?: TabelaDePrecos
   readonly limiteDeTokens?: LimiteDeTokens
+  /** O limitador da reserva (`LLMGatewayDependencies.limiteDeTokensDaReserva`). */
+  readonly limiteDeTokensDaReserva?: LimiteDeTokens
+  /** A conferência da D62 da reserva (`LLMGatewayDependencies.soberaniaDaReserva`). */
+  readonly soberaniaDaReserva?: DeclaracaoDeSoberania
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
   readonly suspensao: SuspensaoDeFuncao

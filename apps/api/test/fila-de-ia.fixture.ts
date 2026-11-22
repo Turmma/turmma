@@ -8,6 +8,7 @@ import {
   JobOutbox,
   JobOutboxRepository,
   runInContext,
+  SoberaniaNaSubida,
   systemClock,
   type Clock,
   type JanelaLetiva,
@@ -17,6 +18,7 @@ import {
   type JobExecution,
   type GenerationRequest,
   type GenerationResult,
+  type LimiteDeTokens,
   type LLMProvider,
   type LoggerBase,
   type Meter,
@@ -49,7 +51,7 @@ import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
 import { subirApi, type TestApi } from './test-api.js'
 import { LLM_PROVIDER } from '../src/ia/ia.module.js'
 import { WorkerModule } from '../src/worker.module.js'
-import { LIMITE_DE_TOKENS } from '../src/ia/ia-do-worker.module.js'
+import { LIMITE_DE_TOKENS, LIMITE_DE_TOKENS_DA_RESERVA, SOBERANIA_DA_RESERVA } from '../src/ia/ia-do-worker.module.js'
 import type { AppModuleOptions } from '../src/app.module.js'
 
 /** O modelo que o teste põe no lugar do falso: recebe o pedido que o gateway receberia e devolve a saída e a medição. */
@@ -97,6 +99,11 @@ const FILAS_POR_API = new WeakMap<TestApi, FilaDeIa>()
 
 /** Os tipos de job que o worker de IA da bancada consome: o que ela espera (`ociosa`) e o que ela descarta ao subir (`subir`) saem desta lista. */
 export const TIPOS_DE_JOB_DE_IA = ['ia.executar', 'ia.executar-lote']
+
+/** A conferência da reserva do `main-worker` (`null` sem reserva): a suíte da subida a lê aqui, porque só a bancada conhece o módulo da IA. */
+export function soberaniaDaReservaDe(contexto: INestApplicationContext): SoberaniaNaSubida | null {
+  return contexto.get<SoberaniaNaSubida | null>(SOBERANIA_DA_RESERVA, { strict: false })
+}
 
 /** Espera a bancada da API ficar ociosa: o que os fixtures que só têm a API (`execucaoTerminada`) usam. Sem bancada ligada a ela, falha em vez de passar em branco. */
 export async function esperarAFilaDeIa(api: TestApi): Promise<void> {
@@ -324,17 +331,33 @@ export class FilaDeIa {
    * Sobe o `WorkerModule` de verdade, o do `main-worker`, como contexto de aplicação (sem HTTP, sem porta), e devolve o que o teste confere: os
    * controllers, se ele resolve o provedor e se o healthcheck de batimento foi escrito. O batimento vai para um arquivo do teste, e não para o `/tmp/educa-batimento`.
    */
-  static async subirOMainWorker(opcoes: { readonly semTokensPorMinuto?: true } = {}): Promise<{
+  static async subirOMainWorker(opcoes: { readonly semTokensPorMinuto?: true; readonly reserva?: { readonly tokensPorMinuto?: number } } = {}): Promise<{
     readonly controllers: number
     readonly temProvedor: boolean
     /** O limite de tokens do módulo (49.0): o nome da classe, ou `null` sem `LLM_TOKENS_POR_MINUTO`. */
     readonly limiteDeTokens: string | null
     /** O provedor do worker leu o limite do módulo, e não outro: é o que o gateway reserva antes de cada chamada. */
     readonly gatewayReservaNele: boolean
+    /** O limitador do principal, o objeto que o módulo montou (ausente sem `LLM_TOKENS_POR_MINUTO`). */
+    readonly limiteDoPrincipal: LimiteDeTokens | null
+    /** O limitador da reserva (F5b, 2.0), o objeto que o módulo montou: `null` sem reserva, ou sem `LLM_RESERVA_TOKENS_POR_MINUTO`. */
+    readonly limiteDaReserva: LimiteDeTokens | null
+    /** O gateway leu o limitador da reserva do módulo, e não o do principal nem outro. */
+    readonly gatewayTemOLimiteDaReserva: boolean
+    /** A conferência da D62 da reserva que o módulo montou, ou `null` sem reserva. */
+    readonly soberaniaDaReserva: { readonly conferida: boolean } | null
+    /** O gateway leu a conferência da reserva do módulo (a porta de `reservaElegivel`), e não outra. */
+    readonly gatewayTemASoberaniaDaReserva: boolean
     readonly fechar: () => Promise<void>
   }> {
-    const { tokensPorMinuto: _tokens, ...iaSemTokens } = testConfig({}).ia
-    const config = testConfig({})
+    const { reserva } = opcoes
+    // A reserva falsa, `falso-reserva`, com o contratado dela quando o caso o diz: o `local` a aceita sem ele.
+    const sobreposicao: TestOverrides =
+      reserva === undefined
+        ? {}
+        : { ambiente: { IA_RESERVA_ADAPTADOR: 'falso', ...(reserva.tokensPorMinuto === undefined ? {} : { LLM_RESERVA_TOKENS_POR_MINUTO: String(reserva.tokensPorMinuto) }) } }
+    const config = testConfig(sobreposicao)
+    const { tokensPorMinuto: _tokens, ...iaSemTokens } = config.ia
     const ia = opcoes.semTokensPorMinuto === true ? iaSemTokens : config.ia
     const arquivo = join(mkdtempSync(join(tmpdir(), 'main-worker-')), 'batimento')
     const contexto = await NestFactory.createApplicationContext(
@@ -356,11 +379,18 @@ export class FilaDeIa {
       { logger: false },
     )
     const limite = contexto.get<{ constructor: { name: string } } | null>(LIMITE_DE_TOKENS, { strict: false })
-    const provedor = contexto.get<{ dependencias: { limiteDeTokens?: unknown } }>(LLM_PROVIDER, { strict: false })
+    const provedor = contexto.get<{ dependencias: { limiteDeTokens?: unknown; limiteDeTokensDaReserva?: unknown; soberaniaDaReserva?: unknown } }>(LLM_PROVIDER, { strict: false })
+    const limiteDaReserva = contexto.get<LimiteDeTokens | null>(LIMITE_DE_TOKENS_DA_RESERVA, { strict: false })
+    const soberaniaDaReserva = contexto.get<{ conferida: boolean } | null>(SOBERANIA_DA_RESERVA, { strict: false })
     return {
       controllers: FilaDeIa.controllersDe(contexto),
       limiteDeTokens: limite === null ? null : limite.constructor.name,
       gatewayReservaNele: provedor.dependencias.limiteDeTokens !== undefined && provedor.dependencias.limiteDeTokens === limite,
+      limiteDoPrincipal: limite as LimiteDeTokens | null,
+      limiteDaReserva,
+      gatewayTemOLimiteDaReserva: provedor.dependencias.limiteDeTokensDaReserva !== undefined && provedor.dependencias.limiteDeTokensDaReserva === limiteDaReserva,
+      soberaniaDaReserva,
+      gatewayTemASoberaniaDaReserva: provedor.dependencias.soberaniaDaReserva !== undefined && provedor.dependencias.soberaniaDaReserva === soberaniaDaReserva,
       temProvedor: (() => {
         try {
           contexto.get(LLM_PROVIDER, { strict: false })

@@ -93,6 +93,14 @@ reserva tem `TokenLimiter` próprio (os mesmos baldes por fila), e `LLM_RESERVA_
 fora do `local` com reserva configurada. Modelo da reserva sem preço recusa a subida, como o do principal (`createLLMGateway`, citando `LLM_RESERVA_MODELO[_<PERFIL>]`);
 entrada de `MODELOS_APROVADOS` com tarefa fora de `TAREFAS_DE_IA` quebra o teste da constante.
 
+**A conferência e o limitador da reserva no worker (2.0).** A conferência da reserva é a mesma classe do principal com a opção `daReserva` (`{ envio, tarefas }`): lê a chave da `IA_RESERVA_PROVEDOR_ID`, exige as
+categorias das tarefas que `tarefasAprovadasParaAReserva` devolve para a reserva e loga `ia.provedor_de_reserva.conferida`, `ia.provedor_de_reserva.conferencia_recusada` e `ia.provedor_de_reserva.conferencia_sem_banco` (só
+`provedorId`, `tentativas` e `codigo`, e o resumo do erro no sem banco: nunca o contrato nem a chave). O `IaDoWorkerModule` a provê como `SOBERANIA_DA_RESERVA` (`null` sem reserva) e o `TokenLimiter` dela como
+`LIMITE_DE_TOKENS_DA_RESERVA` (`null` sem reserva ou sem `LLM_RESERVA_TOKENS_POR_MINUTO`), do mesmo cliente Redis do principal, e os entrega ao gateway nas portas `soberaniaDaReserva` e `limiteDeTokensDaReserva`
+(`LLMGatewayPorts`): o roteamento (4.0 e 7.0) é quem as lê. O `CicloDoWorkerDeIa` só espera a conferência do principal. A elegibilidade precisa do ambiente, e o `main-worker` não o tem em outro lugar:
+`ReservaConfig.ambiente` o traz do `AMBIENTE` lido por `loadLLMConfig`. O alerta é `infra/grafana/alertas/ia-provedor-de-reserva.yaml` ("Provedor de reserva de IA não conferido"): `min by (provedor)
+(ia_provedor_de_reserva_conferido)` abaixo de 1 por 10 min, `noDataState: OK`, sem `absent()`.
+
 **A bancada.** `fila-de-ia.fixture.ts` ganha a montagem do gateway real com principal e reserva (`ScriptedAdapter` com envio
 externo, `provedorId` e suboperador próprios). Os cenários de roteamento e de compartilhamento usam essa montagem, e não
 `comModelo`, que troca o gateway inteiro.
@@ -103,7 +111,7 @@ externo, `provedorId` e suboperador próprios). Os cenários de roteamento e de 
 |---|---|
 | Campos tocados | `consumo_ia.provedor`, `consumo_ia.pelo_provedor_de_reserva` e `aluno_id`, já existentes; nenhum novo de pessoa |
 | `docs/lgpd.md` | a linha 99 nomeia `pelo_provedor_de_reserva` (contagem da Operação, a retenção da linha, fora do arquivo do titular porque o destino já está em `provedor`) e diz "a `IA_PROVEDOR_ID` ou a `IA_RESERVA_PROVEDOR_ID`", na tarefa que passa a gravar a coluna verdadeira |
-| Log | ids, códigos e o `provedorId` (`ia.geracao.provedor_de_reserva`, `ia.provedor_de_reserva.conferencia_recusada`); nunca a chave de API |
+| Log | ids, códigos e o `provedorId` (`ia.geracao.provedor_de_reserva`, `ia.provedor_de_reserva.conferencia_recusada`, `ia.provedor_de_reserva.conferencia_sem_banco`, `ia.provedor_de_reserva.conferida`); nunca a chave de API |
 | Envio externo | o de hoje; a reserva só recebe as tarefas aprovadas para ela; suboperador novo só depois do aviso às escolas (runbook) |
 | Retenção, titular, DTO | sem mudança; o compartilhamento lê `consumo_ia.provedor` |
 

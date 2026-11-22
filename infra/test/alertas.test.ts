@@ -250,6 +250,17 @@ describe('regras de alerta provisionadas', () => {
     expect(provedorFora.noDataState).toBe('OK')
     expect(NOMES_NO_PROMETHEUS.disjuntorDeIaAberto).toEqual(['ia_disjuntor_aberto'])
 
+    // reserva-e-avaliacao, tarefa 2.0: "Provedor de reserva de IA não conferido" é a conferência da D62 da reserva abaixo de 1 por 10 min, o menor valor entre as réplicas por provedor. `noDataState: OK` e nenhum
+    // `absent()`: sem reserva configurada a série não existe, e a ausência dela é o normal, e não um defeito.
+    const reservaNaoConferida = regraPorUid(REGRAS_PROVISIONADAS.iaProvedorDeReserva).regra
+    expect(reservaNaoConferida.for).toBe('10m')
+    expect(expressao(reservaNaoConferida)).toBe('min by (provedor) (ia_provedor_de_reserva_conferido)')
+    expect(expressao(reservaNaoConferida)).not.toMatch(/absent/)
+    expect(limiar(reservaNaoConferida)).toEqual({ type: 'lt', params: [1] })
+    expect(reservaNaoConferida.noDataState).toBe('OK')
+    expect(NOMES_NO_PROMETHEUS.provedorDeReservaConferido).toEqual(['ia_provedor_de_reserva_conferido'])
+    expect(expressao(reservaNaoConferida)).not.toMatch(/escola|usuario|execucao|aluno/)
+
     // camada-ia, tarefa 4.0: o uso do orçamento do mês, por escola, pelo maior valor entre as réplicas do worker-lote. O limiar está na expressão: `>= 0.8` e `>= 1` (o aviso da coordenação vale `>=`) e `> 1` no teto (o lote
     // só espera com o custo **acima** dele). `noDataState: OK`: escola sem orçamento ou sem aluno ativo não tem série. Nenhuma das três leva valor em reais na consulta.
     const orcamentoAos80 = regraPorUid(REGRAS_PROVISIONADAS.iaOrcamentoAos80).regra

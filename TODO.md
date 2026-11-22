@@ -4,6 +4,10 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## LGPD e conformidade — prioridade máxima
 
+- [ ] (reserva-e-avaliacao, 2.0, privacy-guardian, 1ª) **O código não confere que o contrato do suboperador permite serviço usado por menor de idade** (nem o do
+      principal, nem o da reserva): campo no cadastro de suboperador e um motivo novo na conferência da D62 (por exemplo `menor_nao_permitido`), regra 20, item 13.
+      Hoje a conferência é do país, do treinamento e do alcance, e o runbook (causa 2 de "Provedor de reserva de IA não conferido") pede a conferência à mão; muda o
+      cadastro e a D62 (dono: Arquiteto)
 - [ ] (semana-do-professor, 1.0, privacy-guardian, 1ª) **Reserva no expurgo da `aula`.** A escola que nunca encerra o ano guarda o texto da aula, e com ele
       algum nome de aluno, sem limite. Rotina de reserva no expurgo, como a da `lista_nome`; muda retenção (dono: Arquiteto; fechamento da F2b, 07/11/2026)
 - [ ] Contrato de tratamento de dados escola↔nós, com advogado (escola controladora)
@@ -184,6 +188,15 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 
 ## Infra e operação
 
+- [ ] (reserva-e-avaliacao, 2.0, infra-guardian e test-engineer, 2ª, 22/11/2026) **`apps/api/src/ia/reserva-na-subida.int.test.ts`: `cadastrar('falso-reserva')` usa chave fixa.**
+      Se uma rodada interrompida deixar a linha no banco, a seguinte falha no `insert`: apagar a chave antes de gravar, ou `on conflict`. O `afterEach` já a limpa
+      quando a rodada termina (dono: Implementador)
+- [ ] (reserva-e-avaliacao, 2.0, infra-guardian e llm-integrator, 1ª, 22/11/2026) **O caso "o prazo de cada execução é o do perfil: 60 s no Tutor, 140 s na atividade…"
+      de `apps/api/src/ia/fila-de-ia.int.test.ts` é intermitente, e vem de antes da 2.0.** Falhou 3 vezes em 10 rodadas isoladas no HEAD, sem as mudanças da tarefa, e uma vez
+      na rodada completa do portão: `FilaDeIa.ociosa` (`apps/api/test/fila-de-ia.fixture.ts`) estoura os 30 s com um `ia.executar` em `ativo` (o da execução do Tutor numa vez,
+      o da ferramenta noutra; o outro já `concluido`), depois de o teste abortar o prazo de cada uma com `prazos[n].abortar()`. Investigar se o job fica `ativo` porque o
+      aborto chega antes de o modelo pendurado registrar o sinal, ou se o processador deixa o job `ativo` quando o aborto cai logo depois de começar; o intermitente vira
+      ruído na esteira da spec se cair lá (dono: Implementador; vira `/corrigir` se aparecer na esteira)
 - [ ] (correção `2026-11-21-limpeza-do-painel-com-job-registro`, revisor-geral e infra-guardian, 1ª) **Os outros removedores de escola do e2e não apagam o que o
       worker grava nela.** Dez arquivos de `e2e/support/` (cada um com o seu `comBanco`) apagam a escola sem apagar `job_registro` nem `expurgo_execucao`, as duas
       tabelas com FK para `escola` que a correção fechou só no `painel.ts`: o mesmo `afterEach` pode cair neles. Levantar a lista, mover a limpeza para um

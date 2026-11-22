@@ -211,6 +211,7 @@ export {
   observeDatabasePool,
   observeRedis,
   observeInsuranceLimiter,
+  observeProvedorDeReserva,
   ROTA_NAO_ENCONTRADA,
   requestRoute,
   ROTULO_ESCOLA,
@@ -378,7 +379,7 @@ export { MEIO_ABRE_O_DISJUNTOR_EM_MS } from './ia/resilient-adapter.js'
 export { adaptadorDaReserva, createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway } from './ia/llm-gateway.js'
 export type { LLMGatewayDependencies, LLMGatewayPorts, LLMLogger } from './ia/llm-gateway.js'
 export { categoriasDasTarefas, categoriasEnviadasPelasTarefas, INTERVALO_DA_NOVA_CONFERENCIA_MS, motivosDaD62, SoberaniaNaSubida } from './ia/soberania.js'
-export type { MotivoDaD62, SoberaniaNaSubidaOpcoes } from './ia/soberania.js'
+export type { ConferenciaDaReserva, MotivoDaD62, SoberaniaNaSubidaOpcoes } from './ia/soberania.js'
 export { FakeAdapter, MODELO_FALSO, MODELO_FALSO_MENOR } from './ia/fake-adapter.js'
 export { aprovadaParaAReserva, MODELOS_APROVADOS, problemasDosModelosAprovados, reservaElegivel, tarefasAprovadasParaAReserva } from './ia/modelos-aprovados.js'
 export type { ContextoDaReserva, ModeloAprovado, ReservaDoGateway, TarefaDaReserva } from './ia/modelos-aprovados.js'

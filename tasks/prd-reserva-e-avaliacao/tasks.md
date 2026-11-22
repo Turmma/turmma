@@ -24,11 +24,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 1.5 As recusas da subida e o preço da reserva
   - [x] 1.6 Testes
 
-- [ ] **2.0 — O `main-worker` confere a reserva sem segurar o principal, com limitador próprio e alerta**
-  - [ ] 2.1 A `SoberaniaNaSubida` da reserva, que confere de novo a cada 5 s
-  - [ ] 2.2 O `TokenLimiter` da reserva
-  - [ ] 2.3 `ia.provedor_de_reserva.conferido`, o alerta e o runbook
-  - [ ] 2.4 Testes
+- [x] **2.0 — O `main-worker` confere a reserva sem segurar o principal, com limitador próprio e alerta**
+  - [x] 2.1 A `SoberaniaNaSubida` da reserva, que confere de novo a cada 5 s
+  - [x] 2.2 O `TokenLimiter` da reserva
+  - [x] 2.3 `ia.provedor_de_reserva.conferido`, o alerta e o runbook
+  - [x] 2.4 Testes
 
 - [ ] **3.0 — A causa da falha atravessa o `ResilientAdapter`: o 429 que sobra é falta de vaga, o 4xx não é queda**
   - [ ] 3.1 Os motivos `limite` e `rejeitada`
