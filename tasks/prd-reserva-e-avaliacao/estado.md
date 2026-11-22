@@ -10,6 +10,10 @@
 |---|---|---|---|---|
 
 ## Esperando o Joaquim
+## 22/11 12:52 — a regra fixa da D55 recusa rubrica legítima, no meu terminal
+Decisão: abrir um `/corrigir` depois da F5b para a regra fixa da D55 não recusar rubrica de antes da aplicação (13 de 20 pedidos naturais recusados).
+Contexto: `tasks/prd-reserva-e-avaliacao/achado-d55-recusa-rubrica.md` (vai no commit da 10.0); o `TODO.md` já tem "D55 abaixo do alvo" (F7, da X6).
+Opções: corrigir depois da F5b | deixar para a F7. Recomendo (do `Arquiteto`): corrigir depois da F5b. Não segura nada agora.
 ## 22/11 11:41 — F5b, o tamanho da spec, no meu terminal
 Decisão: 14 tarefas, acima do teto de 12: uma spec só ou cortar em reserva (1.0 a 9.0) e avaliação (10.0 a 14.0).
 Contexto: `tasks.md`, "Corte possível"; o `RELATÓRIO` do `Arquiteto` das 11:41.
