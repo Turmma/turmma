@@ -1,9 +1,9 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 a 2.0 (grande, 1ª tentativa, partida 22/11 13:55); L2 a 11.0 (grande, 1ª tentativa, partida 22/11 14:45). L3 ociosa: nada liberado (a 4.0 divide `infra/test/alertas.test.ts` com a 2.0; o resto espera 2.0, 4.0 ou 11.0).
+- **Espero:** L1 a 4.0 (grande, 1ª tentativa, partida 22/11 16:25); L2 a 11.0 (grande, 1ª tentativa, partida 22/11 14:45; a Mesa 2 mandou DIVERGÊNCIA de ordem sobre a guarda do ponto de entrada do dist, revisor-geral × test-engineer; o `Arquiteto` triou como detalhe (vale o revisor-geral, com as cláusulas do test-engineer como reforço; techspec §8 e cenarios §1 editados na L2, `.processo/ordens/11_task-divergencia-guarda.md`) e a decisão seguiu ao Implementador 2 como retomada, junto dos itens 1 a 4 da ordem r1; ESCALADA da Mesa 2 às ~17h: test-engineer reprovou na 1ª e na 2ª, um bloqueante na regex `semImportDeTipo` (`.processo/ordens/11_task-r2.md`); diagnóstico do `Arquiteto` (causa local, a regex parava em aspas ou ';'; `.processo/ordens/diagnostico-11.md`) seguiu ao Implementador 2 como retomada, com a ordem r2, para a 3ª rodada). L3 ociosa: nada liberado (5.0 e 6.0 esperam a 4.0; 12.0 espera a 11.0).
 - **Devo ainda:** depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `459ea284` (esteira de `cde3b28` ainda rodando, 45051340471)
+- **Base:** `spec/reserva-e-avaliacao` em `172218e6` (esteira de `172218e` rodando, 45060778570)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -11,6 +11,7 @@
 | 1.0 | `7a4b4e84` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `eb3c63ab`; 4 recomendações sem aplicar no `1_task.md`; techspec §5 e `cenarios.md` linha 38 ajustados por 2 divergências |
 | 10.0 | `402c6646` | Sonnet | `revisor-geral`, `test-engineer` e `pedagogia-reviewer` na 2ª; os outros quatro na 1ª | encontro em `cde3b286`; DIVERGÊNCIA (ordem) triada pelo `Arquiteto` (itens 6, 7d, 7e, 7f) sem mudar o desenho; 15 itens novos no `TODO.md` |
 | 3.0 | `84f9c5ce` | Sonnet | os sete na 2ª | encontro em `459ea284`, verificação da soma passou; sem tela |
+| 2.0 | `e6668395` | Sonnet | os sete na 2ª | encontro em `172218e6`, verificação da soma passou; sem tela; caso intermitente de `fila-de-ia.int.test.ts` (prazo do perfil, 3 em 10 no HEAD sem a 2.0) e lacuna "contrato permite serviço usado por menor" no `TODO.md` |
 
 ## Esperando o Joaquim
 ## 22/11 12:52 — a regra fixa da D55 recusa rubrica legítima, no meu terminal

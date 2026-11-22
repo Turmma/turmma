@@ -159,8 +159,13 @@ critérios de julgamento, e grava `docs/avaliacao/<finalista>/<data>/` com `said
 (o sha256 de cada lote, a versão do modelo, as três contagens de `avaliacao.md`). Página, código BNCC (conferido
 no catálogo) e a D36 a máquina mede, com as funções de medida de `medir-classificacao` e a medida, a leitura e o alvo de `golden.ts`/`golden.test.ts`, que
 vão para `ia/medida-do-ouro.ts`, e a D55 dos lotes retidos com as políticas do `ouro`. Os lotes retidos seguem `avaliacao.md`. Uma guarda prende o ponto
-de entrada: não importa teste, fixture, `db/schema` nem repository, não lê `DATABASE_URL`, e nenhum teste o executa contra a
-rede. O relatório aprovado vira entrada em `MODELOS_APROVADOS`.
+de entrada: não importa teste, fixture, `db/schema` nem repository, não lê a URL do banco (`BANCO_URL`, a variável de
+`packages/core/src/db/database.ts`; `DATABASE_URL` continua recusada), não usa as portas de banco do núcleo (`createPool`,
+`createDatabase`, `loadDatabaseConfig`, `migrate`, `*Repository`), e nenhum teste o executa contra a rede. A ferramenta carrega
+o núcleo **módulo a módulo** do `dist` (`ia/llm-gateway`, `ia/consumo`, `ia/suspensao`, `ia/tasks/index`, `context/context`,
+`ia/openai-compat-adapter`), nunca o barril `packages/core/dist/index.js` nem `@educa/core`, que reexportam `db/schema` e os
+repositories; a guarda segue cada caminho `packages/<pacote>/dist/<x>.js` que a ferramenta carrega até o `src/<x>.ts`, e daí os
+imports relativos (`./y.js` resolve `./y.ts`), e reprova o barril pelo grafo (divergência da 11.0, Arquiteto, 22/11/2026). O relatório aprovado vira entrada em `MODELOS_APROVADOS`.
 
 Custo: cerca de 2.100 chamadas (as linhas de três execuções e os lotes retidos), de R$ 150 a R$ 250 por finalista
 (o real no relatório). Sem chamada nova por usuário. A reserva custa a diferença de preço nas
