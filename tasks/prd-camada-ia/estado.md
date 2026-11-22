@@ -1,11 +1,12 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` das três linhas, retomadas às 19:07 depois da parada pedida pelo Joaquim (16:05; sessões mantidas, o Maestri reabriu às 19:03 e o CLI foi religado ao socket novo): `Implementador 2` (L2) da 6.0 (partida 08:28), 1ª rodada às 19:45 com o `test-engineer` reprovando (2 bloqueantes de teste/e2e), ordem r1 em atendimento; `Implementador 3` (L3) da correção `2026-11-21-e2e-professores-convite-vencido-no-celular`, com a causa confirmada. A 8.0, última da F5a, parte depois da 6.0.
+- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da 8.0, retomada às 21:4x com a triagem do `Arquiteto` (opção a: o item de `GET /v1/operacao/uso` ganha `rede {id, nome}` e `orcamento`; techspec §4 e §9 editados sem commit na L1, entram no commit da tarefa; Mesa com tenancy e privacy). L2 e L3 ociosas. Depois da 8.0, a validação (passo 8).
 - **Devo ainda:** para a retro, `tools/processo/revisoes-nao-se-perdem.test.ts` caiu sob carga no portão da L1 e passou isolado (3/3). antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `ac6f1796` (com a correção do e2e da Operação, `bb4395de`); esteira 44961792455 rodando; última verde `1a291ab`; `7d86cae` vermelha só em e2e 10/11 (a Operação, agora corrigida) e `5a90726` em e2e 11/11 (Professores, na L3)
+- **Base:** `spec/camada-ia` em `3670ee12` (6.0 `918f93ac` e a correção do e2e de Professores `bf9565e2` encontradas); esteira 44967132971 rodando em `d8cfe4e`, e depois a de `3670ee1`; última verde `1a291ab`
 
 ## Concluídas
+- 6.0 (`918f93ac`, encontro 21/11; test-engineer na 3ª rodada, depois da escalada destravada) e a correção `2026-11-21-e2e-professores-convite-vencido-no-celular` (`bf9565e2`).
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
 | correção `2026-11-21-limpeza-do-e2e-com-orcamento-do-mes` (da 2.0, L3) | `39da363b` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | 4 mutações; encontro em `544f6285` |
@@ -34,6 +35,7 @@ Segue sem depender: as correções M2 e M4 da X6 (processo) e a 1.0 em diante, q
 **Respondida em 21/11 13:48:** cortar em F5a (1.0 a 8.0, custo e orçamento, pousa neste andar) e F5b (9.0 a 13.0, reserva e avaliação, spec seguinte). Pedido ao `Arquiteto` para aplicar o corte nos documentos.
 
 ## O que falhou
+- 21/11 8.0: DIVERGÊNCIA de desenho, o item do Uso não trazia rede nem orçamento para o diálogo da 7.0; o `Arquiteto` escolheu acrescentá-los (techspec §4 e §9), sem mudar critério do PRD.
 - 21/11 ~09:50: esteira de `0e85765` (44903191816), já com a integração em três fatias, dentro do teto: caem dois testes que o estouro escondia. Integração 3/3: `ops-escola.int.test.ts`, as rotas `PUT …/orcamento-ia` da 3.0 fora da lista conferida (correção na L1). Integração 1/3: `tutor-modelo.int.test.ts:99`, o modelo falso recebe 17 pedidos em vez de 2 (correção na L3).
 - 21/11 ~08:40: o PC foi desligado com as três linhas trabalhando; às 09:11 o time voltou com sessões novas e o Docker parado (aberto daqui). Na L1, 16 arquivos rastreados ficaram com 0 byte (os que o merge `cc6e316c` tinha escrito): restaurados do commit; `git fsck` limpo, nenhum outro checkout afetado.
 - 21/11 ~07:4x: esteira de `21e6186` (44887365743): o job de integração cancelado no `timeout-minutes` de 30; nas verdes anteriores, 22, 28,5 e 28,3 min. Não é intermitência: o job encostou no teto. Correção na L1, antes de qualquer partida.
