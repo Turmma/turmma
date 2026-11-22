@@ -7,10 +7,13 @@ import {
   Heartbeat,
   JobOutbox,
   JobOutboxRepository,
+  LLMGateway,
   runInContext,
   SoberaniaNaSubida,
   systemClock,
+  TASK_CATALOG,
   type Clock,
+  type DeclaracaoDeSoberania,
   type JanelaLetiva,
   type Database,
   type DatabasePool,
@@ -19,9 +22,12 @@ import {
   type GenerationRequest,
   type GenerationResult,
   type LimiteDeTokens,
+  type LLMGatewayPorts,
   type LLMProvider,
   type LoggerBase,
   type Meter,
+  type ModeloAprovado,
+  type Perfil,
   type SuspensaoDeFuncao,
 } from '@educa/core'
 import { NestFactory, ModulesContainer } from '@nestjs/core'
@@ -48,6 +54,7 @@ import { AlcanceDoAluno } from '../src/tutor/turno.command.js'
 import { TrechoSearch } from '../src/material/trecho-search.js'
 import { testConfig, type TestOverrides } from './test-config.js'
 import { MedidorDeTeste } from '../../../tools/testes/metricas.ts'
+import { ScriptedAdapter } from '../../../packages/core/src/ia/__fixtures__/scripted-adapter.js'
 import { subirApi, type TestApi } from './test-api.js'
 import { LLM_PROVIDER } from '../src/ia/ia.module.js'
 import { WorkerModule } from '../src/worker.module.js'
@@ -58,6 +65,33 @@ import type { AppModuleOptions } from '../src/app.module.js'
 export type { FabricaDePrazo }
 
 export type ModeloDeTeste = (pedido: GenerationRequest<unknown, unknown>) => Promise<{ readonly saida: unknown; readonly medicao?: unknown }>
+
+/**
+ * O gateway **real** com principal e reserva (reserva-e-avaliacao, 5.0; `techspec.md` §5, "A bancada"): dois `ScriptedAdapter` de envio externo, cada um com o `provedorId` dele (o suboperador de cada um é o
+ * cadastro que o teste semeia com essa chave), no lugar do gateway com o adaptador falso. Só ele troca o gateway sem trocar o processador, o worker nem o `ConsumoRepository`: a linha de consumo que o teste lê
+ * no banco é a que o `ConsumoRepository` gravou com o destino que o gateway deu a cada chamada. `comModelo` não serve aqui, porque troca o gateway inteiro e não deixa linha nenhuma.
+ */
+export interface GatewayDaBancada {
+  readonly principal: { readonly provedorId: string; readonly roteiro: readonly (string | Error)[] }
+  readonly reserva: { readonly provedorId: string; readonly roteiro: readonly (string | Error)[] }
+  /** As tarefas que a reserva atende, aprovadas no provedor e no modelo dela em cada perfil (`reserva-<perfil>`): o que a elegibilidade confere. */
+  readonly aprovadas: readonly TarefaDeIa[]
+  /** A conferência da D62 da reserva que o gateway lê a cada chamada: a `SoberaniaNaSubida` de verdade, com o cadastro, ou a declaração do teste. Sem ela, vale conferida. */
+  readonly conferenciaDaReserva?: DeclaracaoDeSoberania
+}
+
+/** A reserva da bancada: outro modelo em cada perfil (`reserva-<perfil>`), o que a aprovação confere junto do provedor. */
+class ReservaRoteirizada extends ScriptedAdapter {
+  override modeloDoPerfil(perfil: Perfil): string {
+    return `reserva-${perfil}`
+  }
+}
+
+/** Os dois adaptadores do gateway da bancada, com o contador de chamadas de cada um (`chamadas`). */
+export interface AdaptadoresDaBancada {
+  readonly principal: ScriptedAdapter
+  readonly reserva: ScriptedAdapter
+}
 
 export interface FilaDeIaOptions {
   /** O registro que o processador consulta no lugar dos seis comandos do produto. Só o teste dos comandos de mentira o troca. */
@@ -76,6 +110,8 @@ export interface FilaDeIaOptions {
   readonly semConsumir?: true
   /** O relógio da situação da licença de material, o mesmo que a API recebeu em `montagem.relogioDasLicencas`. */
   readonly relogioDasLicencas?: Clock
+  /** O gateway real com principal e reserva roteirizados, no lugar do que tem o adaptador falso. */
+  readonly gateway?: GatewayDaBancada
 }
 
 /** A janela sem dia letivo: nunca está "em aula", então o lote não espera. */
@@ -96,6 +132,23 @@ class RegistroDaBancada extends RegistroDeComandos {
 }
 
 const FILAS_POR_API = new WeakMap<TestApi, FilaDeIa>()
+
+function adaptadoresDe({ principal, reserva }: GatewayDaBancada): AdaptadoresDaBancada {
+  return { principal: new ScriptedAdapter(principal.roteiro, true, principal.provedorId), reserva: new ReservaRoteirizada(reserva.roteiro, true, reserva.provedorId) }
+}
+
+/** A aprovação de cada tarefa para o provedor e o modelo que a reserva usa no perfil dela: o `sha256` e o relatório são do teste, e `reservaElegivel` só confere tarefa, provedor e modelo. */
+function aprovacoesDe({ reserva, aprovadas }: GatewayDaBancada): ModeloAprovado[] {
+  return aprovadas.map((tarefa) => ({
+    tarefa,
+    provedorId: reserva.provedorId,
+    modelo: `reserva-${TASK_CATALOG[tarefa].perfil}`,
+    relatorio: 'docs/avaliacao/teste/relatorio.md',
+    sha256: 'sha-da-bancada',
+    aprovadoPor: 'bancada-de-teste',
+    aprovadoEm: '2026-11-22',
+  }))
+}
 
 /** Os tipos de job que o worker de IA da bancada consome: o que ela espera (`ociosa`) e o que ela descarta ao subir (`subir`) saem desta lista. */
 export const TIPOS_DE_JOB_DE_IA = ['ia.executar', 'ia.executar-lote']
@@ -136,7 +189,10 @@ export class FilaDeIa {
   /** O pool e o banco da réplica, os que o worker de IA usa: separados dos da API, como no compose. */
   readonly pool: DatabasePool
   readonly banco: Database
-  readonly #gateway: LLMProvider
+  #gateway: LLMProvider
+  readonly #portas: Pick<LLMGatewayPorts, 'registro' | 'orcamento' | 'suspensao' | 'logger' | 'medidor'>
+  /** Os dois adaptadores do gateway real (`opcoes.gateway`); só `#montarORoteirizado` escreve. */
+  #adaptadores: AdaptadoresDaBancada | undefined
   /** Para onde o adaptador configurado manda o conteúdo: o do processador e o da varredura da bancada. */
   readonly destino: DestinoDoAdaptador
   readonly #despachante: OutboxRelayRuntime
@@ -163,14 +219,15 @@ export class FilaDeIa {
     this.banco = createDatabase(this.pool)
     const suspensao: SuspensaoDeFuncao = new SuspensaoRepository(this.banco)
     this.destino = opcoes.destino ?? destinoDoAdaptador(testConfig(sobreposicao).ia)
-    this.#gateway = createLLMGateway(testConfig(sobreposicao).ia, {
+    this.#portas = {
       registro: new ConsumoRepository(this.banco),
       // O mês do teto de segurança do lote é o do relógio da bancada (`fixarHorario`): o teste da virada do mês põe o job às 00h10 de 1º/12 sem esperar.
       orcamento: new OrcamentoRepository(this.banco, { agora: () => (this.#agora ?? systemClock.agora)() }),
       suspensao,
       logger: this.#logger,
       medidor,
-    })
+    }
+    this.#gateway = opcoes.gateway === undefined ? createLLMGateway(testConfig(sobreposicao).ia, this.#portas) : this.#montarORoteirizado(opcoes.gateway)
     const trechos = new TrechoSearch(this.banco, opcoes.relogioDasLicencas)
     this.trechos = trechos
     this.registro = opcoes.registro ?? new RegistroDeComandos()
@@ -210,6 +267,36 @@ export class FilaDeIa {
   /** O gateway de verdade, que o `comModelo` pode chamar para só enfeitar a saída. */
   falso(): LLMProvider {
     return this.#gateway
+  }
+
+  /**
+   * Monta o `LLMGateway` real com os dois adaptadores roteirizados (`GatewayDaBancada`). O contador de chamadas de cada adaptador recomeça em zero.
+   *
+   * **Sem o `ResilientAdapter`** que `createLLMGateway` põe no principal e na reserva: a bancada não prova o prazo por perfil, a repetição nem o disjuntor de cada provedor, e o "disjuntor" de um caso é só o motivo do
+   * `LLMError` que o roteiro lança. O que ela prova é o roteamento do gateway, a linha de consumo que o `ConsumoRepository` grava por chamada e o que o compartilhamento do aluno lê dela; o `ResilientAdapter` é
+   * provado em `resilient-adapter.test.ts` e em `llm-gateway.test.ts`.
+   */
+  #montarORoteirizado(gateway: GatewayDaBancada): LLMProvider {
+    const adaptadores = adaptadoresDe(gateway)
+    this.#adaptadores = adaptadores
+    return new LLMGateway({
+      ...this.#portas,
+      adaptador: adaptadores.principal,
+      // O principal externo conferido: a conferência do principal é a do `soberania-na-subida.int.test.ts`, e o que esta bancada prova é o roteamento e a linha de cada chamada.
+      soberania: { conferida: true },
+      soberaniaDaReserva: gateway.conferenciaDaReserva ?? { conferida: true },
+      reserva: { adaptador: adaptadores.reserva, ambiente: 'local', aprovados: aprovacoesDe(gateway) },
+    })
+  }
+
+  /** Os dois adaptadores do gateway real (`opcoes.gateway`), para o teste contar as chamadas de cada um; ausentes no gateway do adaptador falso. Só leitura. */
+  get adaptadores(): AdaptadoresDaBancada | undefined {
+    return this.#adaptadores
+  }
+
+  /** Troca os roteiros do gateway real: o caso seguinte recomeça com adaptadores novos e o contador de chamadas em zero, sem subir outra API. Só vale numa bancada subida com `gateway`. */
+  roteirizar(gateway: GatewayDaBancada): void {
+    this.#gateway = this.#montarORoteirizado(gateway)
   }
 
   /** O modelo de mentira do teste. Devolve o que desfaz a troca; o `afterEach` do teste a desfaz de qualquer forma por `restaurar`. */

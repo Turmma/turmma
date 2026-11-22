@@ -342,6 +342,17 @@ Toda chamada de modelo já passa pela porta `LLMProvider` (regra 30). É ali que
   (`ia.degradacao{degrau}`) e o uso do balde também (`ia.tokens.uso_do_teto{modelo}`), com os alertas "Tokens acima de 70% do
   contratado" (aviso) e "Tokens acima de 80% do contratado" (o balde cheio), e "Provedor de IA fora" (o disjuntor aberto por 2 min).
 
+  **O prazo com quatro chamadas (reserva-e-avaliacao, 6.0).** Com o provedor de reserva, uma execução faz **no máximo quatro chamadas**,
+  duas por destino (a primeira e a repetição por saída inválida, no principal e na reserva). O contador é por destino, e não por
+  `provedorId`: principal e reserva do mesmo provedor, com modelos diferentes, também param em quatro. O **prazo da execução não muda**
+  (`PRAZO_DA_EXECUCAO_MS`: 60 s no `rapido`, 140 s no `padrao`, ambos abaixo dos 150 s do job menos a folga de 5 s). As quatro chamadas
+  dividem o mesmo prazo, e a reserva usa **o que sobra dele**, porque leva o mesmo sinal da execução. A que não couber, a quarta
+  pendurada, termina `IA_TEMPO_ESGOTADO` no instante do prazo, com a execução `falhou` e a linha dela com a estimativa da chamada que
+  saiu e não voltou (D14). Nada se soma ao prazo, e o corte do job nunca chega antes. Os 56 s e os 136 s de pior caso vinham da conta
+  das duas tentativas; com a reserva, **o pior caso é o próprio prazo**, e uma reserva lenta só tem o que o principal deixou.
+  A recusa fixa da D55 também pode sair da reserva: duas saídas reprovadas na conferência, na reserva, entregam a recusa da tarefa, com
+  os `problemas` da última chamada da reserva e nunca os do principal (JSON quebrado não conta).
+
   **O balde geral é de todas as escolas, de propósito.** O limite é do **provedor** (o contratado é por conta, e não por escola), e por isso o balde é um só por `provedor:modelo`. Uma escola com muita carga pode esgotá-lo
   e fazer o Tutor de outra terminar `IA_INDISPONIVEL` depois de 8 s. Isso não vaza dado, mas é interferência entre escolas, e as vagas por escola (RF2, `VAGAS_ESCOLA_*`) não a impedem: são outra barreira, que limita jobs
   em andamento, e não tokens. Uma parte por escola fica no `TODO.md`, para quando o piloto tiver mais de uma escola com carga real.

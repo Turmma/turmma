@@ -36,25 +36,25 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 3.3 A estimativa na linha do 429 e da conexão recusada
   - [x] 3.4 Testes
 
-- [ ] **4.0 — Com o principal caído, a chamada vai à reserva elegível, e cada chamada leva o seu destino**
-  - [ ] 4.1 O destino por chamada
-  - [ ] 4.2 O ramo da queda
-  - [ ] 4.3 O degrau, o log e os disjuntores por provedor
-  - [ ] 4.4 `IA_FALHA_FALSA`
-  - [ ] 4.5 Testes
+- [x] **4.0 — Com o principal caído, a chamada vai à reserva elegível, e cada chamada leva o seu destino**
+  - [x] 4.1 O destino por chamada
+  - [x] 4.2 O ramo da queda
+  - [x] 4.3 O degrau, o log e os disjuntores por provedor
+  - [x] 4.4 `IA_FALHA_FALSA`
+  - [x] 4.5 Testes
 
-- [ ] **5.0 — A chamada da reserva chega ao banco e ao compartilhamento do aluno, e o worker só a chama conferida**
+- [x] **5.0 — A chamada da reserva chega ao banco e ao compartilhamento do aluno, e o worker só a chama conferida**
   - [ ] 5.1 O `ConsumoRepository` grava a coluna
   - [ ] 5.2 A bancada com principal e reserva
   - [ ] 5.3 `docs/lgpd.md` linha 99, os comentários, o glossário e `docs/mvp-contratos.md`
   - [ ] 5.4 Testes
 
-- [ ] **6.0 — A repetição com a reserva: no máximo quatro chamadas, dentro do prazo da execução**
-  - [ ] 6.1 O contador por destino
-  - [ ] 6.2 A inválida repete no provedor que respondeu; a queda na repetição vai à reserva
-  - [ ] 6.3 A saída de reserva da tarefa depois de duas inválidas na reserva
-  - [ ] 6.4 O prazo com quatro chamadas
-  - [ ] 6.5 Testes
+- [x] **6.0 — A repetição com a reserva: no máximo quatro chamadas, dentro do prazo da execução**
+  - [x] 6.1 O contador por destino (na 4.0; aqui só o teste de mesmo `provedorId`)
+  - [x] 6.2 A inválida repete no provedor que respondeu; a queda na repetição vai à reserva (na 4.0)
+  - [x] 6.3 A saída de reserva da tarefa depois de duas inválidas na reserva
+  - [x] 6.4 O prazo com quatro chamadas
+  - [x] 6.5 Testes
 
 - [ ] **7.0 — Sem vaga no principal, a chamada vai ao menor e depois à reserva, no balde dela**
   - [ ] 7.1 O ramo sem vaga

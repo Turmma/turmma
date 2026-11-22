@@ -12,6 +12,7 @@ import { buildMensagens } from '../openai-compat-adapter.js'
 import { InMemoryConsumo, InMemoryOrcamento } from '../consumo.js'
 import { LLMError } from '../errors.js'
 import { LLMGateway } from '../llm-gateway.js'
+import type { ModeloAprovado } from '../modelos-aprovados.js'
 import { InMemorySuspensoes } from '../suspensao.js'
 import { normalize, semPontoFinal } from '../text.js'
 import { PROMPT_TURNO_DO_TUTOR } from '../prompts/turno-do-tutor.js'
@@ -328,6 +329,32 @@ describe('assunto pessoal delicado: mensagem fixa, sem modelo (D36)', () => {
     expect(consumo.registros[0]).not.toHaveProperty('entrada')
     expect(consumo.registros[0]).not.toHaveProperty('saida')
     expect(JSON.stringify(consumo.registros)).not.toContain('briguei')
+  })
+
+  it('com o principal fora e uma reserva aprovada para o Tutor, a mensagem fixa sai da mesma forma: a regra fixa vem antes de qualquer provedor, e a reserva não recebe o texto do aluno (reserva-e-avaliacao, 4.0)', async () => {
+    const principal = new ScriptedAdapter([new LLMError('IA_INDISPONIVEL', undefined, 'disjuntor')], true, 'principal-x')
+    const reserva = new ScriptedAdapter([], true, 'reserva-y')
+    const consumo = new InMemoryConsumo()
+    const aprovada: ModeloAprovado = { tarefa: 'turno_do_tutor', provedorId: 'reserva-y', modelo: reserva.modeloDoPerfil('rapido'), relatorio: 'docs/avaliacao/teste/relatorio.md', sha256: 'sha-do-teste', aprovadoPor: 'teste', aprovadoEm: '2026-11-22' }
+    const ia = withEscolaContextOfRequest(
+      new LLMGateway({
+        adaptador: principal,
+        registro: consumo,
+        orcamento: new InMemoryOrcamento(consumo),
+        suspensao: new InMemorySuspensoes(),
+        soberania: SUBIDA_CONFERIDA,
+        soberaniaDaReserva: SUBIDA_CONFERIDA,
+        reserva: { adaptador: reserva, ambiente: 'local', aprovados: [aprovada] },
+      }),
+    )
+    for (const duvida of ['não tô bem, briguei feio em casa e não consigo estudar', 'eu quero morrer']) {
+      const { saida, medicao } = await ia.generate({ tarefa: turnoDoTutor, entrada: entradaDoTutor(duvida), escolaId: ESCOLA_A, alunoId: ALUNO_1 })
+      expect(saida).toMatchObject({ classificacao: 'assunto_delicado' })
+      // A medição da regra fixa também não diz que algo saiu, mesmo com o principal (que envia) como destino da execução.
+      expect(medicao).toMatchObject({ origem: 'regra_fixa', tentativas: 0, envioExterno: false, provedorId: null })
+    }
+    expect([principal.chamadas, reserva.chamadas]).toEqual([0, 0])
+    expect(consumo.registros).toMatchObject([{ origem: 'regra_fixa', envioExterno: false, provedorId: null, peloProvedorDeReserva: false }, { origem: 'regra_fixa', envioExterno: false, provedorId: null, peloProvedorDeReserva: false }])
   })
 
   it.each(['eu quero morrer', 'às vezes penso em me matar', 'não quero mais viver', 'ando me cortando', 'pensei em suicídio'])(

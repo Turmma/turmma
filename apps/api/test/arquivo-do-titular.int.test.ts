@@ -551,6 +551,51 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect(textoDoObjeto(cenario.escolaId, pedidoId, 'completa')).not.toContain(daEstimadaDoColega)
     })
 
+    /** Uma chamada concluída do Tutor com envio externo, ligada ao aluno e à execução dele: a linha que o gateway grava, com o destino da chamada (`provedor` e `pelo_provedor_de_reserva`). */
+    const chamadaDoTutor = (escolaId: string, alunoId: string, execucaoId: string, provedor: string, peloProvedorDeReserva: boolean) =>
+      inserir(
+        `insert into consumo_ia (escola_id, aluno_id, execucao_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, tokens_de_entrada, tokens_de_saida, duracao_ms, envio_externo, provedor, pelo_provedor_de_reserva, tentativas, estado)
+         values ($1, $2, $3, 'turno_do_tutor', 'tutor_com_o_aluno', 'rapido', 'openai_compat', 'modelo-sintetico', 'v1', 10, 20, 30, true, $4, $5, 1, 'concluida') returning id`,
+        [escolaId, alunoId, execucaoId, provedor, peloProvedorDeReserva],
+      )
+
+    it('a chamada que saiu para a reserva entra no arquivo do aluno com o `provedor` dela, e o contador da Operação (`pelo_provedor_de_reserva`) não sai', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const semeado = await semearAluno(cenario, aluno)
+      const doPrincipal = await chamadaDoTutor(cenario.escolaId, aluno.id, String(semeado.ids['execucao_agente']), `principal-${MARCA}`, false)
+      const daReserva = await chamadaDoTutor(cenario.escolaId, aluno.id, String(semeado.ids['execucao_agente']), `reserva-${MARCA}`, true)
+      const pedidoId = await pedidoPronto(cenario, aluno)
+      // O aluno só tem a versão completa (a da escola é do professor).
+      const tabelas = documento(cenario.escolaId, pedidoId, 'completa')['tabelas'] as Record<string, Array<Record<string, unknown>>>
+      const linhas = tabelas['consumo_ia'] ?? []
+      expect(linhas.find((linha) => linha['id'] === doPrincipal)?.['provedor']).toBe(`principal-${MARCA}`)
+      expect(linhas.find((linha) => linha['id'] === daReserva)?.['provedor']).toBe(`reserva-${MARCA}`)
+      // O destino do dado é `provedor`; o contador de quantas chamadas a reserva recebeu é da Operação, e não é do titular.
+      for (const linha of linhas) expect(Object.keys(linha)).not.toContain('pelo_provedor_de_reserva')
+      expect(textoDoObjeto(cenario.escolaId, pedidoId, 'completa')).not.toContain('pelo_provedor_de_reserva')
+    })
+
+    it('isolamento: a linha da reserva da escola B, com a mesma reserva e outro aluno, fica fora do arquivo do aluno da A, e a da A fora do da B (a separação é por aluno)', async () => {
+      const reserva = `reserva-${MARCA}-${randomUUID().slice(0, 6)}`
+      const a = await novaEscola()
+      const alunoA = await pessoa(a, 'aluno', 'AlunoDaA')
+      const semeadoA = await semearAluno(a, alunoA)
+      const b = await novaEscola()
+      const alunoB = await pessoa(b, 'aluno', 'AlunoDaB')
+      const semeadoB = await semearAluno(b, alunoB)
+      const daA = await chamadaDoTutor(a.escolaId, alunoA.id, String(semeadoA.ids['execucao_agente']), reserva, true)
+      const daB = await chamadaDoTutor(b.escolaId, alunoB.id, String(semeadoB.ids['execucao_agente']), reserva, true)
+      const idsDoConsumo = (cenario: Cenario, pedidoId: string): string[] =>
+        ((documento(cenario.escolaId, pedidoId, 'completa')['tabelas'] as Record<string, Array<{ id: string }>>)['consumo_ia'] ?? []).map(({ id }) => id)
+      const arquivoDaA = idsDoConsumo(a, await pedidoPronto(a, alunoA))
+      const arquivoDaB = idsDoConsumo(b, await pedidoPronto(b, alunoB))
+      expect(arquivoDaA).toContain(daA)
+      expect(arquivoDaA).not.toContain(daB)
+      expect(arquivoDaB).toContain(daB)
+      expect(arquivoDaB).not.toContain(daA)
+    })
+
     it('o professor: cada tabela que ele tem aparece, com o e-mail da conta, e nada do colega nem de outra escola da mesma conta', async () => {
       const cenario = await novaEscola()
       const professor = await pessoa(cenario, 'professor', 'Professor')

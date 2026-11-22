@@ -242,6 +242,14 @@ Tutor e a ferramenta com o professor esperando nunca param por ele.
 
 **Provedor de reserva** — O segundo provedor de modelo, com contrato e conferência próprios, que atende a chamada quando
 o principal cai (D29). Só atende tarefa e modelo aprovados para ele, e nunca leva texto de aluno para fora do Brasil (D62).
+A chamada que **saiu** para ele (a que ele atendeu e a que falhou depois de sair) é a que a Operação conta
+(`consumo_ia.pelo_provedor_de_reserva`), e o `provedor` dela entra na lista de compartilhamento do titular.
+
+**Saída de reserva** — O **outro** sentido de "reserva": a resposta nossa, escrita em regra, que a tarefa dá quando o modelo
+insistiu duas vezes numa saída que a conferência reprova (`reservaQuandoInvalida`; no Tutor, a recusa da resposta pronta que
+o modelo não soube escrever sem nomear a alternativa). Não é provedor nenhum e não chama modelo: vale também depois de o
+provedor de reserva ter errado duas vezes, e passa pelo schema e pela conferência como qualquer saída. Distinta, também, da
+reserva de vaga de tokens do limitador (`ReservaDeTokens`).
 
 **Identidade do adaptador** — O nome que diz qual provedor atende: o `IA_PROVEDOR_ID` de quem envia para fora, `falso` no
 adaptador falso do principal e `falso-reserva` no da reserva. É dela que saem o balde de tokens, o rótulo das medidas, o

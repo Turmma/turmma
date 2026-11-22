@@ -66,7 +66,7 @@ export const consumoIa = pgTable(
     duracaoMs: integer().notNull(),
     envioExterno: boolean().notNull(),
     provedor: text(),
-    /** A chamada foi atendida pelo provedor de reserva (camada-ia, tarefa 2.0; a 5.0 a grava): a Operação conta o que a reserva atendeu. Falso nas linhas de antes. */
+    /** A chamada **saiu para** o provedor de reserva, a que ele atendeu e a que falhou depois de sair (a coluna entrou na camada-ia 2.0; o `ConsumoRepository` a grava desde a reserva-e-avaliacao 5.0): a Operação conta as chamadas enviadas à reserva. Falso nas linhas de antes, na do principal e na estimada da interrompida. */
     peloProvedorDeReserva: boolean().notNull().default(false),
     tentativas: integer().notNull(),
     estado: text().$type<EstadoDeConsumoDeIa>().notNull(),

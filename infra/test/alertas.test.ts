@@ -50,6 +50,7 @@ interface Regra {
   noDataState: string
   execErrState: string
   isPaused: boolean
+  annotations?: { summary?: string }
   data: Consulta[]
 }
 
@@ -301,6 +302,30 @@ describe('regras de alerta provisionadas', () => {
     expect(NOMES_NO_PROMETHEUS.usoDoTetoDeTokens).toEqual(['ia_tokens_uso_do_teto'])
     // Nenhuma das três leva escola, execução, usuário nem aluno na consulta.
     for (const regra of [provedorFora, aos70, aos80]) expect(expressao(regra)).not.toMatch(/escola|usuario|execucao|aluno/)
+  })
+
+  it('reserva-e-avaliacao, tarefa 4.0: com os dois provedores fora, o "Provedor de IA fora" dispara uma vez para cada `provedor`, mesmo com o mesmo modelo e perfil nos dois', () => {
+    const provedorFora = regraPorUid(REGRAS_PROVISIONADAS.iaProvedorFora).regra
+    // A expressão inteira, e não só o `by (...)` que se acha nela: a agregação de fora é `max by`, e uma que passe a usar `without` ou `sum by` deixa de ser a que o teste agrupa abaixo.
+    expect(expressao(provedorFora)).toBe('max by (provedor, modelo, perfil) (ia_disjuntor_aberto)')
+    // Os rótulos pelos quais a agregação de fora agrupa: o teste os lê da regra e agrupa as séries como o Prometheus agruparia.
+    const agrupaPor = /^max by \(([^)]*)\)/.exec(expressao(provedorFora))?.[1]?.split(',').map((rotulo) => rotulo.trim()) ?? []
+    // Os dois falsos têm o mesmo modelo (`falso-deterministico`) e o mesmo perfil: só o `provedor` os distingue, como a reserva e o principal da fase `reserva` da carga. Cada série é a de um `ResilientAdapter`, em 1 (aberto).
+    const series = [
+      { provedor: 'falso', modelo: 'falso-deterministico', perfil: 'padrao', valor: 1 },
+      { provedor: 'falso-reserva', modelo: 'falso-deterministico', perfil: 'padrao', valor: 1 },
+    ]
+    const grupos = new Map<string, number>()
+    for (const serie of series) {
+      const chave = agrupaPor.map((rotulo) => `${rotulo}=${String(serie[rotulo as keyof typeof serie])}`).join(',')
+      grupos.set(chave, Math.max(grupos.get(chave) ?? 0, serie.valor))
+    }
+    // O limiar é `> 0`: cada grupo aberto dispara o seu. Dois grupos, e não um só que esconde o provedor que caiu junto.
+    expect(limiar(provedorFora)).toEqual({ type: 'gt', params: [0] })
+    expect([...grupos.values()].filter((valor) => valor > 0)).toHaveLength(2)
+    // O texto diz qual provedor está fora, pelo rótulo que a expressão preserva.
+    expect(agrupaPor).toContain('provedor')
+    expect(provedorFora.annotations?.summary).toContain('{{ $labels.provedor }}')
   })
 
   it('L11: a linha `sala.limite_atingido` que o limite da escola escreve traz o `escolaId` que o comando da entrada do runbook recebe', async () => {

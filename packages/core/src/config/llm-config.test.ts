@@ -6,6 +6,7 @@ import {
   IDENTIDADE_DA_RESERVA_FALSA,
   loadLLMConfig,
   MOTIVO_ADAPTADOR_FALSO_EM_PRODUCAO,
+  MOTIVO_FALHA_FALSA_EM_PRODUCAO,
   MOTIVO_LATENCIA_FALSA_MAIOR_QUE_O_PRAZO,
   MOTIVO_LATENCIA_FALSA_PADRAO_MAIOR_QUE_O_PRAZO,
   MOTIVO_LLM_SEM_ENDERECO,
@@ -512,5 +513,34 @@ describe('loadLLMConfig: o provedor de reserva (reserva-e-avaliacao, 1.0)', () =
     const carga = parseEnv(readFileSync(`${raiz}infra/carga.env`, 'utf8'))
     expect(loadLLMConfig(exemplo)).not.toHaveProperty('reserva')
     expect(loadLLMConfig({ ...exemplo, ...carga }).reserva).toEqual({ adaptador: 'falso', identidade: 'falso-reserva', ambiente: 'local', tokensPorMinuto: 1_950_000 })
+  })
+})
+
+describe('IA_FALHA_FALSA: a falha sob comando do adaptador falso (reserva-e-avaliacao, 4.0)', () => {
+  it.each(['principal', 'reserva'] as const)('lê `%s:<falha>` para cada uma das quatro falhas', (destino) => {
+    for (const falha of ['5xx', 'prazo', 'conexao', '429'] as const) {
+      expect(loadLLMConfig({ ...LOCAL, IA_FALHA_FALSA: `${destino}:${falha}` }).falhaFalsa, `${destino}:${falha}`).toEqual({ destino, falha })
+    }
+  })
+
+  it('sem a variável, ou com ela vazia como o compose a entrega, nenhum falso falha', () => {
+    expect(loadLLMConfig(LOCAL)).not.toHaveProperty('falhaFalsa')
+    expect(loadLLMConfig({ ...LOCAL, IA_FALHA_FALSA: '' })).not.toHaveProperty('falhaFalsa')
+  })
+
+  it('o formato é `<principal|reserva>:<5xx|prazo|conexao|429>`: outro destino, outra falha ou o texto solto recusam a subida citando a variável', () => {
+    for (const texto of ['5xx', 'outro:5xx', 'principal:500', 'reserva:timeout', 'principal:5xx:prazo', 'PRINCIPAL:5xx']) {
+      expect(erroDe({ ...LOCAL, IA_FALHA_FALSA: texto }).variaveis, texto).toEqual(['IA_FALHA_FALSA'])
+    }
+  })
+
+  it('com `AMBIENTE=producao` a subida a recusa citando a variável; em `local` e em `staging` vale', () => {
+    const erro = erroDe({ ...LLAMA, ...TOKENS, AMBIENTE: 'producao', LLM_BASE_URL: 'https://api.provedor.example/v1', IA_FALHA_FALSA: 'principal:5xx' })
+    expect(erro.variaveis).toEqual(['IA_FALHA_FALSA'])
+    expect(erro.motivos).toEqual([MOTIVO_FALHA_FALSA_EM_PRODUCAO])
+    // Sem a variável, a produção sobe como antes: a recusa é da falha sob comando, e não do ambiente.
+    expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: 'producao', LLM_BASE_URL: 'https://api.provedor.example/v1' })).not.toHaveProperty('falhaFalsa')
+    expect(loadLLMConfig({ ...LOCAL, IA_FALHA_FALSA: 'principal:5xx' }).falhaFalsa).toEqual({ destino: 'principal', falha: '5xx' })
+    expect(loadLLMConfig({ ...LLAMA, ...TOKENS, AMBIENTE: 'staging', IA_FALHA_FALSA: 'reserva:429' }).falhaFalsa).toEqual({ destino: 'reserva', falha: '429' })
   })
 })
