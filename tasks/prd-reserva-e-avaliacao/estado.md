@@ -1,8 +1,8 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 a 1.0 (grande, 1ª tentativa, partida 22/11 12:19); L2 a 10.0 (retomada 22/11 12:21 depois da DIVERGÊNCIA de desenho, triada como (a), techspec §7b: o Implementador 2 faz o formato e as guardas e avisa com o formato pronto; o `Arquiteto`, na L2, faz a pesquisa da 10.1 e as amostras e os critérios por subagente, sem commit; partida 22/11 12:19). Sem objeção até 12:11; na caixa do `Arquiteto` havia "aprovo, não cortar" digitado e não enviado, que não conta: a pergunta do corte segue aberta.
-- **Devo ainda:** a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
+- **Espero:** L1 a 1.0 (grande, 1ª tentativa, partida 22/11 12:19); L2 a 10.0 (retomada 22/11 12:21 depois da DIVERGÊNCIA de desenho, triada como (a), techspec §7b: o Implementador 2 faz o formato e as guardas e avisa com o formato pronto; o `Arquiteto`, na L2, faz a pesquisa da 10.1 e as amostras e os critérios por subagente, sem commit; partida 22/11 12:19).
+- **Devo ainda:** depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
 - **Base:** `spec/reserva-e-avaliacao` em `8fd6b2ad`
 
 ## Concluídas
@@ -14,11 +14,13 @@
 Decisão: abrir um `/corrigir` depois da F5b para a regra fixa da D55 não recusar rubrica de antes da aplicação (13 de 20 pedidos naturais recusados).
 Contexto: `tasks/prd-reserva-e-avaliacao/achado-d55-recusa-rubrica.md` (vai no commit da 10.0); o `TODO.md` já tem "D55 abaixo do alvo" (F7, da X6).
 Opções: corrigir depois da F5b | deixar para a F7. Recomendo (do `Arquiteto`): corrigir depois da F5b. Não segura nada agora.
+**Respondida em 22/11 12:55: "corrige a D55 depois da F5b".** Depois do pouso da F5b, `/corrigir` a partir do achado.
 ## 22/11 11:41 — F5b, o tamanho da spec, no meu terminal
 Decisão: 14 tarefas, acima do teto de 12: uma spec só ou cortar em reserva (1.0 a 9.0) e avaliação (10.0 a 14.0).
 Contexto: `tasks.md`, "Corte possível"; o `RELATÓRIO` do `Arquiteto` das 11:41.
 Opções: uma spec só | cortar. Recomendo (do `Arquiteto` e meu): uma spec só. A reserva não atende nada em produção até a 14.0 gravar `MODELOS_APROVADOS`, as duas metades correm em paralelo, e a F5b só fecha com a avaliação (D37).
 Segue sem depender: a 1.0 e a 10.0, que estão nas duas opções.
+**Respondida em 22/11 12:55: "não cortar".** Uma spec só, com 14 tarefas.
 ## 22/11 ~10:1x — F5b, revisão da spec, no terminal do `Arquiteto`
 Decisão: quatro perguntas da avaliação dos modelos (D55, Rigor, Cobertura, Lotes), que mudam o RF13 e o RF14 ou fixam limiar; a 1ª vem do veto do `conformidade-reviewer` (a avaliação não mede se o modelo recusa corrigir texto de aluno). Os achados da reserva já estão corrigidos na Tech Spec e no `cenarios.md`.
 **Respondida em 22/11 (antes das 10:48):** as quatro decisões entraram no RF13, no RF14 e no anexo `avaliacao.md` (`319cb0a1`). Aviso do `Arquiteto`: a avaliação passou a ~2.100 chamadas, R$ 150 a R$ 250 por finalista (estimativa), acima dos R$ 80 a R$ 130 aceitos na pergunta; levado ao Joaquim às 10:48. **Aceito em 22/11 11:08** ("ta bom, pode seguir"); o gasto só acontece na 5.0, com as chaves dele.
