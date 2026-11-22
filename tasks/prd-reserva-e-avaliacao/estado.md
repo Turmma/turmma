@@ -1,7 +1,7 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** 12:11 (aviso da lista às 11:41, `8fd6b2ad`, 14 tarefas). Sem objeção do Joaquim até lá, partem a 1.0 (L1) e a 10.0 (L2), que valem com ou sem o corte.
+- **Espero:** L1 a 1.0 (grande, 1ª tentativa, partida 22/11 12:19); L2 a 10.0 (1ª tentativa, partida 22/11 12:19). Sem objeção até 12:11; na caixa do `Arquiteto` havia "aprovo, não cortar" digitado e não enviado, que não conta: a pergunta do corte segue aberta.
 - **Devo ainda:** a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
 - **Base:** `spec/reserva-e-avaliacao` em `8fd6b2ad`
 
@@ -24,4 +24,5 @@ Decisão: as confirmações M1 a M4 da retro (`tasks/prd-camada-ia/retro.md`, t�
 ## O que falhou
 - 22/11 09:4x, pouso da F5a: o `maestri floor land` não respondeu (timeout de 10 s, duas vezes, `develop` intacta). Pousado com `git merge --ff-only spec/camada-ia` no térreo e push (`56779010`). O `floor delete` dos quatro andares deu timeout ou "malformed floorLifecycleVerdictResult frame", mas apagou; as branches locais `spec/camada-ia` e `--l3` saíram com `git branch -d`. Para a retro da F5a.
 ## O que decidi sem perguntar
+- 22/11 12:19: o Maestri do Windows não lê as pastas do WSL ("not a git repository", "couldn't look through everything"), o mesmo do `land` das 09:4x. Os checkouts das linhas 1 e 2 saíram por `git worktree add`, sem andar no Maestri (o `linhas.ts` só precisa do checkout); os pares reiniciaram com o conserto das pastas velhas vazias (`speccamada-ia--l1` e `--l2`). Depois do pouso, `git worktree remove` em vez de `floor delete`.
 - 22/11 09:49: abri a F5b e a retro da F5a com a esteira da `develop` ainda rodando, porque o Joaquim mandou seguir ("pode seguir com a F5b e a retro"). Vermelha, a correção vai para um andar próprio, e a F5b não tem código até as tarefas.
