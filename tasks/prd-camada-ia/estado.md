@@ -1,7 +1,7 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da 8.0, a última da F5a (porte pequeno, partida 21/11 à noite). L2 e L3 ociosas: nada mais a partir. Depois da 8.0, a validação (passo 8).
+- **Espero:** o `RELATÓRIO` do `Arquiteto` (reiniciado no checkout da L1) com a triagem da `DIVERGÊNCIA` de desenho da 8.0: o item de `GET /v1/operacao/uso` não traz `redeId` nem `orcamento`, que o diálogo de orçamento da 7.0 exige (opções a/b/c do Implementador). A resposta volta ao `Implementador` (L1) num `PEDIDO de retomada`; o resto da 8.0 não depende dela. L2 e L3 ociosas. Depois da 8.0, a validação (passo 8).
 - **Devo ainda:** para a retro, `tools/processo/revisoes-nao-se-perdem.test.ts` caiu sob carga no portão da L1 e passou isolado (3/3). antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
 - **Base:** `spec/camada-ia` em `3670ee12` (6.0 `918f93ac` e a correção do e2e de Professores `bf9565e2` encontradas); esteira 44967132971 rodando em `d8cfe4e`, e depois a de `3670ee1`; última verde `1a291ab`
 
