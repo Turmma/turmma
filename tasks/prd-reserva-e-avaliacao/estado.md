@@ -1,9 +1,9 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 a 5.0 (grande, 1ª tentativa, partida 22/11 ~18:10; portão na fila do compose às 18:41); L2 a 12.0 (grande, 1ª tentativa, partida 22/11 17:50; portão rodando às 18:41); L3 a 7.0 (grande, 1ª tentativa, pedido 22/11 ~18:50; leva os três pontos do balde da reserva que a 6.0 empurrou, linhas 109 a 111 do `6_task.md`).
-- **Devo ainda:** a 7.0, em curso na L3, tem de entrar na spec antes do pouso: até ela, a chamada à reserva depois da queda não passa por limitador (regra 80, item 4; divergência no `4_task.md`, techspec §5 e `7_task.md`). Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `6ba52a09` (esteira verde em `82aaf93`, 45069034335; a de `6ba52a09` dispara no push)
+- **Espero:** L1 a 8.0 (grande, 1ª tentativa, pedido 22/11 ~19:30); L2 a 13.0 (grande, 1ª tentativa, pedido 22/11 ~19:40; leva as recomendações da 12.0 destinadas a ela); L3 a 7.0 (grande, 1ª tentativa, pedido 22/11 ~18:50; leva os três pontos do balde da reserva que a 6.0 empurrou, linhas 109 a 111 do `6_task.md`). Presas: 9.0 (espera 7.0); 14.0 (espera 8.0, 9.0, 13.0 e as chaves do Joaquim).
+- **Devo ainda:** a 7.0, em curso na L3, tem de entrar na spec antes do pouso: até ela, a chamada à reserva depois da queda não passa por limitador (regra 80, item 4; divergência no `4_task.md`, techspec §5 e `7_task.md`). Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). a última tarefa (a 14.0) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
+- **Base:** `spec/reserva-e-avaliacao` no encontro da 12.0 (esteira de `8213fd22` rodando, execução 45077972611; veredito ao fechar a próxima tarefa)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -15,6 +15,8 @@
 | 11.0 | `6373d9db` | Sonnet | `test-engineer` na 3ª (escalada na 2ª, diagnóstico do `Arquiteto`: regex `semImportDeTipo`); `revisor-geral`, `llm-integrator` e `pedagogia-reviewer` na 2ª; os outros quatro na 1ª | encontro em `2aa1a2f4`, verificação da soma passou; sem tela; DIVERGÊNCIA (ordem, guarda do ponto de entrada) triada como detalhe, techspec §8 e `cenarios.md` §1 no commit |
 | 4.0 | `ee23dc4e` | Sonnet | os sete na 2ª | encontro em `82aaf93a`, verificação da soma passou; sem tela; absorveu a 6.1 e a 6.2 (divergência no `4_task.md`); regra 80 item 4 no ramo da queda pendente até a 7.0 |
 | 6.0 | `cd317d91` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `6ba52a09`, verificação da soma passou; sem tela; sem a 6.1 e a 6.2 (feitas na 4.0); três pontos do balde da reserva empurrados para a 7.0 (`6_task.md`, linhas 109 a 111) |
+| 5.0 | `2d07b316` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `8213fd22`, verificação da soma passou; sem tela |
+| 12.0 | `8e0aa1da` | Sonnet | `revisor-geral` reprovou na 1ª e aprovou na 2ª; os outros cinco aprovaram nas duas | encontro feito, verificação da soma passou; sem tela; 3 itens no `TODO.md` ("Da reserva-e-avaliacao, tarefa 12.0"); o resto das recomendações vai para a 13.0 |
 
 ## Esperando o Joaquim
 ## 22/11 12:52 — a regra fixa da D55 recusa rubrica legítima, no meu terminal
