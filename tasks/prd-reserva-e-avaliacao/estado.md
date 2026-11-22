@@ -1,15 +1,20 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Arquiteto` com a lista de tarefas (fase `sem-tarefas`, pedida em 22/11 11:21). Com ela, aviso e a construção começa 30 min depois (passo 7).
+- **Espero:** 12:11 (aviso da lista às 11:41, `8fd6b2ad`, 14 tarefas). Sem objeção do Joaquim até lá, partem a 1.0 (L1) e a 10.0 (L2), que valem com ou sem o corte.
 - **Devo ainda:** a última tarefa (a 13.0 da F5) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `75631d3f` (merge da `develop` com a retro da F5a, `06b192d5`)
+- **Base:** `spec/reserva-e-avaliacao` em `8fd6b2ad`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
 
 ## Esperando o Joaquim
+## 22/11 11:41 — F5b, o tamanho da spec, no meu terminal
+Decisão: 14 tarefas, acima do teto de 12: uma spec só ou cortar em reserva (1.0 a 9.0) e avaliação (10.0 a 14.0).
+Contexto: `tasks.md`, "Corte possível"; o `RELATÓRIO` do `Arquiteto` das 11:41.
+Opções: uma spec só | cortar. Recomendo (do `Arquiteto` e meu): uma spec só. A reserva não atende nada em produção até a 14.0 gravar `MODELOS_APROVADOS`, as duas metades correm em paralelo, e a F5b só fecha com a avaliação (D37).
+Segue sem depender: a 1.0 e a 10.0, que estão nas duas opções.
 ## 22/11 ~10:1x — F5b, revisão da spec, no terminal do `Arquiteto`
 Decisão: quatro perguntas da avaliação dos modelos (D55, Rigor, Cobertura, Lotes), que mudam o RF13 e o RF14 ou fixam limiar; a 1ª vem do veto do `conformidade-reviewer` (a avaliação não mede se o modelo recusa corrigir texto de aluno). Os achados da reserva já estão corrigidos na Tech Spec e no `cenarios.md`.
 **Respondida em 22/11 (antes das 10:48):** as quatro decisões entraram no RF13, no RF14 e no anexo `avaliacao.md` (`319cb0a1`). Aviso do `Arquiteto`: a avaliação passou a ~2.100 chamadas, R$ 150 a R$ 250 por finalista (estimativa), acima dos R$ 80 a R$ 130 aceitos na pergunta; levado ao Joaquim às 10:48. **Aceito em 22/11 11:08** ("ta bom, pode seguir"); o gasto só acontece na 5.0, com as chaves dele.
