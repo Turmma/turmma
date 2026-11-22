@@ -50,7 +50,13 @@ interface DadosDoConsumo {
   readonly em: Date
 }
 
-/** Com `envioExterno`, o `provedorId` de quem recebeu o conteúdo; sem ele, nulo (`consumo_ia.provedor`). */
+/**
+ * Com `envioExterno`, o `provedorId` de quem recebeu o conteúdo; sem ele, nulo (`consumo_ia.provedor`).
+ *
+ * A regra da linha da chamada que **saiu** e voltou sem uso: o 429 que sobrou da repetição (`limite`), outro 4xx (`rejeitada`), a conexão recusada, o 5xx e o prazo gravam a estimativa (a
+ * entrada contada e a saída no teto da tarefa, ao preço do modelo que a recebeu) e o provedor dela (D14: o custo nunca é subestimado, e o compartilhamento com o aluno diz para onde o pedido foi).
+ * Só a chamada que **não saiu** (o balde cheio, o disjuntor aberto) não tem linha de chamada.
+ */
 export type ConsumoDeIa = DadosDoConsumo & EnvioDaChamada
 
 /** Para onde o adaptador configurado manda o conteúdo: a origem, o envio (externo, e para quem) e o modelo de cada perfil. É o que a linha estimada de uma execução interrompida leva. */

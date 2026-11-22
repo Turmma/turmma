@@ -26,6 +26,23 @@ export const INTERVALO_DA_NOVA_CONFERENCIA_MS = 5_000
 /** De quantas em quantas tentativas seguidas **do mesmo motivo** o log se repete (12 de 5 s, um minuto): a primeira e a que muda de motivo sempre saem. */
 const REPETICAO_DO_LOG = 12
 
+/** Os eventos de log de uma conferência: a do principal e a da reserva (`ia.provedor_de_reserva.*`) dizem a mesma coisa com nomes que o operador distingue no runbook. */
+interface EventosDaConferencia {
+  readonly conferida: string
+  readonly semBanco: string
+  readonly recusada: string
+}
+const EVENTOS_DO_PRINCIPAL: EventosDaConferencia = {
+  conferida: 'ia.soberania_conferida',
+  semBanco: 'ia.soberania_na_subida_sem_banco',
+  recusada: 'ia.soberania_na_subida_recusada',
+}
+const EVENTOS_DA_RESERVA: EventosDaConferencia = {
+  conferida: 'ia.provedor_de_reserva.conferida',
+  semBanco: 'ia.provedor_de_reserva.conferencia_sem_banco',
+  recusada: 'ia.provedor_de_reserva.conferencia_recusada',
+}
+
 /** Por que o suboperador não cobre a D62. Cada motivo é uma coisa só que o operador corrige no cadastro (`ops:suboperador`). */
 export type MotivoDaD62 = 'sem_suboperador_vigente' | 'pais_fora_do_brasil' | 'treinamento_nao_vedado' | 'alcance_nao_e_todas' | `categoria_faltando:${CategoriaDeDadoDoSuboperador}`
 
@@ -56,9 +73,20 @@ export function motivosDaD62(suboperador: SuboperadorParaAConferenciaDaD62 | und
   return motivos
 }
 
+/** A reserva que a conferência vigia: para onde ela envia (`envio`, com o `provedorId` que é a chave do suboperador) e as tarefas aprovadas para ela, de onde saem as categorias exigidas. */
+export interface ConferenciaDaReserva {
+  readonly envio: EnvioDaChamada
+  readonly tarefas: readonly TarefaDeIa[]
+}
+
 export interface SoberaniaNaSubidaOpcoes {
   /** A configuração de IA da instância: quem diz se há envio externo e para qual provedor é o adaptador, como na chamada (`destinoDoAdaptador`). */
   readonly config: LLMConfig
+  /**
+   * Presente, a instância confere **o contrato da reserva** (F5b, 2.0), e não o do principal: a chave é a `IA_RESERVA_PROVEDOR_ID`, as categorias exigidas são as das tarefas aprovadas para ela
+   * (`categoriasDasTarefas`) e o log tem os eventos `ia.provedor_de_reserva.*`. Quem a cria é o `main-worker`, e **nada espera por ela**: o consumo das filas segue o principal.
+   */
+  readonly daReserva?: ConferenciaDaReserva
   readonly leitura: { vigenteDoProvedor(chave: string): Promise<SuboperadorParaAConferenciaDaD62 | undefined> }
   readonly logger: Pick<LoggerBase, 'info' | 'warn'>
   /** Só o teste: o intervalo da nova conferência. */
@@ -73,12 +101,16 @@ export interface SoberaniaNaSubidaOpcoes {
  * suboperador de novo, e encerrá-lo (`ops:suboperador encerrar`) só vale quando os `worker-ia` forem reiniciados, a qualquer hora (`docs/runbook.md`).
  * A API não reinicia: ela não monta modelo.
  *
+ * **A da reserva** (`daReserva`, F5b, 2.0) é a mesma conferência sobre o contrato da `IA_RESERVA_PROVEDOR_ID`, e **não segura o consumo das filas**: sem ela a reserva só não é elegível (`reservaElegivel`,
+ * que lê `conferida`), e o principal segue atendendo. Ela também confere de novo a cada 5 s enquanto não passa.
+ *
  * O log leva o evento, o provedor e os motivos fixos, nunca o contrato (regra 20, item 9).
  */
 export class SoberaniaNaSubida implements DeclaracaoDeSoberania, OnApplicationBootstrap, OnApplicationShutdown {
   readonly #envio: EnvioDaChamada
   readonly #intervaloMs: number
   readonly #exigidas: readonly CategoriaDeDadoDoSuboperador[]
+  readonly #eventos: EventosDaConferencia
   #conferida: boolean
   #encerrada = false
   #nova: NodeJS.Timeout | undefined
@@ -89,10 +121,12 @@ export class SoberaniaNaSubida implements DeclaracaoDeSoberania, OnApplicationBo
   readonly #aguardando = new Set<(conferida: boolean) => void>()
 
   constructor(private readonly opcoes: SoberaniaNaSubidaOpcoes) {
-    this.#envio = destinoDoAdaptador(opcoes.config).envio
+    const { daReserva } = opcoes
+    this.#envio = daReserva === undefined ? destinoDoAdaptador(opcoes.config).envio : daReserva.envio
     this.#conferida = !this.#envio.envioExterno
     this.#intervaloMs = opcoes.intervaloMs ?? INTERVALO_DA_NOVA_CONFERENCIA_MS
-    this.#exigidas = categoriasEnviadasPelasTarefas()
+    this.#exigidas = daReserva === undefined ? categoriasEnviadasPelasTarefas() : categoriasDasTarefas(daReserva.tarefas)
+    this.#eventos = daReserva === undefined ? EVENTOS_DO_PRINCIPAL : EVENTOS_DA_RESERVA
   }
 
   get conferida(): boolean {
@@ -137,7 +171,8 @@ export class SoberaniaNaSubida implements DeclaracaoDeSoberania, OnApplicationBo
     if (this.#encerrada) return
     if (passou) {
       this.#conferida = true
-      this.opcoes.logger.info({ evento: 'ia.soberania_conferida', provedorId: envio.provedorId })
+      const evento = this.#eventos.conferida
+      this.opcoes.logger.info({ evento, provedorId: envio.provedorId })
       for (const resolver of this.#aguardando) resolver(true)
       this.#aguardando.clear()
       return
@@ -156,13 +191,15 @@ export class SoberaniaNaSubida implements DeclaracaoDeSoberania, OnApplicationBo
     try {
       motivos = motivosDaD62(await this.opcoes.leitura.vigenteDoProvedor(provedorId), this.#exigidas)
     } catch (erro) {
-      if (this.#deveAvisar('sem_banco')) this.opcoes.logger.warn({ evento: 'ia.soberania_na_subida_sem_banco', provedorId, tentativas, erro: summarizeError(erro) })
+      const evento = this.#eventos.semBanco
+      if (this.#deveAvisar('sem_banco')) this.opcoes.logger.warn({ evento, provedorId, tentativas, erro: summarizeError(erro) })
       return false
     }
     if (motivos.length === 0) return true
     // Os motivos são códigos fixos (`MotivoDaD62`), separados por vírgula: o que o operador procura no runbook.
     const codigo = motivos.join(',')
-    if (this.#deveAvisar(codigo)) this.opcoes.logger.warn({ evento: 'ia.soberania_na_subida_recusada', provedorId, tentativas, codigo })
+    const evento = this.#eventos.recusada
+    if (this.#deveAvisar(codigo)) this.opcoes.logger.warn({ evento, provedorId, tentativas, codigo })
     return false
   }
 

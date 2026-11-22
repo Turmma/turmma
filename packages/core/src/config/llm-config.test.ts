@@ -364,7 +364,7 @@ describe('loadLLMConfig: o provedor de reserva (reserva-e-avaliacao, 1.0)', () =
   })
 
   it('a reserva falsa assume a identidade `falso-reserva`, a menos que IA_RESERVA_PROVEDOR_ID diga outra, e não tem modelo nem preço exigido', () => {
-    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso' }).reserva).toEqual({ adaptador: 'falso', identidade: IDENTIDADE_DA_RESERVA_FALSA })
+    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso' }).reserva).toEqual({ adaptador: 'falso', identidade: IDENTIDADE_DA_RESERVA_FALSA, ambiente: 'local' })
     expect(IDENTIDADE_DA_RESERVA_FALSA).toBe('falso-reserva')
     expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso', IA_RESERVA_PROVEDOR_ID: 'outra-falsa' }).reserva).toMatchObject({ identidade: 'outra-falsa' })
     expect(loadLLMConfig({ ...LOCAL, ...TOKENS, AMBIENTE: 'staging', IA_RESERVA_ADAPTADOR: 'falso', ...TOKENS_DA_RESERVA }).reserva).not.toHaveProperty('exigePreco')
@@ -375,6 +375,7 @@ describe('loadLLMConfig: o provedor de reserva (reserva-e-avaliacao, 1.0)', () =
     expect(reserva).toEqual({
       adaptador: 'openai_compat',
       identidade: 'provedor-de-reserva',
+      ambiente: 'local',
       modelo: {
         baseUrl: 'https://reserva.provedor.test/v1',
         modelos: { rapido: 'rapido-da-reserva', padrao: 'modelo-da-reserva', complexo: 'modelo-da-reserva', visao: 'modelo-da-reserva' },
@@ -448,7 +449,14 @@ describe('loadLLMConfig: o provedor de reserva (reserva-e-avaliacao, 1.0)', () =
   })
 
   it('a reserva falsa ignora o endereço que sobrou no ambiente: não tem modelo, e a configuração não o carrega', () => {
-    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso', LLM_RESERVA_BASE_URL: RESERVA.LLM_RESERVA_BASE_URL }).reserva).toEqual({ adaptador: 'falso', identidade: IDENTIDADE_DA_RESERVA_FALSA })
+    expect(loadLLMConfig({ ...LOCAL, IA_RESERVA_ADAPTADOR: 'falso', LLM_RESERVA_BASE_URL: RESERVA.LLM_RESERVA_BASE_URL }).reserva).toEqual({ adaptador: 'falso', identidade: IDENTIDADE_DA_RESERVA_FALSA, ambiente: 'local' })
+  })
+
+  it('a reserva leva o AMBIENTE em que a configuração subiu: é dele que a aprovação da reserva falsa depende, e o `main-worker` não tem outro lugar de onde o ler', () => {
+    for (const ambiente of ['local', 'staging'] as const) {
+      expect(loadLLMConfig({ ...LOCAL, ...TOKENS, AMBIENTE: ambiente, IA_RESERVA_ADAPTADOR: 'falso', ...TOKENS_DA_RESERVA }).reserva, ambiente).toHaveProperty('ambiente', ambiente)
+    }
+    expect(loadLLMConfig({ ...PRINCIPAL_EM_PRODUCAO, AMBIENTE: 'producao', ...RESERVA, ...TOKENS_DA_RESERVA }).reserva).toHaveProperty('ambiente', 'producao')
   })
 
   it('`openai_compat` nos dois e nenhum modelo da reserva igual a um do principal: a reserva "outro modelo do mesmo provedor" sobe', () => {
@@ -503,6 +511,6 @@ describe('loadLLMConfig: o provedor de reserva (reserva-e-avaliacao, 1.0)', () =
     const exemplo = parseEnv(readFileSync(`${raiz}.env.example`, 'utf8'))
     const carga = parseEnv(readFileSync(`${raiz}infra/carga.env`, 'utf8'))
     expect(loadLLMConfig(exemplo)).not.toHaveProperty('reserva')
-    expect(loadLLMConfig({ ...exemplo, ...carga }).reserva).toEqual({ adaptador: 'falso', identidade: 'falso-reserva', tokensPorMinuto: 1_950_000 })
+    expect(loadLLMConfig({ ...exemplo, ...carga }).reserva).toEqual({ adaptador: 'falso', identidade: 'falso-reserva', ambiente: 'local', tokensPorMinuto: 1_950_000 })
   })
 })

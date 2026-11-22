@@ -1559,10 +1559,41 @@ Do próprio servidor, sem dado de aluno: `curl -sS -o /dev/null -w '%{http_code}
 3. A rede do servidor para o provedor caiu (conexão recusada, DNS) → `docker compose exec worker-ia getent hosts <host do LLM_BASE_URL>`; a causa é da VPS ou do provedor de rede, e não do código.
 4. O prazo do perfil ficou curto para um modelo que ficou lento (`IA_TEMPO_ESGOTADO` no painel, com o provedor respondendo) → é capacidade do provedor ou do modelo: veja "Tokens acima de 80% do contratado" (a espera por vaga come o prazo) antes de mexer em `LLM_TIMEOUT_MS` (complexo e visão), `LLM_TIMEOUT_MS_RAPIDO` ou `LLM_TIMEOUT_MS_PADRAO`.
 
-**Se nada disso resolver:** não há provedor de reserva até a D37 (a degradação declarada é a espera e o modelo menor do mesmo provedor, que não ajuda com o provedor fora). Avise a coordenação das escolas em sala de que o Tutor e as ferramentas estão fora, dizendo o que continua
+**Se nada disso resolver:** o provedor de reserva já pode estar configurado e conferido (reserva-e-avaliacao, tarefas 1.0 e 2.0), mas **só atende a partir da tarefa 4.0**, que liga o desvio da queda: até lá a degradação declarada é a espera e o modelo menor do mesmo provedor, que não ajuda com o provedor fora. Avise a coordenação das escolas em sala de que o Tutor e as ferramentas estão fora, dizendo o que continua
 funcionando (matérias, notas e turmas não dependem da IA), e suspenda a função da escola pelo painel de governança se a escola preferir o aviso na tela a "Tentar de novo". Não troque o provedor por conta própria: a D62 exige o suboperador cadastrado, e uma troca às pressas sem o cadastro é o que a subida recusa.
 
+**Quando é a reserva** (vale a partir da tarefa 4.0 da reserva-e-avaliacao, que liga o desvio e dá a cada provedor o seu disjuntor; hoje a reserva só é conferida, tarefa 2.0): o `provedor` do alerta é o `IA_RESERVA_PROVEDOR_ID`, e não o `IA_PROVEDOR_ID`; a reserva só atende a tarefa aprovada para ela em `MODELOS_APROVADOS`, e o disjuntor dela é próprio, no `provedor` dela.
+Com a reserva fora o **principal segue atendendo**, e o que se perde é só o desvio da queda do principal: veja "Provedor de reserva de IA não conferido" (a conferência da D62 dela) antes de mexer na chave ou no endereço
+(`LLM_RESERVA_BASE_URL`, `LLM_RESERVA_CHAVE_API`) do `worker-ia`. Contrato da reserva que venceu ou que deixou de cobrir a D62 **não se contorna**: o provedor encerrado deixa de ser suboperador, e o procedimento está na entrada citada.
+
 **Depois:** registre no `TODO.md` a hora, o provedor, o código dominante e quanto tempo durou (sem id de escola: o repositório é público). Mais de uma vez por mês, o contrato e a reserva da D29 e da D37 viram tarefa.
+
+## Provedor de reserva de IA não conferido
+
+**Dispara quando:** o contrato do provedor de reserva não passa na conferência da D62 de uma réplica do `worker-ia` por 10 min seguidos (`min by (provedor) (ia_provedor_de_reserva_conferido)` abaixo de 1, por 10 min;
+regra `infra/grafana/alertas/ia-provedor-de-reserva.yaml`; reserva-e-avaliacao, tarefa 2.0). **Só existe com reserva configurada** (`IA_RESERVA_ADAPTADOR`): sem ela a série não é publicada e o alerta nunca dispara. A reserva
+é conferida como o principal (país `BR`, treinamento vedado, alcance `todas`), pela chave da `IA_RESERVA_PROVEDOR_ID`, mas com as categorias das **tarefas aprovadas para ela** (`MODELOS_APROVADOS`), e não as de todo o catálogo.
+
+**Impacto:** a reserva está fora do caminho: quando o desvio entrar (tarefa 4.0), se o provedor principal cair a chamada não terá para onde ir e terminará como sem reserva ("Tentar de novo" para o aluno e a professora); até lá a reserva nem é chamada, e a queda do principal termina como termina hoje. **O `worker-ia` sobe e consome as filas do
+mesmo jeito** (a conferência da reserva não segura o consumo, ao contrário da do principal), e o principal segue atendendo; nada para de funcionar hoje, só deixa de haver degrau para a queda quando ele existir.
+
+**Primeiro olhar:** o log do `worker-ia` (`docker compose logs --since 10m worker-ia-1 worker-ia-2`): `ia.provedor_de_reserva.conferencia_recusada` traz `provedorId` e o `codigo`, com os motivos separados por vírgula
+(`sem_suboperador_vigente`, `pais_fora_do_brasil`, `treinamento_nao_vedado`, `alcance_nao_e_todas`, `categoria_faltando:<categoria>`); `ia.provedor_de_reserva.conferencia_sem_banco` é o banco que não respondeu. A instância confere
+de novo a cada 5 s, e o mesmo motivo repetido sai de novo só a cada 12 tentativas.
+
+**Causas prováveis:**
+
+1. `sem_suboperador_vigente` → o provedor de reserva não está cadastrado (`ops:suboperador`), foi encerrado, ou a `IA_RESERVA_PROVEDOR_ID` não é a chave do cadastro: cadastre-o **depois** de ter o contrato, ou corrija a variável.
+2. `pais_fora_do_brasil`, `treinamento_nao_vedado`, `alcance_nao_e_todas` → o contrato da reserva não cobre a D62: **não afrouxe o cadastro para a reserva voltar**. Confira também que o contrato **permite serviço usado por menor de idade**
+   (os termos da Gemini API vedam, por exemplo; regra 20, item 13) e diz onde o dado é processado: sem isso o provedor não pode ser a reserva, qualquer que seja o preço.
+3. `categoria_faltando:<categoria>` → uma tarefa foi aprovada para a reserva (Tutor, por exemplo) sem o contrato listar a categoria dela: o contrato precisa cobri-la antes do cadastro, ou a aprovação sai de `MODELOS_APROVADOS`.
+4. `ia.provedor_de_reserva.conferencia_sem_banco` → o Postgres está fora ou lento: veja o alerta do banco. A reserva se confere sozinha quando ele volta.
+
+**Se nada disso resolver:** corrigido o cadastro, a reserva se confere sozinha na tentativa seguinte (até 5 s), sem reiniciar. **Encerrar o suboperador da reserva** (contrato vencido ou rescindido) **pede reiniciar os `worker-ia`**, como no
+principal: depois de conferida a instância não lê o cadastro de novo (`ops:suboperador encerrar`, depois `docker compose restart worker-ia-1` e logo depois o `worker-ia-2`). Antes de a reserva atender escola nenhuma, **avise as escolas**
+de que há suboperador novo (seção "Como avisar as escolas"): suboperador que recebe conversa de aluno sem aviso é o que a D62 existe para impedir. Confira também os dois lugares em que a escola o vê: o cadastro de suboperadores que o dossiê de conformidade lista (D61, `docs/conformidade-mec.md`) e a lista de compartilhamento do titular (`docs/lgpd.md`, direito "Informação sobre compartilhamento"), que passa a mostrar a reserva quando o `consumo_ia.provedor` a gravar (tarefa 5.0).
+
+**Depois:** registre no `TODO.md` a hora, o provedor, o código e quanto tempo a reserva ficou fora do caminho (sem id de escola: o repositório é público).
 
 ## Tokens acima de 70% do contratado
 

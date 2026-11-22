@@ -224,6 +224,68 @@ describe('a IA roda no worker', () => {
         await sem.fechar()
       }
     })
+
+    it('o limitador da reserva usa o contratado dela, com os baldes por fila: o do principal, com outro contratado, aceita o que o dela recusa, e o gateway o recebe (F5b, 2.0)', async () => {
+      // 1.000 tokens por minuto: o balde geral é 800 (80 %) e o da ferramenta 150 (15 %). O contratado do principal, o do teste, é de milhões.
+      const worker = await FilaDeIa.subirOMainWorker({ reserva: { tokensPorMinuto: 1_000 } })
+      try {
+        const { limiteDaReserva, limiteDoPrincipal } = worker
+        if (limiteDaReserva === null || limiteDoPrincipal === null) throw new Error('o módulo devia montar os dois limitadores')
+        expect(limiteDaReserva.constructor.name).toBe('TokenLimiter')
+        expect(limiteDaReserva).not.toBe(limiteDoPrincipal)
+        expect(worker.gatewayTemOLimiteDaReserva).toBe(true)
+        expect(worker.gatewayReservaNele).toBe(true)
+        // Uma chave só de cada caso: o balde é por `provedor:modelo`, e o minuto anterior de outro teste não conta.
+        const dela = `falso-reserva:${randomUUID()}`
+        const doPrincipal = `falso:${randomUUID()}`
+        for (const [limite, chave, cabe] of [
+          [limiteDaReserva, dela, false],
+          [limiteDoPrincipal, doPrincipal, true],
+        ] as const) {
+          // O balde da ferramenta enche no que sobrou do contratado dela (150), e o geral só depois (800), que o Tutor, na `interativa`, ainda enche.
+          // O cliente do Redis acaba de subir: antes de ele estar pronto o seguro em memória (o contratado dividido pelas réplicas) responde, e o balde de 150 não cabe nele. Uma sonda de chave própria espera o Redis.
+          await expect.poll(async () => (await limite.reservar(`sonda:${randomUUID()}`, 150, 'ferramenta')).concedida, { timeout: 10_000 }).toBe(true)
+          expect((await limite.reservar(chave, 150, 'ferramenta')).concedida, 'a ferramenta cabe no balde dela').toBe(true)
+          expect((await limite.reservar(chave, 1, 'ferramenta')).concedida, `a ferramenta, depois de cheio o balde dela: ${chave}`).toBe(cabe)
+          expect((await limite.reservar(chave, 650, 'interativa')).concedida, 'a interativa cabe no que resta do geral').toBe(true)
+          expect((await limite.reservar(chave, 1, 'interativa')).concedida, `a interativa, depois de cheio o geral: ${chave}`).toBe(cabe)
+        }
+      } finally {
+        await worker.fechar()
+      }
+    })
+
+    it('sem reserva, ou com a reserva sem contratado (só no `local`), não há limitador da reserva; com só o contratado dela, só ele existe (F5b, 2.0)', async () => {
+      const sem = await FilaDeIa.subirOMainWorker()
+      try {
+        expect(sem.limiteDaReserva).toBeNull()
+        expect(sem.gatewayTemOLimiteDaReserva).toBe(false)
+        expect(sem.soberaniaDaReserva).toBeNull()
+        expect(sem.gatewayTemASoberaniaDaReserva).toBe(false)
+      } finally {
+        await sem.fechar()
+      }
+      const semContratado = await FilaDeIa.subirOMainWorker({ reserva: {} })
+      try {
+        expect(semContratado.limiteDaReserva).toBeNull()
+        expect(semContratado.gatewayTemOLimiteDaReserva).toBe(false)
+        // A reserva existe e é conferida; só o balde dela não, e o do principal segue como era.
+        expect(semContratado.soberaniaDaReserva).not.toBeNull()
+        expect(semContratado.gatewayTemASoberaniaDaReserva).toBe(true)
+        expect(semContratado.limiteDoPrincipal).not.toBeNull()
+      } finally {
+        await semContratado.fechar()
+      }
+      const soDaReserva = await FilaDeIa.subirOMainWorker({ semTokensPorMinuto: true, reserva: { tokensPorMinuto: 5_000 } })
+      try {
+        expect(soDaReserva.limiteDoPrincipal).toBeNull()
+        expect(soDaReserva.gatewayReservaNele).toBe(false)
+        expect(soDaReserva.limiteDaReserva?.constructor.name).toBe('TokenLimiter')
+        expect(soDaReserva.gatewayTemOLimiteDaReserva).toBe(true)
+      } finally {
+        await soDaReserva.fechar()
+      }
+    })
   })
 
   describe('payload do job', () => {

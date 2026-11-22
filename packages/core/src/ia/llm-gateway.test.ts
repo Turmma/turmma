@@ -11,7 +11,7 @@ import { FakeAdapter, MODELO_FALSO } from './fake-adapter.js'
 import { chaveDoPreco, custoDaChamada, InMemoryConsumo, precoDoModelo, InMemoryOrcamento, type OrcamentoQuery, type ConsumoDeIa, type OrcamentoDeIa, type RegistroDeConsumo, type TabelaDePrecos } from './consumo.js'
 import { loadLLMConfig, type LLMConfig } from '../config/llm-config.js'
 import { HTTP_STATUS_BY_CODE } from '../error/domain.exception.js'
-import { LLM_ERROR_CODES, LLMError } from './errors.js'
+import { LLM_ERROR_CODES, LLMError, ProviderError } from './errors.js'
 import type { DeclaracaoDeSoberania, EnvioDaChamada, GenerationMeasurement } from './port.js'
 import { adaptadorDaReserva, createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_DA_RESERVA_SEM_PRECO, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway, type LLMGatewayDependencies, type LLMLogger } from './llm-gateway.js'
 import type { FilaDeTokens, LimiteDeTokens, ResultadoDaReserva } from './token-limiter.js'
@@ -895,6 +895,8 @@ describe('destinoDoAdaptador: para onde a configuração manda o conteúdo (a li
 class LimiteDeMentira implements LimiteDeTokens {
   readonly pedidos: { modelo: string; estimativa: number; fila: FilaDeTokens }[] = []
   readonly acertos: number[] = []
+  /** O mesmo que `acertos`, por `provedor:modelo`: diz de qual reserva veio cada acerto. */
+  readonly acertosPorModelo: Record<string, number[]> = {}
   /** Os `provedor:modelo` sem vaga agora: o teste os abre com o relógio. */
   readonly fechados = new Set<string>()
   uso = 0.5
@@ -906,7 +908,7 @@ class LimiteDeMentira implements LimiteDeTokens {
   async reservar(modelo: string, estimativa: number, fila: FilaDeTokens): Promise<ResultadoDaReserva> {
     this.pedidos.push({ modelo, estimativa, fila })
     if (this.fechados.has(modelo)) return this.recusaSemUso ? { concedida: false, msAteLiberar: this.msAteLiberar } : { concedida: false, msAteLiberar: this.msAteLiberar, usoDoTeto: this.uso }
-    return { concedida: true, usoDoTeto: this.uso, reserva: { acertar: async (usoReal) => void this.acertos.push(usoReal) } }
+    return { concedida: true, usoDoTeto: this.uso, reserva: { acertar: async (usoReal) => void (this.acertos.push(usoReal), (this.acertosPorModelo[modelo] ??= []).push(usoReal)) } }
   }
 
   get modelosPedidos(): string[] {
@@ -1699,7 +1701,7 @@ describe('createLLMGateway: fora de `local`, o modelo da reserva precisa de pre�
 
 describe('a identidade do adaptador: a reserva falsa é outro provedor para o balde, o rótulo, o disjuntor e o preço (reserva-e-avaliacao, 1.0)', () => {
   const TOKENS = { entrada: 100, saida: 20 }
-  const CONFIG: LLMConfig = { adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 100, replicas: 1, tokensFalsos: TOKENS, reserva: { adaptador: 'falso', identidade: 'falso-reserva' } }
+  const CONFIG: LLMConfig = { adaptador: 'falso', prazosMs: PRAZOS, recuoMs: 100, replicas: 1, tokensFalsos: TOKENS, reserva: { adaptador: 'falso', identidade: 'falso-reserva', ambiente: 'local' } }
   const PRECO = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_000, saidaMicrosPorMilTokens: 1_000 }
   /** Os dois falsos têm o mesmo modelo, e o preço que o teste injeta é diferente para cada identidade. */
   const PRECOS: TabelaDePrecos = {
@@ -1808,5 +1810,281 @@ describe('a identidade do adaptador: a reserva falsa é outro provedor para o ba
     }
     const semEspera = adaptadorDaReserva(CONFIG)
     await expect(semEspera?.chamar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), sinal: AbortSignal.timeout(50) })).resolves.toMatchObject({ modelo: MODELO_FALSO })
+  })
+})
+
+describe('LLMGateway: a causa da falha atravessa o `ResilientAdapter` (reserva-e-avaliacao, 3.0; RF3; regra 80, item 4; D14)', () => {
+  /** 100 de entrada e 20 de saída por chamada que volta; o principal a 1.300 e 5.200 micros por mil, o menor a 300 e 1.200 (54 por chamada que volta). */
+  const ANTIGO = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste', entradaMicrosPorMilTokens: 1_300, saidaMicrosPorMilTokens: 5_200 }
+  const PRECOS: TabelaDePrecos = {
+    [chaveDoPreco(PROVEDOR_ROTEIRIZADO, 'roteirizado-padrao')]: [ANTIGO],
+    [chaveDoPreco(PROVEDOR_ROTEIRIZADO, 'menor-padrao')]: [{ ...ANTIGO, entradaMicrosPorMilTokens: 300, saidaMicrosPorMilTokens: 1_200 }],
+    [chaveDoPreco(PROVEDOR_ROTEIRIZADO, 'roteirizado-rapido')]: [ANTIGO],
+  }
+  const tokensEstimadosDaFerramenta = () => ({ tokensDeEntrada: tokensDoPedido(gerarAtividadeObjetiva, entradaDeAtividade()), tokensDeSaida: gerarAtividadeObjetiva.maximoDeTokensDeSaida })
+  const limiteDoProvedor = (retryAfter?: number) => new ProviderError('limite', retryAfter)
+
+  /** O `ResilientAdapter` real, com recuo de 1 ms (relógio real), sobre o adaptador roteirizado que lança o `ProviderError` de verdade. */
+  function resiliente(roteiro: readonly (string | Error)[]) {
+    const interno = new ScriptedAdapter(roteiro)
+    return { interno, adaptador: new ResilientAdapter(interno, { prazosMs: PRAZOS, recuoMs: 1, aleatorio: () => 1 }) }
+  }
+
+  it('`limite` no principal, tarefa com menor: vai ao menor; as linhas, na ordem: a estimada do principal (`envio_externo`, o provedor) e a do menor', async () => {
+    const leitor = new MedidorDeTeste()
+    const limite = new LimiteDeMentira()
+    // O 429 duas vezes (a chamada e a única repetição do `ResilientAdapter`), e depois o menor responde.
+    const { interno, adaptador } = resiliente([limiteDoProvedor(), limiteDoProvedor(), saidaDeAtividade()])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, precos: PRECOS, medidor: leitor.medidor })
+    const { medicao } = await ia.generate(pedidoDaFerramenta())
+    expect(interno.modelosPedidos).toEqual([undefined, undefined, 'menor-padrao'])
+    expect(limite.modelosPedidos).toEqual([PRINCIPAL_DO_PADRAO, MENOR_DO_PADRAO])
+    expect(medicao.modelo).toBe('menor-padrao')
+    expect(consumo.registros).toMatchObject([
+      { modelo: 'roteirizado-padrao', estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL', envioExterno: true, provedorId: PROVEDOR_ROTEIRIZADO, ...tokensEstimadosDaFerramenta(), custoMicros: custoDaChamada(tokensEstimadosDaFerramenta(), ANTIGO) },
+      { modelo: 'menor-padrao', estado: 'concluida', tokensDeEntrada: 100, tokensDeSaida: 20, custoMicros: 54, envioExterno: true, provedorId: PROVEDOR_ROTEIRIZADO },
+    ])
+    // O menor reservou a estimativa do pedido, na fila dele, e acertou pelo uso real; o balde do principal ficou como estava.
+    expect(limite.pedidos[1]).toEqual({ modelo: MENOR_DO_PADRAO, estimativa: tokensDoPedido(gerarAtividadeObjetiva, entradaDeAtividade()) + gerarAtividadeObjetiva.maximoDeTokensDeSaida, fila: 'ferramenta' })
+    expect(limite.acertosPorModelo).toEqual({ [MENOR_DO_PADRAO]: [120] })
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'espera')).toBe(0)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(1)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(0)
+    await leitor.encerrar()
+  })
+
+  it('o `limite` com `Retry-After` além do prazo também desce ao menor, sem repetir o principal', async () => {
+    const limite = new LimiteDeMentira()
+    const { interno, adaptador } = resiliente([limiteDoProvedor(90), saidaDeAtividade()])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, precos: PRECOS })
+    // Sem fila no pedido: o balde do menor é o da `normal`, como o do principal.
+    await ia.generate({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A, execucaoId: EXECUCAO })
+    expect(interno.modelosPedidos).toEqual([undefined, 'menor-padrao'])
+    expect(limite.pedidos.map((pedido) => [pedido.modelo, pedido.fila])).toEqual([[PRINCIPAL_DO_PADRAO, 'normal'], [MENOR_DO_PADRAO, 'normal']])
+    expect(consumo.registros).toMatchObject([{ modelo: 'roteirizado-padrao', estado: 'falhou' }, { modelo: 'menor-padrao', estado: 'concluida' }])
+  })
+
+  it('o balde do principal cheio, sem menor para o perfil: o log do degrau diz o modelo do principal, e o do `limite` também', async () => {
+    vi.useFakeTimers()
+    try {
+      const logger = registrador()
+      const limite = new LimiteDeMentira()
+      limite.fechados.add(PRINCIPAL_DO_PADRAO)
+      const cheio = montar({ adaptador: new ScriptedAdapter([]), limiteDeTokens: limite, modelosMenores: { rapido: 'menor-rapido' }, logger })
+      const resultado = erroDe(cheio.ia.generate(pedidoDaFerramenta()))
+      await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+      expect((await resultado).motivo).toBe('sem_vaga')
+      expect(logger.linhas()).toContainEqual({ evento: 'ia.geracao.sem_vaga', tipo: 'gerar_atividade_objetiva', modeloId: 'roteirizado-padrao', codigo: 'IA_INDISPONIVEL' })
+    } finally {
+      vi.useRealTimers()
+    }
+    const doLimite = registrador()
+    const { adaptador } = resiliente([limiteDoProvedor(90)])
+    const semMenor = montar({ adaptador, limiteDeTokens: new LimiteDeMentira(), modelosMenores: { rapido: 'menor-rapido' }, logger: doLimite })
+    await erroDe(semMenor.ia.generate(pedidoDaFerramenta()))
+    expect(doLimite.linhas()).toContainEqual({ evento: 'ia.geracao.sem_vaga', tipo: 'gerar_atividade_objetiva', modeloId: 'roteirizado-padrao', codigo: 'IA_INDISPONIVEL' })
+  })
+
+  it('`limite` sem menor para o perfil: termina `IA_INDISPONIVEL` com `limite`, a espera que o provedor deu, a linha estimada e o degrau `indisponivel`; não é `semEnvio`', async () => {
+    const leitor = new MedidorDeTeste()
+    const limite = new LimiteDeMentira()
+    const { interno, adaptador } = resiliente([limiteDoProvedor(90)])
+    // Só o `rapido` tem menor: a ferramenta, que é do `padrao`, não tem.
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: { rapido: 'menor-rapido' }, precos: PRECOS, medidor: leitor.medidor })
+    const erro = await erroDe(ia.generate(pedidoDaFerramenta()))
+    expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'limite', semEnvio: false, tenteDeNovoEmSegundos: 90 })
+    expect(interno.chamadas).toBe(1)
+    expect(limite.modelosPedidos).toEqual([PRINCIPAL_DO_PADRAO])
+    expect(consumo.registros).toMatchObject([{ modelo: 'roteirizado-padrao', estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL', envioExterno: true, provedorId: PROVEDOR_ROTEIRIZADO, ...tokensEstimadosDaFerramenta() }])
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor')).toBe(0)
+    expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel')).toBe(1)
+    await leitor.encerrar()
+  })
+
+  it('o menor também sem vaga (o balde dele cheio): termina `IA_INDISPONIVEL` com `limite`, e só a linha do principal', async () => {
+    const limite = new LimiteDeMentira()
+    limite.fechados.add(MENOR_DO_PADRAO)
+    const { interno, adaptador } = resiliente([limiteDoProvedor(90)])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, precos: PRECOS })
+    const erro = await erroDe(ia.generate(pedidoDaFerramenta()))
+    expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'limite', semEnvio: false })
+    expect(interno.chamadas).toBe(1)
+    expect(limite.modelosPedidos).toEqual([PRINCIPAL_DO_PADRAO, MENOR_DO_PADRAO])
+    expect(consumo.registros).toHaveLength(1)
+  })
+
+  it('o menor que também recusa por limite: termina `IA_INDISPONIVEL`, sem terceira chamada, com as duas linhas estimadas, cada uma no preço do seu modelo', async () => {
+    const { interno, adaptador } = resiliente([limiteDoProvedor(90), limiteDoProvedor(90)])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: new LimiteDeMentira(), modelosMenores: MENORES, precos: PRECOS })
+    const erro = await erroDe(ia.generate(pedidoDaFerramenta()))
+    expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'limite' })
+    expect(interno.modelosPedidos).toEqual([undefined, 'menor-padrao'])
+    const tokens = tokensEstimadosDaFerramenta()
+    expect(consumo.registros).toMatchObject([
+      { modelo: 'roteirizado-padrao', custoMicros: custoDaChamada(tokens, ANTIGO), ...tokens },
+      { modelo: 'menor-padrao', custoMicros: custoDaChamada(tokens, { ...ANTIGO, entradaMicrosPorMilTokens: 300, saidaMicrosPorMilTokens: 1_200 }), ...tokens },
+    ])
+  })
+
+  it('o `limite` do menor, que já era o modelo da chamada (o principal esperou 8 s sem vaga): não desce de novo, e termina com `limite`', async () => {
+    vi.useFakeTimers()
+    try {
+      const limite = new LimiteDeMentira()
+      limite.fechados.add(PRINCIPAL_DO_PADRAO)
+      const { interno, adaptador } = resiliente([limiteDoProvedor(90)])
+      const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, precos: PRECOS })
+      const resultado = erroDe(ia.generate(pedidoDaFerramenta()))
+      await vi.advanceTimersByTimeAsync(ESPERA_MAXIMA_DA_VAGA_MS)
+      expect(await resultado).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'limite' })
+      expect(interno.modelosPedidos).toEqual(['menor-padrao'])
+      expect(limite.modelosPedidos.filter((modelo) => modelo === MENOR_DO_PADRAO)).toHaveLength(1)
+      expect(consumo.registros).toMatchObject([{ modelo: 'menor-padrao', estado: 'falhou' }])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('o sinal de quem chamou é o da chamada ao adaptador, e sem sinal a chamada leva um que não está abortado', async () => {
+    const sinais: AbortSignal[] = []
+    class GuardaOSinal extends ScriptedAdapter {
+      override async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
+        sinais.push(chamada.sinal)
+        return super.chamar(chamada)
+      }
+    }
+    const { ia } = montar({ adaptador: new GuardaOSinal([saidaDeAtividade(), saidaDeAtividade()]) })
+    const controle = new AbortController()
+    await ia.generate({ ...pedidoDaFerramenta(), sinal: controle.signal })
+    await ia.generate(pedidoDaFerramenta())
+    expect(sinais[0]).toBe(controle.signal)
+    expect(sinais[1]?.aborted).toBe(false)
+  })
+
+  it('o sinal de quem chamou é também o da chamada ao menor: o prazo único da execução cancela as duas', async () => {
+    const sinais: AbortSignal[] = []
+    class GuardaOSinal extends ScriptedAdapter {
+      override async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
+        sinais.push(chamada.sinal)
+        return super.chamar(chamada)
+      }
+    }
+    // O principal devolve o `limite` já traduzido; o menor responde.
+    const { ia } = montar({ adaptador: new GuardaOSinal([new LLMError('IA_INDISPONIVEL', 90, 'limite'), saidaDeAtividade()]), limiteDeTokens: new LimiteDeMentira(), modelosMenores: MENORES })
+    const controle = new AbortController()
+    await ia.generate({ ...pedidoDaFerramenta(), sinal: controle.signal })
+    expect(sinais).toHaveLength(2)
+    expect(sinais[0]).toBe(controle.signal)
+    expect(sinais[1]).toBe(controle.signal)
+  })
+
+  it('a duração da linha do menor é a da chamada dele, e não inclui o 429 do principal', async () => {
+    // O relógio de `performance.now()` é do teste: o principal gasta 500 ms até o 429 e o menor 7 ms.
+    let agora = 0
+    const relogio = vi.spyOn(performance, 'now').mockImplementation(() => agora)
+    try {
+      const passos = [500, 7]
+      class GastaTempo extends ScriptedAdapter {
+        override async chamar<Entrada, Saida>(chamada: ModelCall<Entrada, Saida>): Promise<ModelResponse> {
+          agora += passos.shift() ?? 0
+          return super.chamar(chamada)
+        }
+      }
+      const { ia, consumo } = montar({ adaptador: new GastaTempo([new LLMError('IA_INDISPONIVEL', 90, 'limite'), saidaDeAtividade()]), limiteDeTokens: new LimiteDeMentira(), modelosMenores: MENORES })
+      await ia.generate(pedidoDaFerramenta())
+      expect(consumo.registros.map((registro) => [registro.modelo, registro.duracaoMs])).toEqual([['roteirizado-padrao', 500], ['menor-padrao', 7]])
+    } finally {
+      relogio.mockRestore()
+    }
+  })
+
+  it('sem limitador configurado não há degrau: o `limite` termina como veio, com a linha estimada', async () => {
+    const { interno, adaptador } = resiliente([limiteDoProvedor(90)])
+    const { ia, consumo } = montar({ adaptador, modelosMenores: MENORES, precos: PRECOS })
+    expect(await erroDe(ia.generate(pedidoDaFerramenta()))).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'limite' })
+    expect(interno.chamadas).toBe(1)
+    expect(consumo.registros).toHaveLength(1)
+  })
+
+  it('o `limite` do Tutor e da classificação, com `modelosMenores` configurado para o `rapido`, não vai ao menor (D36): termina `IA_INDISPONIVEL`', async () => {
+    const entradaDaClassificacao = {
+      candidatas: [{ codigo: 'EF07MA01', descricao: 'Resolver problemas com números naturais, inteiros e racionais.' }],
+      secoes: [{ secaoId: '0190f5a0-0000-7000-8000-0000000000a1', titulo: 'Capítulo', comeco: 'Texto do começo.', subtitulos: 'Subtítulo' }],
+    }
+    type Ia = ReturnType<typeof montar>['ia']
+    const pedidos: { rotulo: string; gerar: (ia: Ia) => Promise<unknown> }[] = [
+      { rotulo: 'o Tutor', gerar: (ia) => ia.generate({ tarefa: turnoDoTutor, entrada: entradaDoTutor('não entendi essa'), escolaId: ESCOLA_A, alunoId: ALUNO_1, execucaoId: EXECUCAO, fila: 'interativa' }) },
+      { rotulo: 'a classificação', gerar: (ia) => ia.generate({ tarefa: classificarSecoes, entrada: entradaDaClassificacao, escolaId: ESCOLA_A, execucaoId: EXECUCAO, fila: 'lote' }) },
+    ]
+    for (const { rotulo, gerar } of pedidos) {
+      const leitor = new MedidorDeTeste()
+      const limite = new LimiteDeMentira()
+      const { interno, adaptador } = resiliente([limiteDoProvedor(90)])
+      const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, soberania: CONFERIDA, medidor: leitor.medidor })
+      const erro = await erroDe(gerar(ia))
+      expect(erro, rotulo).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'limite' })
+      expect(interno.modelosPedidos, rotulo).toEqual([undefined])
+      expect(limite.modelosPedidos, rotulo).toEqual([PRINCIPAL_DO_RAPIDO])
+      // A chamada saiu: a linha dela fica, mesmo no lote, que só adia sem linha a chamada que não saiu.
+      expect(consumo.registros, rotulo).toHaveLength(1)
+      expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'modelo_menor'), rotulo).toBe(0)
+      expect(await valorDe(leitor, 'ia.degradacao', 'degrau', 'indisponivel'), rotulo).toBe(1)
+      await leitor.encerrar()
+    }
+  })
+
+  it('`rejeitada` (o 401 e o 403 do servidor, em `resilient-adapter.test.ts`) no principal, com menor disponível: não vai ao menor; termina `IA_INDISPONIVEL`, sem degrau e sem repetir', async () => {
+    const leitor = new MedidorDeTeste()
+    const limite = new LimiteDeMentira()
+    const { interno, adaptador } = resiliente([new ProviderError('rejeitada'), saidaDeAtividade()])
+    const { ia, consumo } = montar({ adaptador, limiteDeTokens: limite, modelosMenores: MENORES, precos: PRECOS, medidor: leitor.medidor })
+    const erro = await erroDe(ia.generate(pedidoDaFerramenta()))
+    expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'rejeitada', semEnvio: false })
+    expect(interno.modelosPedidos).toEqual([undefined])
+    expect(limite.modelosPedidos).toEqual([PRINCIPAL_DO_PADRAO])
+    // O pedido chegou ao provedor: a linha leva a estimativa e o provedor.
+    expect(consumo.registros).toMatchObject([{ modelo: 'roteirizado-padrao', estado: 'falhou', envioExterno: true, provedorId: PROVEDOR_ROTEIRIZADO, ...tokensEstimadosDaFerramenta() }])
+    for (const degrau of ['espera', 'modelo_menor', 'indisponivel']) expect(await valorDe(leitor, 'ia.degradacao', 'degrau', degrau), degrau).toBe(0)
+    await leitor.encerrar()
+  })
+
+  describe('o 429 que sobra e a conexão recusada gravam a estimativa, pelo `ResilientAdapter` com o servidor falso (TODO.md, camada-ia, validação)', () => {
+    let servidor: FakeLlamaServer | undefined
+    afterEach(async () => {
+      await servidor?.fechar()
+      servidor = undefined
+    })
+    const PROVEDOR = 'provedor-de-teste'
+    const MODELOS = { rapido: 'm-rapido', padrao: 'm-padrao', complexo: 'm-complexo', visao: 'm-visao' } as const
+    const PRECOS_DO_SERVIDOR: TabelaDePrecos = { [chaveDoPreco(PROVEDOR, 'm-padrao')]: [ANTIGO] }
+
+    async function gerarContra(baseUrl: string) {
+      const adaptador = new ResilientAdapter(new OpenAICompatAdapter({ baseUrl, modelos: MODELOS, processamentoLocal: false, provedorId: PROVEDOR }), { prazosMs: PRAZOS, recuoMs: 5, aleatorio: () => 1 })
+      const { ia, consumo } = montar({ adaptador, precos: PRECOS_DO_SERVIDOR })
+      const erro = await erroDe(ia.generate(pedido()))
+      return { erro, consumo }
+    }
+    const pedido = () => ({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), escolaId: ESCOLA_A, execucaoId: EXECUCAO })
+
+    it('429 que sobra da repetição: uma linha, com a entrada contada, a saída no teto, o custo disso e o provedor', async () => {
+      servidor = await startFakeLlamaServer(() => ({ status: 429, corpo: {} }))
+      const { erro, consumo } = await gerarContra(servidor.url)
+      expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: 'limite' })
+      expect(servidor.pedidos).toHaveLength(2)
+      const tokens = tokensEstimadosDaFerramenta()
+      expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL', modelo: 'm-padrao', envioExterno: true, provedorId: PROVEDOR, ...tokens, custoMicros: custoDaChamada(tokens, ANTIGO) }])
+      expect(consumo.registros[0]?.custoMicros).toBeGreaterThan(0)
+    })
+
+    it('conexão recusada: a mesma linha estimada, com o provedor', async () => {
+      servidor = await startFakeLlamaServer(() => ({ corpo: {} }))
+      const { url } = servidor
+      await servidor.fechar()
+      servidor = undefined
+      const { erro, consumo } = await gerarContra(url)
+      expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: undefined, semEnvio: false })
+      const tokens = tokensEstimadosDaFerramenta()
+      expect(consumo.registros).toMatchObject([{ estado: 'falhou', codigoDeErro: 'IA_INDISPONIVEL', modelo: 'm-padrao', envioExterno: true, provedorId: PROVEDOR, ...tokens, custoMicros: custoDaChamada(tokens, ANTIGO) }])
+      expect(consumo.registros[0]?.custoMicros).toBeGreaterThan(0)
+    })
   })
 })

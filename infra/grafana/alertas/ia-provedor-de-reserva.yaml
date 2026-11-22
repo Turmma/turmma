@@ -1,0 +1,63 @@
+# Alerta "Provedor de reserva de IA não conferido" (reserva-e-avaliacao, tarefa 2.0; runbook: docs/runbook.md#provedor-de-reserva-de-ia-não-conferido).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `ia.provedor_de_reserva.conferido{provedor}` vale 1 enquanto o contrato do provedor de reserva passa na D62 desta instância do `worker-ia` (Brasil, treinamento vedado, alcance `todas` e as
+# categorias das tarefas aprovadas para ela), e 0 enquanto não passa. A reserva que não passa fica fora do caminho, sem derrubar o principal: o alerta é o aviso à Operação de que a queda do
+# principal não tem para onde ir. A regra toma o menor valor entre as réplicas por provedor, e dispara com 0 por 10 min seguidos, o tempo de o cadastro ser corrigido sem alarme falso a cada reinício.
+#
+# **Só existe com reserva configurada**: sem `IA_RESERVA_ADAPTADOR` a série não é publicada, e `noDataState: OK` mantém o alerta quieto. Não usa `absent()`: a ausência da série é o normal de quem
+# não tem reserva, e não um defeito. A série não leva escola, execução nem usuário.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ia-provedor-de-reserva
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-ia-provedor-de-reserva
+        title: Provedor de reserva de IA não conferido
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: ia
+        annotations:
+          summary: 'O provedor de reserva {{ $labels.provedor }} não passa na conferência da D62 há 10 min: se o provedor principal cair, a chamada não tem reserva'
+          description: O contrato da reserva no cadastro de suboperadores não cobre a D62 (país, treinamento, alcance ou categorias), ou o banco não respondeu à conferência. O principal segue atendendo. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#provedor-de-reserva-de-ia-não-conferido
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'min by (provedor) (ia_provedor_de_reserva_conferido)'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: lt
+                    params: [1]

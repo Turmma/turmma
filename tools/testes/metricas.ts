@@ -118,4 +118,5 @@ export const NOMES_NO_PROMETHEUS = {
   usoDoOrcamentoDoMes: ['ia_orcamento_uso_do_mes'],
   usoDoTetoDoOrcamento: ['ia_orcamento_uso_do_teto'],
   loteAdiado: ['ia_lote_adiado_total'],
+  provedorDeReservaConferido: ['ia_provedor_de_reserva_conferido'],
 } as const satisfies Record<keyof typeof METRICS, readonly string[]>

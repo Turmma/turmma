@@ -44,6 +44,13 @@ export interface LLMGatewayDependencies {
    * nem desce de degrau.
    */
   readonly limiteDeTokens?: LimiteDeTokens
+  /**
+   * O limitador **da reserva** (F5b, 2.0): o `TokenLimiter` dela, com o contratado dela (`LLM_RESERVA_TOKENS_POR_MINUTO`) e os mesmos baldes por fila. Entregue ao gateway; quem o lê é o ramo sem vaga (7.0).
+   * Sem ele (reserva sem contratado, só no `local`, ou sem reserva) a reserva não tem balde.
+   */
+  readonly limiteDeTokensDaReserva?: LimiteDeTokens
+  /** A conferência da D62 **da reserva** (F5b, 2.0): a porta de `reservaElegivel`. Ausente vale não conferida, e a reserva não é elegível. Quem a lê é o roteamento (4.0). */
+  readonly soberaniaDaReserva?: DeclaracaoDeSoberania
   /** O modelo menor de cada perfil que tem o seu (`LLM_MODELO_MENOR_<PERFIL>`): o degrau depois da espera. O turno do Tutor nunca o usa. */
   readonly modelosMenores?: Readonly<Partial<Record<Perfil, string>>>
   /** O preço de cada modelo (`provedor:modelo`, com as vigências). Sem ele vale `PRECO_DOS_MODELOS`; o teste injeta a tabela com os preços que prova. */
@@ -380,15 +387,12 @@ export class LLMGateway implements LLMProvider {
       // A vaga de tokens vem antes da chamada, e a tentativa só conta depois dela: a que terminou `IA_INDISPONIVEL` sem sair não deixa o consumo dizer que houve envio.
       const vaga = await this.reservarVaga(pedido, entrada, correcao)
       gasto.tentativas += 1
-      // O prazo da chamada é do `ResilientAdapter`, que sabe o do perfil. O sinal de quem chamou (o executor) o cancela.
-      const sinal = pedido.sinal ?? new AbortController().signal
       // O modelo que vai receber o pedido: se a chamada falhar, o consumo de `falhou` grava este (regra 70, item 6), e não o do perfil.
       gasto.modelo = vaga.modelo ?? this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
-      const inicioDaChamada = performance.now()
-      const resposta = await this.chamarContando(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, vaga.modelo), gasto, inicioDaChamada, correcao)
+      const { resposta, reserva, inicioDaChamada } = await this.chamarComDegrau(pedido, entrada, correcao, vaga, gasto)
       const chamada = this.chamadaFeita(resposta.modelo, { tokensDeEntrada: resposta.tokensDeEntrada, tokensDeSaida: resposta.tokensDeSaida }, inicioDaChamada)
       gasto.chamadas.push(chamada)
-      await vaga.reserva?.acertar(resposta.tokensDeEntrada + resposta.tokensDeSaida)
+      await reserva?.acertar(resposta.tokensDeEntrada + resposta.tokensDeSaida)
       gasto.modelo = resposta.modelo
       gasto.tokensDeEntrada += resposta.tokensDeEntrada
       gasto.tokensDeSaida += resposta.tokensDeSaida
@@ -402,6 +406,36 @@ export class LLMGateway implements LLMProvider {
     const reserva = this.saidaDeReserva(pedido, entrada, gasto.tentativas, reprovadaNaConferencia ? problemasDaUltima : undefined)
     if (reserva !== undefined) return reserva
     throw new LLMError('IA_SAIDA_INVALIDA')
+  }
+
+  /**
+   * A chamada ao modelo da vaga e, se o principal devolver o `limite` (o 429 que sobrou da repetição, falta de vaga do provedor, regra 80, item 4), o mesmo degrau do balde cheio: o modelo menor.
+   * A linha da chamada que o principal recusou já está em `gasto.chamadas`. Devolve também a reserva da chamada que respondeu, que o chamador acerta pelo uso real, e quando ela começou.
+   */
+  private async chamarComDegrau<Entrada, Saida>(
+    pedido: GenerationRequest<Entrada, Saida>,
+    entrada: Entrada,
+    correcao: RepairHint | undefined,
+    vaga: Vaga,
+    gasto: Gasto,
+  ): Promise<{ readonly resposta: ModelResponse; readonly reserva: ReservaDeTokens | undefined; readonly inicioDaChamada: number }> {
+    const { tarefa } = pedido
+    // O prazo da chamada é do `ResilientAdapter`, que sabe o do perfil. O sinal de quem chamou (o executor) o cancela.
+    const sinal = pedido.sinal ?? new AbortController().signal
+    const inicioDaChamada = performance.now()
+    try {
+      const resposta = await this.chamarContando(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, vaga.modelo), gasto, inicioDaChamada, correcao)
+      return { resposta, reserva: vaga.reserva, inicioDaChamada }
+    } catch (erro) {
+      // Só o 429 que sobrou, e só na chamada ao principal: o menor que também recusa termina, sem descer de novo.
+      const desceAoMenor = erro instanceof LLMError && erro.motivo === 'limite' && vaga.modelo === undefined
+      const menor = desceAoMenor ? await this.descerPorLimite(pedido, entrada, correcao) : undefined
+      if (menor === undefined) throw erro
+      gasto.modelo = menor.modelo
+      const inicioDoMenor = performance.now()
+      const resposta = await this.chamarContando(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, menor.modelo), gasto, inicioDoMenor, correcao)
+      return { resposta, reserva: menor.reserva, inicioDaChamada: inicioDoMenor }
+    }
   }
 
   /** Só quando o modelo respondeu na forma certa e errou no conteúdo (`problemas` presente): modelo que devolve lixo continua sendo falha. */
@@ -422,7 +456,7 @@ export class LLMGateway implements LLMProvider {
     try {
       return await this.chamarModelo(pedido, aoModelo)
     } catch (erro) {
-      // A chamada que saiu e não voltou com uso (o prazo, a conexão, o servidor) custa o que se estima: a entrada contada e a saída no teto da tarefa (D14, superestima). A que não saiu (o disjuntor aberto) não é chamada.
+      // A chamada que saiu e não voltou com uso (o prazo, a conexão, o servidor, o 429 que sobrou e o outro 4xx) custa o que se estima: a entrada contada e a saída no teto da tarefa (D14, superestima). A que não saiu (o disjuntor aberto) não é chamada.
       if (!(erro instanceof LLMError && erro.semEnvio)) gasto.chamadas.push(this.chamadaSemUso(pedido, entrada, correcao, gasto.modelo, inicioDaChamada, erro instanceof LLMError ? erro.codigoDeIa : 'IA_INDISPONIVEL'))
       throw erro
     }
@@ -452,6 +486,7 @@ export class LLMGateway implements LLMProvider {
    * 2. **o modelo menor** do perfil, uma reserva só, se houver e se a tarefa puder (o turno do Tutor, nunca);
    * 3. **`IA_INDISPONIVEL`**, sem troca contada e sem erro cru.
    *
+   * O 429 que o provedor devolve **depois** de a vaga ser concedida (o `limite` do `ResilientAdapter`) desce o mesmo degrau 2, em `descerPorLimite`, sem a espera.
    * Sem limitador configurado, a chamada vai direto ao modelo do perfil.
    */
   private async reservarVaga<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined): Promise<Vaga> {
@@ -459,7 +494,7 @@ export class LLMGateway implements LLMProvider {
     if (limite === undefined) return {}
     const { tarefa } = pedido
     const fila = pedido.fila ?? 'normal'
-    const estimativa = tokensDoPedido(tarefa, entrada, correcao) + tarefa.maximoDeTokensDeSaida
+    const estimativa = this.estimativaDoPedido(pedido, entrada, correcao)
     const principal = this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
     const limiteDaEspera = horaDoProcessoMs() + ESPERA_MAXIMA_DA_VAGA_MS
     let esperou = false
@@ -477,24 +512,46 @@ export class LLMGateway implements LLMProvider {
       }
       await wait(Math.min(Math.max(resultado.msAteLiberar, ESPERA_MINIMA_ENTRE_RESERVAS_MS), restante), pedido.sinal)
     }
-    return this.descerParaOMenor(pedido, estimativa, fila, limite, msAteLiberar)
-  }
-
-  private async descerParaOMenor<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, estimativa: number, fila: NonNullable<GenerationRequest<Entrada, Saida>['fila']>, limite: LimiteDeTokens, msAteLiberar: number): Promise<Vaga> {
-    const { tarefa } = pedido
-    const menor = TAREFAS_SEM_MODELO_MENOR.has(tarefa.nome) ? undefined : this.dependencias.modelosMenores?.[tarefa.perfil]
-    if (menor !== undefined) {
-      const resultado = await limite.reservar(this.chaveDoBalde(menor), estimativa, fila)
-      this.anotarUsoDoTeto(menor, resultado.usoDoTeto)
-      if (resultado.concedida) {
-        this.descer('modelo_menor', tarefa.nome, menor)
-        return { modelo: menor, reserva: resultado.reserva }
-      }
-    }
-    const modelo = menor ?? this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
-    this.descer('indisponivel', tarefa.nome, modelo)
+    const vaga = await this.reservarOMenor(pedido, estimativa, fila, limite)
+    if (vaga !== undefined) return vaga
+    this.descer('indisponivel', tarefa.nome, this.modeloMenorDaTarefa(pedido) ?? principal)
     // O balde diz quando libera: o lote adia o job por esse tempo (`tenteDeNovoEmSegundos`) em vez de falhar.
     throw new LLMError('IA_INDISPONIVEL', Math.max(1, Math.ceil(msAteLiberar / 1_000)), 'sem_vaga')
+  }
+
+  /** O modelo menor que a tarefa pode usar: o do perfil, salvo as que nunca descem (o Tutor e a classificação). */
+  private modeloMenorDaTarefa<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>): string | undefined {
+    const { tarefa } = pedido
+    return TAREFAS_SEM_MODELO_MENOR.has(tarefa.nome) ? undefined : this.dependencias.modelosMenores?.[tarefa.perfil]
+  }
+
+  /** O que o pedido reserva no balde: a entrada contada (com a correção da repetição) e o máximo de saída da tarefa. */
+  private estimativaDoPedido<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined): number {
+    return tokensDoPedido(pedido.tarefa, entrada, correcao) + pedido.tarefa.maximoDeTokensDeSaida
+  }
+
+  /** O degrau do modelo menor: a vaga dele no balde próprio, ou nada (a tarefa não o tem, não pode usá-lo, ou o balde dele também está cheio). */
+  private async reservarOMenor<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, estimativa: number, fila: NonNullable<GenerationRequest<Entrada, Saida>['fila']>, limite: LimiteDeTokens): Promise<Required<Vaga> | undefined> {
+    const menor = this.modeloMenorDaTarefa(pedido)
+    if (menor === undefined) return undefined
+    const resultado = await limite.reservar(this.chaveDoBalde(menor), estimativa, fila)
+    this.anotarUsoDoTeto(menor, resultado.usoDoTeto)
+    if (!resultado.concedida) return undefined
+    this.descer('modelo_menor', pedido.tarefa.nome, menor)
+    return { modelo: menor, reserva: resultado.reserva }
+  }
+
+  /**
+   * O principal respondeu 429 depois da repetição: o pedido chegou e o provedor não tem vaga. Desce ao modelo menor, sem a espera de 8 s (o provedor já recusou, o balde nosso estava aberto).
+   * Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, termina como o balde cheio: `IA_INDISPONIVEL`, e o `degrau` conta. Sem limitador configurado não há degrau (o
+   * `local`), e o erro sobe como veio. Quem chama relança o `limite` original quando a resposta é `undefined`.
+   */
+  private async descerPorLimite<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined): Promise<Required<Vaga> | undefined> {
+    const limite = this.dependencias.limiteDeTokens
+    if (limite === undefined) return undefined
+    const vaga = await this.reservarOMenor(pedido, this.estimativaDoPedido(pedido, entrada, correcao), pedido.fila ?? 'normal', limite)
+    if (vaga === undefined) this.descer('indisponivel', pedido.tarefa.nome, this.dependencias.adaptador.modeloDoPerfil(pedido.tarefa.perfil))
+    return vaga
   }
 
   /** O balde é do `provedor:modelo`: o modelo menor tem o seu, e dois provedores não dividem balde. */
@@ -624,6 +681,10 @@ export class LLMGateway implements LLMProvider {
 export interface LLMGatewayPorts {
   readonly precos?: TabelaDePrecos
   readonly limiteDeTokens?: LimiteDeTokens
+  /** O limitador da reserva (`LLMGatewayDependencies.limiteDeTokensDaReserva`). */
+  readonly limiteDeTokensDaReserva?: LimiteDeTokens
+  /** A conferência da D62 da reserva (`LLMGatewayDependencies.soberaniaDaReserva`). */
+  readonly soberaniaDaReserva?: DeclaracaoDeSoberania
   readonly registro: RegistroDeConsumo
   readonly orcamento: OrcamentoDeIa
   readonly suspensao: SuspensaoDeFuncao

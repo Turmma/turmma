@@ -2481,6 +2481,16 @@
           "expr": "max by (provedor, modelo, perfil) (ia_disjuntor_aberto)",
           "legendFormat": "disjuntor aberto {{provedor}} {{modelo}} {{perfil}}",
           "range": true
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "min by (provedor) (ia_provedor_de_reserva_conferido)",
+          "legendFormat": "reserva conferida {{provedor}}",
+          "range": true
         }
       ]
     },

@@ -1,7 +1,7 @@
 import { isIP } from 'node:net'
 import { z } from 'zod'
 import { PERFIS, type Perfil } from '../ia/perfis.js'
-import { AMBIENTES, validateEnvironment } from './validate-config.js'
+import { AMBIENTES, validateEnvironment, type Environment } from './validate-config.js'
 
 /**
  * `falso` é o adaptador determinístico dos testes e da demonstração sem modelo; `openai_compat` fala com qualquer
@@ -191,7 +191,7 @@ function conferirLatenciasFalsas(valores: ValoresDoFalso & { readonly LLM_TIMEOU
 
 /** O que a conferência da reserva lê do que o schema devolve: o principal (para a identidade e os modelos) e as variáveis da reserva. */
 interface ValoresDaReserva {
-  readonly AMBIENTE: string
+  readonly AMBIENTE: Environment
   readonly IA_ADAPTADOR: LLMAdapterKind
   readonly LLM_PROCESSAMENTO_LOCAL: string
   readonly IA_PROVEDOR_ID?: string | undefined
@@ -301,6 +301,8 @@ export interface ReservaConfig {
   readonly adaptador: LLMAdapterKind
   /** O `IA_RESERVA_PROVEDOR_ID` (`falso-reserva` na reserva falsa sem outro): a chave do balde, do preço, do disjuntor e da aprovação dela. */
   readonly identidade: string
+  /** O `AMBIENTE` em que a configuração subiu: a aprovação da reserva falsa não vale em `producao` (`aprovadaParaAReserva`), e quem a lê (o `main-worker`, 2.0) não tem outro lugar de onde o tirar. */
+  readonly ambiente: Environment
   /** Só com `openai_compat`. */
   readonly modelo?: ModelConfig
   /** Fora de `AMBIENTE=local` com `openai_compat`: o modelo de cada perfil da reserva precisa de preço em `PRECO_DOS_MODELOS`, ou a subida é recusada (D14). */
@@ -371,6 +373,7 @@ function reservaConfigurada(valores: ValoresDaReserva): ReservaConfig | undefine
   const base: ReservaConfig = {
     adaptador,
     identidade,
+    ambiente: valores.AMBIENTE,
     ...(exigeOPreco({ AMBIENTE: valores.AMBIENTE, IA_ADAPTADOR: adaptador }) ? { exigePreco: true as const } : {}),
     ...(valores.LLM_RESERVA_TOKENS_POR_MINUTO === undefined ? {} : { tokensPorMinuto: valores.LLM_RESERVA_TOKENS_POR_MINUTO }),
   }

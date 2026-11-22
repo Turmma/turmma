@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loadLLMConfig } from '../config/llm-config.js'
 import type { SuboperadorParaAConferenciaDaD62 } from '../titular/suboperador-da-escola.repository.js'
 import { MODELO_FALSO } from './fake-adapter.js'
-import { tarefasAprovadasParaAReserva, type ModeloAprovado } from './modelos-aprovados.js'
+import { reservaElegivel, tarefasAprovadasParaAReserva, type ModeloAprovado } from './modelos-aprovados.js'
 import { categoriasDasTarefas, categoriasEnviadasPelasTarefas, motivosDaD62, SoberaniaNaSubida } from './soberania.js'
 import { TASK_CATALOG } from './tasks/index.js'
 
@@ -304,5 +304,124 @@ describe('a D62 da reserva: as categorias são as das tarefas aprovadas para ela
       const todas: SuboperadorParaAConferenciaDaD62 = { pais: 'US', vedaTreinamento: true, alcance: 'todas', categorias: [...exigidasDa(tarefa)] }
       expect(motivosDaD62(todas, exigidasDa(tarefa)), tarefa).toEqual(['pais_fora_do_brasil'])
     }
+  })
+})
+
+describe('a conferência da reserva: o mesmo contrato da D62, pela chave dela, sem segurar o principal (reserva-e-avaliacao, 2.0)', () => {
+  const RESERVA = 'reserva-contratada'
+  const MODELO_DA_RESERVA = 'modelo-da-reserva'
+  const envioDaReserva = { envioExterno: true, provedorId: RESERVA } as const
+  const daReserva = (...tarefas: ModeloAprovado['tarefa'][]) => ({ envio: envioDaReserva, tarefas })
+  const soMaterial: SuboperadorParaAConferenciaDaD62 = { pais: 'BR', vedaTreinamento: true, alcance: 'todas', categorias: ['material_da_escola'] }
+  const aprovada = (tarefa: ModeloAprovado['tarefa']): ModeloAprovado => ({ tarefa, provedorId: RESERVA, modelo: MODELO_DA_RESERVA, relatorio: 'docs/avaliacao/falso-reserva/relatorio.md', sha256: 'x', aprovadoPor: 'teste', aprovadoEm: '2026-11-22' })
+
+  it('nasce não conferida e lê o cadastro pela chave da reserva, e não pela do principal; o cadastro que cobre a confere, com o evento dela', async () => {
+    const leitura = leituraDe({ [PROVEDOR]: undefined, [RESERVA]: soMaterial })
+    const logger = registrador()
+    const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger, daReserva: daReserva('gerar_atividade_objetiva') })
+    expect(soberania.conferida).toBe(false)
+    await soberania.start()
+    expect(leitura.vigenteDoProvedor).toHaveBeenCalledExactlyOnceWith(RESERVA)
+    expect(soberania.conferida).toBe(true)
+    expect(logger.info).toHaveBeenCalledExactlyOnceWith({ evento: 'ia.provedor_de_reserva.conferida', provedorId: RESERVA })
+    soberania.encerrar()
+  })
+
+  it('as categorias exigidas são as das tarefas aprovadas para ela: a mesma instância confere sem a conversa do aluno só se o Tutor não está aprovado', async () => {
+    const semOTutor = new SoberaniaNaSubida({ config: externo, leitura: leituraDe({ [RESERVA]: soMaterial }), logger: registrador(), daReserva: daReserva('gerar_atividade_objetiva') })
+    await semOTutor.start()
+    expect(semOTutor.conferida).toBe(true)
+    const logger = registrador()
+    const comOTutor = new SoberaniaNaSubida({ config: externo, leitura: leituraDe({ [RESERVA]: soMaterial }), logger, daReserva: daReserva('gerar_atividade_objetiva', 'turno_do_tutor'), intervaloMs: 60_000 })
+    await comOTutor.start()
+    expect(comOTutor.conferida).toBe(false)
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ codigo: 'categoria_faltando:conversa_do_aluno,categoria_faltando:trabalho_do_aluno' }))
+    semOTutor.encerrar()
+    comOTutor.encerrar()
+  })
+
+  it.each([
+    ['fora do Brasil', { ...soMaterial, pais: 'US' }, 'pais_fora_do_brasil'],
+    ['treinamento não vedado', { ...soMaterial, vedaTreinamento: false }, 'treinamento_nao_vedado'],
+    ['alcance que não é todas', { ...soMaterial, alcance: 'lista' as const }, 'alcance_nao_e_todas'],
+    ['sem suboperador vigente (o encerrado não volta do cadastro)', undefined, 'sem_suboperador_vigente'],
+  ])('%s: não conferida, e o log da reserva traz só o evento, a chave, a tentativa e o código', async (_nome, cadastro, codigo) => {
+    const logger = registrador()
+    const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe({ [RESERVA]: cadastro }), logger, daReserva: daReserva('gerar_atividade_objetiva'), intervaloMs: 60_000 })
+    await soberania.start()
+    expect(soberania.conferida).toBe(false)
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith({ evento: 'ia.provedor_de_reserva.conferencia_recusada', provedorId: RESERVA, tentativas: 1, codigo })
+    soberania.encerrar()
+  })
+
+  it('o log da recusa nunca leva o contrato, o nome do suboperador nem a chave da reserva, ainda que o cadastro e a configuração os tragam', async () => {
+    const CHAVE = 'chave-secreta-da-reserva-0123456789'
+    const CONTRATO = 'CONTRATO-RECONHECIVEL-987'
+    const config = loadLLMConfig({
+      AMBIENTE: 'local',
+      IA_ADAPTADOR: 'openai_compat',
+      LLM_BASE_URL: 'https://api.provedor.test/v1',
+      LLM_MODELO: 'modelo',
+      IA_PROVEDOR_ID: PROVEDOR,
+      IA_RESERVA_ADAPTADOR: 'openai_compat',
+      LLM_RESERVA_BASE_URL: 'https://reserva.provedor.test/v1',
+      LLM_RESERVA_MODELO: MODELO_DA_RESERVA,
+      IA_RESERVA_PROVEDOR_ID: RESERVA,
+      LLM_RESERVA_CHAVE_API: CHAVE,
+    })
+    // O cadastro de verdade tem mais campos do que a conferência lê; a leitura devolve o que o banco devolveria.
+    const cadastro = { ...soMaterial, pais: 'US', contrato: CONTRATO, nome: 'Provedor Reconhecível Ltda' } as SuboperadorParaAConferenciaDaD62
+    const logger = registrador()
+    const soberania = new SoberaniaNaSubida({ config, leitura: leituraDe({ [RESERVA]: cadastro }), logger, daReserva: daReserva('gerar_atividade_objetiva'), intervaloMs: 60_000 })
+    await soberania.start()
+    soberania.encerrar()
+    const dito = JSON.stringify([...logger.warn.mock.calls, ...logger.info.mock.calls])
+    expect(dito).toContain('ia.provedor_de_reserva.conferencia_recusada')
+    for (const segredo of [CHAVE, CONTRATO, 'Provedor Reconhecível']) expect(dito).not.toContain(segredo)
+  })
+
+  it('o cadastro corrigido, sem reiniciar: a reserva se confere sozinha na próxima volta, e quem a espera é solto com true', async () => {
+    const cadastro: Record<string, SuboperadorParaAConferenciaDaD62 | undefined> = { [RESERVA]: { ...soMaterial, pais: 'US' } }
+    const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe(cadastro), logger: registrador(), daReserva: daReserva('gerar_atividade_objetiva'), intervaloMs: 10 })
+    await soberania.start()
+    expect(soberania.conferida).toBe(false)
+    const espera = soberania.aguardarConferida()
+    cadastro[RESERVA] = soMaterial
+    await expect(espera).resolves.toBe(true)
+    expect(soberania.conferida).toBe(true)
+    soberania.encerrar()
+  })
+
+  it('o banco fora é falha fechada, com o evento da reserva, e o log do principal não é o dela', async () => {
+    const cadastro: Record<string, SuboperadorParaAConferenciaDaD62 | Error | undefined> = { [RESERVA]: new Error('connect ECONNREFUSED 127.0.0.1:5432') }
+    const logger = registrador()
+    const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe(cadastro), logger, daReserva: daReserva('gerar_atividade_objetiva'), intervaloMs: 10 })
+    await soberania.start()
+    expect(soberania.conferida).toBe(false)
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ evento: 'ia.provedor_de_reserva.conferencia_sem_banco', provedorId: RESERVA }))
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ evento: 'ia.soberania_na_subida_sem_banco' }))
+    soberania.encerrar()
+  })
+
+  it('a reserva que não envia nada para fora (a falsa) nasce conferida e nem lê o cadastro', async () => {
+    const leitura = leituraDe({})
+    const soberania = new SoberaniaNaSubida({ config: externo, leitura, logger: registrador(), daReserva: { envio: { envioExterno: false, provedorId: null }, tarefas: ['gerar_atividade_objetiva'] } })
+    expect(soberania.conferida).toBe(true)
+    await soberania.start()
+    expect(leitura.vigenteDoProvedor).not.toHaveBeenCalled()
+  })
+
+  it('a elegibilidade lê esta conferência: enquanto não passa a reserva não é elegível, e quando passa, é, na tarefa que tem aprovação (a porta que a 1.0 deixou)', async () => {
+    const cadastro: Record<string, SuboperadorParaAConferenciaDaD62 | undefined> = { [RESERVA]: undefined }
+    const soberania = new SoberaniaNaSubida({ config: externo, leitura: leituraDe(cadastro), logger: registrador(), daReserva: daReserva('gerar_atividade_objetiva'), intervaloMs: 10 })
+    const reserva = { identidade: RESERVA, modeloDoPerfil: () => MODELO_DA_RESERVA }
+    const tarefa = { nome: 'gerar_atividade_objetiva', perfil: TASK_CATALOG.gerar_atividade_objetiva.perfil } as const
+    const contexto = { reserva, soberania, ambiente: 'local', aprovados: [aprovada('gerar_atividade_objetiva')] } as const
+    await soberania.start()
+    expect(reservaElegivel(tarefa, contexto)).toBe(false)
+    cadastro[RESERVA] = soMaterial
+    await soberania.aguardarConferida()
+    expect(reservaElegivel(tarefa, contexto)).toBe(true)
+    soberania.encerrar()
   })
 })

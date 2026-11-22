@@ -36,10 +36,12 @@ export type LLMErrorCode = (typeof LLM_ERROR_CODES)[number]
  * - `soberania`: a D62 recusou o envio (provedor não conferido). É definitivo: esperar não muda a conferência, e a execução termina `falhou`;
  * - `sem_vaga`: o balde de tokens da fila estava cheio e a espera da vaga acabou, **antes** de a chamada sair; `tenteDeNovoEmSegundos` diz quando o balde libera;
  * - `disjuntor`: o disjuntor do modelo estava aberto e a chamada nem saiu;
- * - ausente: o provedor falhou (5xx, rede, 429 que não cedeu) e **a chamada pode ter saído**.
- * Só os dois do meio garantem que nada foi enviado.
+ * - `limite`: o provedor respondeu 429 e continuou respondendo depois da única repetição. O pedido **chegou** ao provedor: é falta de vaga dele, e o gateway desce o degrau do modelo menor, como no balde cheio;
+ * - `rejeitada`: o provedor respondeu outro 4xx (401, 403…). O pedido ou a configuração está errada e esperar não muda: não há degrau, e a chamada termina;
+ * - ausente: o provedor falhou (5xx, conexão) e **a chamada pode ter saído**.
+ * Só `sem_vaga` e `disjuntor` garantem que nada foi enviado: `limite` e `rejeitada` ficam **fora** de `semEnvio`, e a linha de consumo deles leva a estimativa (D14) e o provedor.
  */
-export type MotivoDaIndisponibilidade = 'soberania' | 'sem_vaga' | 'disjuntor'
+export type MotivoDaIndisponibilidade = 'soberania' | 'sem_vaga' | 'disjuntor' | 'limite' | 'rejeitada'
 
 /** Como o `DomainException`, não tem texto livre: não há onde levar prompt, resposta de modelo ou nome. */
 export class LLMError extends DomainException {
@@ -56,7 +58,7 @@ export class LLMError extends DomainException {
     this.codigoDeIa = codigoDeIa
   }
 
-  /** `true` quando a chamada com certeza não saiu: o balde cheio e o disjuntor aberto. O provedor que falhou depois de a chamada sair não é. */
+  /** `true` quando a chamada com certeza não saiu: o balde cheio e o disjuntor aberto. O provedor que falhou depois de a chamada sair (5xx, `limite`, `rejeitada`) não é. */
   get semEnvio(): boolean {
     return this.motivo === 'sem_vaga' || this.motivo === 'disjuntor'
   }
@@ -75,7 +77,8 @@ export type ProviderFailure = 'limite' | 'recusada' | 'servidor' | 'tempo' | 're
 /**
  * O erro que o adaptador do provedor lança: um `LLMError` que diz também **por que** falhou. Continua sem texto livre,
  * e por isso o corpo do provedor, que pode repetir o prompt, não tem como sair dele. A camada de resiliência o troca por
- * um `LLMError` simples antes de devolver, e quem está acima dela não conhece o `falha`.
+ * um `LLMError` simples antes de devolver, e quem está acima dela não conhece o `falha`: só a causa que decide o degrau
+ * atravessa, como `motivo` (`limite`, `rejeitada`).
  */
 export class ProviderError extends LLMError {
   constructor(

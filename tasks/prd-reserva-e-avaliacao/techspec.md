@@ -68,7 +68,10 @@ principal, o menor incluído, em qualquer perfil: é a reserva "outro modelo da 
 
 **A causa da falha.** O `traduzir` do `ResilientAdapter` deixa de apagar a classificação do `ProviderError`: o `LLMError` ganha os
 motivos `limite` (o 429 que sobrou da repetição) e `rejeitada` (outro 4xx), que **não** são `semEnvio`: o pedido chegou ao provedor,
-a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão.
+a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão. O `limite` desce ao modelo menor
+**sem a espera de 8 s** do balde, na mesma tentativa e só com o limitador configurado (o 429 já é a recusa do provedor), e o menor que já era o modelo da chamada
+não desce de novo. Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, termina `IA_INDISPONIVEL` **com o motivo `limite`**
+e a espera do `Retry-After`, e não `sem_vaga`: `sem_vaga` é `semEnvio`, e o 429 saiu e tem linha. O `sem_vaga` depois da reserva é o da 4.0.
 
 **A chamada.** (1) Sem vaga no principal (balde cheio ou `limite`, depois da espera e do modelo menor, se a tarefa o tem), vai ao provedor
 de reserva elegível, no balde `provedor:modelo` dele; sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda do principal passa à reserva
@@ -93,6 +96,14 @@ reserva tem `TokenLimiter` próprio (os mesmos baldes por fila), e `LLM_RESERVA_
 fora do `local` com reserva configurada. Modelo da reserva sem preço recusa a subida, como o do principal (`createLLMGateway`, citando `LLM_RESERVA_MODELO[_<PERFIL>]`);
 entrada de `MODELOS_APROVADOS` com tarefa fora de `TAREFAS_DE_IA` quebra o teste da constante.
 
+**A conferência e o limitador da reserva no worker (2.0).** A conferência da reserva é a mesma classe do principal com a opção `daReserva` (`{ envio, tarefas }`): lê a chave da `IA_RESERVA_PROVEDOR_ID`, exige as
+categorias das tarefas que `tarefasAprovadasParaAReserva` devolve para a reserva e loga `ia.provedor_de_reserva.conferida`, `ia.provedor_de_reserva.conferencia_recusada` e `ia.provedor_de_reserva.conferencia_sem_banco` (só
+`provedorId`, `tentativas` e `codigo`, e o resumo do erro no sem banco: nunca o contrato nem a chave). O `IaDoWorkerModule` a provê como `SOBERANIA_DA_RESERVA` (`null` sem reserva) e o `TokenLimiter` dela como
+`LIMITE_DE_TOKENS_DA_RESERVA` (`null` sem reserva ou sem `LLM_RESERVA_TOKENS_POR_MINUTO`), do mesmo cliente Redis do principal, e os entrega ao gateway nas portas `soberaniaDaReserva` e `limiteDeTokensDaReserva`
+(`LLMGatewayPorts`): o roteamento (4.0 e 7.0) é quem as lê. O `CicloDoWorkerDeIa` só espera a conferência do principal. A elegibilidade precisa do ambiente, e o `main-worker` não o tem em outro lugar:
+`ReservaConfig.ambiente` o traz do `AMBIENTE` lido por `loadLLMConfig`. O alerta é `infra/grafana/alertas/ia-provedor-de-reserva.yaml` ("Provedor de reserva de IA não conferido"): `min by (provedor)
+(ia_provedor_de_reserva_conferido)` abaixo de 1 por 10 min, `noDataState: OK`, sem `absent()`.
+
 **A bancada.** `fila-de-ia.fixture.ts` ganha a montagem do gateway real com principal e reserva (`ScriptedAdapter` com envio
 externo, `provedorId` e suboperador próprios). Os cenários de roteamento e de compartilhamento usam essa montagem, e não
 `comModelo`, que troca o gateway inteiro.
@@ -103,7 +114,7 @@ externo, `provedorId` e suboperador próprios). Os cenários de roteamento e de 
 |---|---|
 | Campos tocados | `consumo_ia.provedor`, `consumo_ia.pelo_provedor_de_reserva` e `aluno_id`, já existentes; nenhum novo de pessoa |
 | `docs/lgpd.md` | a linha 99 nomeia `pelo_provedor_de_reserva` (contagem da Operação, a retenção da linha, fora do arquivo do titular porque o destino já está em `provedor`) e diz "a `IA_PROVEDOR_ID` ou a `IA_RESERVA_PROVEDOR_ID`", na tarefa que passa a gravar a coluna verdadeira |
-| Log | ids, códigos e o `provedorId` (`ia.geracao.provedor_de_reserva`, `ia.provedor_de_reserva.conferencia_recusada`); nunca a chave de API |
+| Log | ids, códigos e o `provedorId` (`ia.geracao.provedor_de_reserva`, `ia.provedor_de_reserva.conferencia_recusada`, `ia.provedor_de_reserva.conferencia_sem_banco`, `ia.provedor_de_reserva.conferida`); nunca a chave de API |
 | Envio externo | o de hoje; a reserva só recebe as tarefas aprovadas para ela; suboperador novo só depois do aviso às escolas (runbook) |
 | Retenção, titular, DTO | sem mudança; o compartilhamento lê `consumo_ia.provedor` |
 
