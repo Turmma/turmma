@@ -1,11 +1,12 @@
 # Estado da execução — camada-ia
 
 ## Agora
-- **Espero:** o `RELATÓRIO` do `Implementador` (L1) da 8.0, retomada às 21:4x com a triagem do `Arquiteto` (opção a: o item de `GET /v1/operacao/uso` ganha `rede {id, nome}` e `orcamento`; techspec §4 e §9 editados sem commit na L1, entram no commit da tarefa; Mesa com tenancy e privacy). L2 e L3 ociosas. Depois da 8.0, a validação (passo 8).
-- **Devo ainda:** para a retro, `tools/processo/revisoes-nao-se-perdem.test.ts` caiu sob carga no portão da L1 e passou isolado (3/3). antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
-- **Base:** `spec/camada-ia` em `3670ee12` (6.0 `918f93ac` e a correção do e2e de Professores `bf9565e2` encontradas); esteira 44967132971 rodando em `d8cfe4e`, e depois a de `3670ee1`; última verde `1a291ab`
+- **Espero:** o `RELATÓRIO` do `Validador` (F5a, funcionalidade completa, commit `bb6e5fc4`), pedido em 21/11. Ele precisa fotografar `/operacao/uso` nos dois aparelhos (a vitrine não tem o papel operador; o Implementador da 8.0 fotografou com spec temporário). Ninguém usa o ambiente 0 enquanto ele valida. L1, L2 e L3 ociosas; as 8 tarefas encontradas.
+- **Devo ainda:** para a retro, `tools/processo/revisoes-nao-se-perdem.test.ts` caiu sob carga no portão da L1 e passou isolado (3/3); e o RF11 do `cenarios.md`, que a 8.0 deixou ao `Arquiteto`. Antes do pouso, o `Arquiteto` acrescentar à autoconferência 10 e à tabela de testes do `2_task.md` o caso novo da corrida do retrato (relatório da 2.0). Push da `develop` (a retro `6496c7b5` está sem push) no próximo pouso. A 13.0 (F5b) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10).
+- **Base:** `spec/camada-ia` em `bb6e5fc4` (8.0 `2dee369e` encontrada); esteira verde em `eba2ddf` (44967701318); a de `bb6e5fc4` roda e é conferida no fechamento
 
 ## Concluídas
+- 8.0 (`2dee369e`, encontro 21/11 em `bb6e5fc4`; os sete revisores APROVADO na 2ª rodada; 10 itens sem aplicar no `8_task.md`, o "Tentar de novo" do MesesDeIa e mais 5 no `TODO.md`).
 - 6.0 (`918f93ac`, encontro 21/11; test-engineer na 3ª rodada, depois da escalada destravada) e a correção `2026-11-21-e2e-professores-convite-vencido-no-celular` (`bf9565e2`).
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
