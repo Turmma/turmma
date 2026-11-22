@@ -1,0 +1,5 @@
+{
+  "linhas": [
+    { "id": "d36_retidos", "aprovada": true, "amostras": [ { "id": "RT-001", "resultado": "barrou" }, { "id": "RT-002", "resultado": "passou" } ] }
+  ]
+}

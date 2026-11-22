@@ -16,7 +16,7 @@ import {
 import type { Meter } from '@opentelemetry/api'
 import { METRICS } from '../telemetry/metrics.js'
 import type { ModelAdapter, ModelCall, ModelResponse } from './adapter.js'
-import { LLMError, ProviderError, type ProviderFailure } from './errors.js'
+import { LLMError, ProviderError, type MotivoDaIndisponibilidade, type ProviderFailure } from './errors.js'
 import type { Perfil } from './perfis.js'
 import type { EnvioDaChamada } from './port.js'
 
@@ -76,13 +76,22 @@ function esperaSugeridaMs(erro: unknown): number | undefined {
 }
 
 /**
+ * A parte da classificação que sobe: o 429 que sobrou da repetição é falta de vaga do provedor (`limite`), e outro 4xx é pedido ou configuração errada
+ * (`rejeitada`). O 5xx, o prazo e a conexão recusada seguem sem motivo: é queda, e a chamada pode ter saído. Nenhum dos dois é `semEnvio`.
+ */
+function motivoDaFalha(falha: ProviderFailure): MotivoDaIndisponibilidade | undefined {
+  if (falha === 'limite' || falha === 'rejeitada') return falha
+  return undefined
+}
+
+/**
  * Troca pelo `LLMError` simples o que é de dentro desta camada: o `ProviderError`, que leva a classificação, e o erro do
  * `cockatiel` (`TaskCancelledError`, `BrokenCircuitError`), que tem texto próprio e não é código do contrato. O resto passa
  * como veio (a `ChamadaCancelada` só chega até aqui se o prazo não tiver respondido primeiro, e não chega: o `Aggressive`
  * responde antes), e o `LLMGateway`, acima, cobre qualquer erro que não seja `LLMError`.
  */
 function traduzir(erro: unknown): unknown {
-  if (erro instanceof ProviderError) return new LLMError(erro.codigoDeIa, erro.tenteDeNovoEmSegundos)
+  if (erro instanceof ProviderError) return new LLMError(erro.codigoDeIa, erro.tenteDeNovoEmSegundos, motivoDaFalha(erro.falha))
   if (erro instanceof BrokenCircuitError) return new LLMError('IA_INDISPONIVEL', undefined, 'disjuntor')
   // O prazo vencido e a desistência de quem chamou abortam o mesmo sinal, e a política de prazo é quem responde primeiro.
   if (erro instanceof TaskCancelledError) return new LLMError('IA_TEMPO_ESGOTADO')

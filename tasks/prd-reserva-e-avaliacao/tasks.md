@@ -30,11 +30,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 2.3 `ia.provedor_de_reserva.conferido`, o alerta e o runbook
   - [x] 2.4 Testes
 
-- [ ] **3.0 — A causa da falha atravessa o `ResilientAdapter`: o 429 que sobra é falta de vaga, o 4xx não é queda**
-  - [ ] 3.1 Os motivos `limite` e `rejeitada`
-  - [ ] 3.2 O `limite` pelo degrau do menor; a `rejeitada` termina
-  - [ ] 3.3 A estimativa na linha do 429 e da conexão recusada
-  - [ ] 3.4 Testes
+- [x] **3.0 — A causa da falha atravessa o `ResilientAdapter`: o 429 que sobra é falta de vaga, o 4xx não é queda**
+  - [x] 3.1 Os motivos `limite` e `rejeitada`
+  - [x] 3.2 O `limite` pelo degrau do menor; a `rejeitada` termina
+  - [x] 3.3 A estimativa na linha do 429 e da conexão recusada
+  - [x] 3.4 Testes
 
 - [ ] **4.0 — Com o principal caído, a chamada vai à reserva elegível, e cada chamada leva o seu destino**
   - [ ] 4.1 O destino por chamada
@@ -74,12 +74,12 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [ ] 9.3 Rodar e registrar
   - [ ] 9.4 Testes
 
-- [ ] **10.0 — As amostras da avaliação e as guardas que valem antes do gasto**
-  - [ ] 10.1 Os eliminatórios na fonte (`domain-researcher`)
-  - [ ] 10.2 As amostras e os critérios, por subagente em contexto limpo
-  - [ ] 10.3 O leitor e os testes de cobertura
-  - [ ] 10.4 A guarda da D55 e a dos ids retidos
-  - [ ] 10.5 Testes
+- [x] **10.0 — As amostras da avaliação e as guardas que valem antes do gasto**
+  - [x] 10.1 Os eliminatórios na fonte (`domain-researcher`)
+  - [x] 10.2 As amostras e os critérios, por subagente em contexto limpo
+  - [x] 10.3 O leitor e os testes de cobertura
+  - [x] 10.4 A guarda da D55 e a dos ids retidos
+  - [x] 10.5 Testes
 
 - [ ] **11.0 — A ferramenta de avaliação roda as amostras, julga cada resposta crua e escreve o relatório**
   - [ ] 11.1 A ferramenta e a guarda do ponto de entrada

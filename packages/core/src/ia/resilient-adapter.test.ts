@@ -4,6 +4,8 @@ import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { withEscolaContextOfRequest } from './__fixtures__/escola-context.js'
 import { ScriptedAdapter } from './__fixtures__/scripted-adapter.js'
 import { entradaDeAtividade, ESCOLA_A } from './__fixtures__/inputs.js'
+import { startFakeLlamaServer, type FakeLlamaServer, type ReceivedRequest, type ScriptedResponse } from './__fixtures__/fake-llama-server.js'
+import { OpenAICompatAdapter } from './openai-compat-adapter.js'
 import type { ModelAdapter, ModelCall, ModelResponse } from './adapter.js'
 import { ResilientAdapter, type ResiliencePolicy } from './resilient-adapter.js'
 import { InMemoryConsumo, InMemoryOrcamento } from './consumo.js'
@@ -233,6 +235,8 @@ describe('AdaptadorResiliente: a repetição', { timeout: LIMITE_DO_TESTE_MS }, 
     const desfecho = await chamarEEsperar(chamar('padrao'), 30_000)
     expect(codigoDe(desfecho)).toBe('IA_INDISPONIVEL')
     expect(interno.chamadas).toBe(2)
+    // O 429 que sobrou é falta de vaga do provedor, e a chamada chegou a ele: `limite`, e não `semEnvio`.
+    expect(desfecho.erro).toMatchObject({ motivo: 'limite', semEnvio: false })
   })
 
   it('o jitter: a espera fica entre metade do recuo e o recuo inteiro, conforme o sorteio', async () => {
@@ -262,7 +266,7 @@ describe('AdaptadorResiliente: a repetição', { timeout: LIMITE_DO_TESTE_MS }, 
   it('429 com Retry-After além do prazo: nenhuma repetição, e a espera sugerida vai para quem chamou', async () => {
     const { interno, chamar } = montar(falha('limite', 90))
     const desfecho = await chamarEEsperar(chamar('padrao'), 120_000)
-    expect(desfecho.erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', tenteDeNovoEmSegundos: 90 })
+    expect(desfecho.erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', tenteDeNovoEmSegundos: 90, motivo: 'limite', semEnvio: false })
     expect(interno.chamadas).toBe(1)
   })
 
@@ -537,6 +541,70 @@ describe('AdaptadorResiliente: o que sobe', { timeout: LIMITE_DO_TESTE_MS }, () 
     const desfecho = await chamarEEsperar(chamar('padrao'), 10)
     esperarErroDeIaSimples(desfecho, 'IA_INDISPONIVEL')
     expect(desfecho.erro).toMatchObject({ tenteDeNovoEmSegundos: 90 })
+  })
+
+  it('a causa atravessa: o 429 que sobra é `limite` e o outro 4xx é `rejeitada`, e nenhum dos dois é `semEnvio`; o 5xx, a conexão e o prazo seguem sem motivo', async () => {
+    const limite = (await chamarEEsperar(montar(falha('limite')).chamar('padrao'), 30_000)).erro as LLMError
+    const rejeitada = (await chamarEEsperar(montar(falha('rejeitada')).chamar('padrao'), 10)).erro as LLMError
+    expect([limite.motivo, limite.semEnvio]).toEqual(['limite', false])
+    expect([rejeitada.motivo, rejeitada.semEnvio]).toEqual(['rejeitada', false])
+    for (const comportamento of [falha('servidor'), falha('recusada'), falha('tempo')]) {
+      const erro = (await chamarEEsperar(montar(comportamento).chamar('padrao'), 30_000)).erro as LLMError
+      expect([erro.motivo, erro.semEnvio]).toEqual([undefined, false])
+    }
+  })
+
+  describe('pelo servidor falso: o código HTTP vira a causa', () => {
+    let servidor: FakeLlamaServer | undefined
+    afterEach(async () => {
+      await servidor?.fechar()
+      servidor = undefined
+    })
+    const MODELOS = { rapido: 'm-rapido', padrao: 'm-padrao', complexo: 'm-complexo', visao: 'm-visao' } as const
+
+    /** O `ResilientAdapter` real sobre o `OpenAICompatAdapter` de verdade, falando com o servidor falso: relógio real, recuo curto. */
+    async function motivoDe(roteiro: (pedido: ReceivedRequest, numero: number) => ScriptedResponse): Promise<LLMError> {
+      vi.useRealTimers()
+      servidor = await startFakeLlamaServer(roteiro)
+      const adaptador = new ResilientAdapter(new OpenAICompatAdapter({ baseUrl: servidor.url, modelos: MODELOS, processamentoLocal: false, provedorId: 'provedor-de-teste' }), { prazosMs: PRAZOS, recuoMs: 5, aleatorio: () => 1 })
+      const erro = await adaptador.chamar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), sinal: AbortSignal.timeout(2_000) }).then(
+        () => undefined,
+        (motivo: unknown) => motivo,
+      )
+      expect(erro).toBeInstanceOf(LLMError)
+      return erro as LLMError
+    }
+
+    it.each([401, 403])('%i: `rejeitada`, sem repetir', async (status) => {
+      const erro = await motivoDe(() => ({ status, corpo: { error: { message: 'chave revogada' } } }))
+      expect([erro.codigoDeIa, erro.motivo, erro.semEnvio]).toEqual(['IA_INDISPONIVEL', 'rejeitada', false])
+      expect(servidor?.pedidos).toHaveLength(1)
+    })
+
+    it('429 duas vezes: `limite`, depois da única repetição', async () => {
+      const erro = await motivoDe(() => ({ status: 429, corpo: {} }))
+      expect([erro.codigoDeIa, erro.motivo, erro.semEnvio]).toEqual(['IA_INDISPONIVEL', 'limite', false])
+      expect(servidor?.pedidos).toHaveLength(2)
+    })
+
+    it('500: sem motivo', async () => {
+      const erro = await motivoDe(() => ({ status: 500, corpo: {} }))
+      expect([erro.codigoDeIa, erro.motivo]).toEqual(['IA_INDISPONIVEL', undefined])
+    })
+
+    it('conexão recusada: sem motivo, depois da repetição', async () => {
+      servidor = await startFakeLlamaServer(() => ({ corpo: {} }))
+      const base = servidor.url
+      await servidor.fechar()
+      servidor = undefined
+      vi.useRealTimers()
+      const adaptador = new ResilientAdapter(new OpenAICompatAdapter({ baseUrl: base, modelos: MODELOS, processamentoLocal: false, provedorId: 'provedor-de-teste' }), { prazosMs: PRAZOS, recuoMs: 5, aleatorio: () => 1 })
+      const erro = await adaptador.chamar({ tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), sinal: AbortSignal.timeout(2_000) }).then(
+        () => undefined,
+        (motivo: unknown) => motivo,
+      )
+      expect(erro).toMatchObject({ codigoDeIa: 'IA_INDISPONIVEL', motivo: undefined, semEnvio: false })
+    })
   })
 
   it('a resposta boa passa inteira, e o adaptador diz a origem, o envio e o modelo do de dentro', async () => {

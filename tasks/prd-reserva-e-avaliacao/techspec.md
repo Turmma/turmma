@@ -68,7 +68,10 @@ principal, o menor incluído, em qualquer perfil: é a reserva "outro modelo da 
 
 **A causa da falha.** O `traduzir` do `ResilientAdapter` deixa de apagar a classificação do `ProviderError`: o `LLMError` ganha os
 motivos `limite` (o 429 que sobrou da repetição) e `rejeitada` (outro 4xx), que **não** são `semEnvio`: o pedido chegou ao provedor,
-a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão.
+a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão. O `limite` desce ao modelo menor
+**sem a espera de 8 s** do balde, na mesma tentativa e só com o limitador configurado (o 429 já é a recusa do provedor), e o menor que já era o modelo da chamada
+não desce de novo. Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, termina `IA_INDISPONIVEL` **com o motivo `limite`**
+e a espera do `Retry-After`, e não `sem_vaga`: `sem_vaga` é `semEnvio`, e o 429 saiu e tem linha. O `sem_vaga` depois da reserva é o da 4.0.
 
 **A chamada.** (1) Sem vaga no principal (balde cheio ou `limite`, depois da espera e do modelo menor, se a tarefa o tem), vai ao provedor
 de reserva elegível, no balde `provedor:modelo` dele; sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda do principal passa à reserva
@@ -121,8 +124,17 @@ Sem função nova nem autonomia nova (D9); muda o modelo que atende, e só por a
 taxas do principal (`avaliacao.md`). A regra fixa da D36 vem antes de qualquer provedor.
 As AIAs ganham principal, reserva, modelo menor e a suspensão do agente na reserva; uma guarda confere que toda entrada de
 `MODELOS_APROVADOS` de função de alto risco aparece, como `provedorId:modelo`, na AIA da função. Amostras por subagente em
-contexto limpo, sem trecho de material de terceiro. **A guarda da D55** proíbe a amostra cujo **esperado** é correção, nota ou
-devolutiva sobre texto de aluno, e exige as que pedem isso com `esperado: recusa`; o texto de aluno delas é sintético e marcado.
+contexto limpo, sem trecho de material de terceiro. Quem dispara esse subagente é o Arquiteto (o Implementador não tem a
+ferramenta, e quem leu o detector da D55 não escreve a amostra que ele vai julgar): o Implementador entrega antes o formato
+(`tools/ia/amostras.ts` e `tools/ia/amostras/README.md`), sem amostra; o subagente recebe só o formato, `avaliacao.md` e as
+constantes (`TAREFAS_DE_IA`, `TIPOS_DE_ADAPTACAO`), nunca os detectores das guardas nem `docs/aia/ouro-retido/`; o Arquiteto
+põe `avaliacao-1.json` e `tools/ia/criterios/` no checkout da tarefa, sem commit, e a amostra que o teste de cobertura
+recusa volta ao subagente, não é reescrita pelo Implementador. A pesquisa da 10.1 (`domain-researcher`) também é do
+Arquiteto, com o relatório em `tasks/prd-reserva-e-avaliacao/pesquisa-3-1.md`. **A guarda da D55** proíbe a amostra cujo **esperado** é correção, nota ou
+devolutiva sobre texto de aluno, e exige as que pedem isso com `esperado: recusa`; o texto de aluno delas é sintético e marcado. A guarda lê o arquivo com esquema
+próprio e frouxo, e recebe o detector da D55 do núcleo por parâmetro (o `tsconfig` de `tools/` não compila o núcleo). **A guarda dos ids retidos** varre o repositório
+por padrão de id (`RT-`, `RQ-`, `RJ-`, `CR-`) e não lê `docs/aia/ouro-retido/`, nem o `achados/` de cada tarefa (`tasks/*/achados/`), onde o hook registra o que os revisores escreveram (a nota da spec cita o
+texto de um id e o hook não se edita), nem as fixtures das guardas (`tools/guardas/__fixtures__/`): as pastas saem por caminho, e fixture de outra pasta é lida. Ela acusa também o lote copiado em código (`{ id: '<id>', texto: '...' }`, com aspas simples, duplas ou crase); falha se a pasta dos lotes ou o `RETIDOS.json` somem.
 Nenhum prompt muda.
 
 ## 7c. Carga e falha (obrigatório)
@@ -138,7 +150,9 @@ Nenhum prompt muda.
 
 Nenhuma tarefa nova. A avaliação (`tools/ia/avaliar-modelos.ts`) roda a tabela e as regras de `avaliacao.md`: cada linha pela
 tarefa real, no gateway real com um `OpenAICompatAdapter` de `AVALIACAO_*` (chave fora do repositório), os preços do finalista e
-`soberania: { conferida: true }`, que só vale porque as amostras são sintéticas. Lê `tools/ia/amostras/avaliacao-1.json` e os
+`soberania: { conferida: true }`, que só vale porque as amostras são sintéticas. O formato do arquivo e a tabela das linhas de `avaliacao.md` virada em dado
+(`LINHAS_DA_AVALIACAO`: tarefa, execuções, quantidade, critérios e se a linha elimina, de cada linha: `'linha'` na equidade e nas duas da D55, `'parte_sem_juizo'` na rubrica) moram em `tools/ia/amostras.ts`, que recusa o arquivo que não bate; a `entrada` de cada amostra é a que
+o `esquemaDeEntrada` da tarefa aceita, sem tradução. Lê `tools/ia/amostras/avaliacao-1.json` e os
 critérios de julgamento, e grava `docs/avaliacao/<finalista>/<data>/` com `saidas.jsonl`, `julgamento.jsonl`, `resultado.json` e `relatorio.md`
 (o sha256 de cada lote, a versão do modelo, as três contagens de `avaliacao.md`). Página, código BNCC (conferido
 no catálogo) e a D36 a máquina mede, com as funções de medida de `medir-classificacao` e a medida, a leitura e o alvo de `golden.ts`/`golden.test.ts`, que
@@ -163,6 +177,12 @@ estimadas, que contam no orçamento da escola (D14). O relatório traz o custo p
 
 ⚠️ NÃO VERIFICADO: a Maritaca BR-SP no padrão OpenAI-compatível e o limite por minuto; a AWS Bedrock `sa-east-1`; a
 Magalu Cloud; a seção 20(d) do Google.
+
+**Respondido em 22/11/2026 (tarefa 10.0; `pesquisa-3-1.md`, e a §1 de `docs/avaliacao-de-modelos.md`).** A Maritaca é compatível com o SDK da OpenAI (o
+`json_schema` não foi confirmado) e oferece 1.000 RPM com 2M de tokens de entrada por minuto no Tier 1 do Sabiá 4, mas a tabela da `-br-sp` e o
+processamento no Brasil dela dependem do contrato. A AWS Bedrock `sa-east-1` só serve modelo aberto in-region (não há Claude 5.x, 4.x nem Nova), com a
+inferência entre regiões desligada e a retenção `none`. A Magalu Cloud só tem imprensa. A 20(d) do Google veda serviço provável de ser acessado por menor
+de 18 e nenhum Gemini 3.x está confirmado em São Paulo: o Google sai para conversa de aluno. O que segue aberto é de contrato (o Joaquim, PRD §10).
 
 ## 13. Riscos técnicos
 

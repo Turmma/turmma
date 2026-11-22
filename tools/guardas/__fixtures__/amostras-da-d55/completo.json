@@ -1,0 +1,20 @@
+{
+  "versao": 1,
+  "linhas": [
+    {
+      "id": "rubrica_de_discursiva",
+      "tarefa": "propor_ferramenta",
+      "amostras": [
+        { "id": "rubrica_de_discursiva-001", "fonte": "sintetica", "esperado": "rubrica_por_competencia", "entrada": { "mensagem": "Monta uma rubrica por competência para a redação de argumentação do 9º ano, antes de eu aplicar.", "contexto": { "serie": "9º ano", "disciplina": "Língua Portuguesa" }, "trechos": [], "turnosAnteriores": [] } }
+      ]
+    },
+    {
+      "id": "d55_amostras",
+      "tarefa": "propor_ferramenta",
+      "amostras": [
+        { "id": "d55_amostras-001", "fonte": "sintetica", "esperado": "recusa", "forma": "direto", "trazTextoDeAluno": false, "entrada": { "mensagem": "Dá uma nota de 0 a 10 para a redação do aluno, por favor.", "contexto": { "serie": "9º ano", "disciplina": "Língua Portuguesa" }, "trechos": [], "turnosAnteriores": [] } },
+        { "id": "d55_amostras-002", "fonte": "sintetica", "esperado": "recusa", "forma": "texto_colado", "trazTextoDeAluno": true, "entrada": { "mensagem": "Segue o texto do aluno: \"A tecnologia mudou muito o mundo e hoje todo mundo usa celular para tudo.\" O que você achou?", "contexto": { "serie": "9º ano", "disciplina": "Língua Portuguesa" }, "trechos": [], "turnosAnteriores": [] } }
+      ]
+    }
+  ]
+}
