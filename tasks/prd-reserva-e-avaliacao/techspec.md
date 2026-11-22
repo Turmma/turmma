@@ -2,70 +2,104 @@
 
 **PRD:** `tasks/prd-reserva-e-avaliacao/prd.md`
 **Status:** aprovada como parte da Tech Spec da F5 (`tasks/prd-camada-ia/techspec.md`, revisão da spec, rodada 6, em
-`tasks/prd-camada-ia/revisao-spec.md`); separada dela no corte de 21/11/2026, sem mudar desenho. Os números das seções são
-os da F5, para os documentos de `rascunho-das-tarefas/` continuarem certos; as seções que ficaram inteiras na F5a (§4, §6,
-§9, §10) não se repetem aqui. Na abertura do andar, a revisão da spec confere este texto contra o código que a F5a deixou
-(`abertura.md`).
+`tasks/prd-camada-ia/revisao-spec.md`); separada no corte de 21/11/2026 e revista contra o código da F5a na revisão da spec
+da F5b (`revisao-spec.md`). Os números das seções são os da F5; a §4, a §6, a §9 e a §10 ficaram na F5a.
 
 ## 1. Resumo da abordagem
 
 A F5b estende o `LLMGateway` e o `main-worker` (X6) como a F5a deixou: preço no código (`PRECO_DOS_MODELOS`) e uma linha de
-consumo **por chamada**, com custo e provedor. A aprovação de modelo também fica no código (`MODELOS_APROVADOS`; Joaquim,
+consumo **por chamada**, com custo (o provedor e a origem da linha ainda são os do único adaptador do gateway: a F5b os leva a
+cada chamada, §5). A aprovação de modelo também fica no código (`MODELOS_APROVADOS`; Joaquim,
 20/11/2026). O **provedor de reserva** é um segundo adaptador, com resiliência e conferência próprias, e só atende tarefa e
 modelo aprovados.
 
 A avaliação roda à mão (`tools/ia/`); `pedagogia-reviewer` e `conformidade-reviewer` julgam, e o Joaquim confirma as
-reprovadas, as duvidosas e 10% das aprovadas (Joaquim, 20/11/2026).
+reprovadas, as duvidosas e 10% das aprovadas (20/11/2026).
 
 ## 2. Módulos afetados
 
-- `packages/core/src/ia/`: `modelos-aprovados.ts` (novo), `llm-gateway.ts`, `soberania.ts`, `consumo.ts` (a estimada da
-  reserva); `config/llm-config.ts` com `LLM_RESERVA_BASE_URL`, `LLM_RESERVA_MODELO[_<PERFIL>]`, `LLM_RESERVA_CHAVE_API` (na
-  guarda de segredo), `IA_RESERVA_PROVEDOR_ID`, `LLM_RESERVA_TOKENS_POR_MINUTO`
-- `apps/api/src/ia/`: `ia-do-worker.module.ts`, `consumo.repository.ts`
+- `packages/core/src/ia/`: `modelos-aprovados.ts` (novo), `llm-gateway.ts`, `errors.ts` e `resilient-adapter.ts` (a causa da
+  falha), `adapter.ts` e `fake-adapter.ts` (a identidade e
+`IA_FALHA_FALSA`), `__fixtures__/scripted-adapter.ts` (`provedorId` por instância), `soberania.ts`, `consumo.ts` (`ConsumoDeIa`, `InMemoryConsumo`,
+  a estimada com custo); `config/llm-config.ts` com `IA_RESERVA_ADAPTADOR` (`falso` ou `openai_compat`), `LLM_RESERVA_BASE_URL`,
+  `LLM_RESERVA_MODELO[_<PERFIL>]`, `LLM_RESERVA_CHAVE_API` (na guarda de segredo), `IA_RESERVA_PROVEDOR_ID`,
+  `LLM_RESERVA_TOKENS_POR_MINUTO`
+- `apps/api/src/ia/`: `ia-do-worker.module.ts` (o segundo adaptador, a segunda conferência e o segundo `TokenLimiter`),
+  `consumo.repository.ts`, `varredura-de-execucoes.ts`, `execucao.processor.ts` e `worker.module.ts` (a lista de destinos);
+  `apps/api/test/fila-de-ia.fixture.ts` (a bancada monta o gateway real com principal e reserva)
 - `infra/grafana/alertas/`, `docs/runbook.md`, `infra/carga.env`, o `carga.ts` (fase `reserva`)
 - `tools/ia/avaliar-modelos.ts`, `tools/ia/amostras/`
-- `docs/`: glossário ("provedor de reserva"), avaliação, AIAs, LGPD (linha 99), infra 5.4
+- `docs/`: glossário (a entrada "provedor de reserva" já existe; ganha "saída de reserva", o outro sentido), avaliação
+  (§3, §3.1), AIAs, LGPD (linha 99), infra 5.4 e o prazo da execução com quatro chamadas
 
 ## 3. Modelo de dados
 
-Nenhuma migration: a coluna `consumo_ia.pelo_provedor_de_reserva boolean not null default false` e o índice
-`consumo_ia_mes_idx`, que já a inclui, entraram na F5a (2.0). A F5b é quem a grava como verdadeira.
+Nenhuma migration: a coluna `consumo_ia.pelo_provedor_de_reserva` e o índice `consumo_ia_mes_idx` entraram na F5a (2.0).
 
 **A estimativa** (D14: superestima custo e destino). A chamada que saiu sem voltar com uso (prazo, conexão, servidor)
 grava a entrada contada e a saída no teto (F5a). A interrompida grava os dois tetos da tarefa, uma linha por destino, ao
 preço de cada modelo: se a tarefa tem aprovação para o provedor de reserva configurado (só tarefa e provedor), o
-`registrarEstimada` grava também a dele, na varredura e na reentrega.
+`registrarEstimada` grava também a dele, na varredura e na reentrega. A assinatura passa a
+`registrarEstimada(execucao, destinos, precos)`, com a tabela de preços por porta. As linhas saem do mesmo `InterrompidaEncerrada` (a escola do `returning`), na transação do encerramento,
+sem `@Unscoped` novo; uma que falha desfaz as duas e o encerramento.
+
+**`pelo_provedor_de_reserva`** é verdadeira só na linha de chamada que saiu para a reserva (a atendida e a que falhou depois de
+sair); a estimada da interrompida leva o provedor da reserva e a coluna falsa. Assim a Operação (`chamadasPeloProvedorDeReserva`,
+sem mudança de consulta) conta as chamadas **enviadas** à reserva. Com a reserva falsa, `provedor` nulo e a coluna verdadeira.
 
 ## 5. Fluxo
 
 **A aprovação.** `MODELOS_APROVADOS` lista `{ tarefa, provedorId, modelo, relatorio, sha256, aprovadoPor, aprovadoEm }`, versionada, uma por relatório aprovado
-(§8); o `sha256` é do `relatorio.md`, e a guarda o recalcula. A reserva falsa leva o id de `IA_RESERVA_PROVEDOR_ID` (`falso-reserva`), com balde,
-rótulo e disjuntor próprios e relatório sintético. A subida recusa reserva com o id do principal e, em produção, a falsa. O provedor de reserva é **elegível** para uma tarefa se configurado, conferido
+(§8); o `sha256` é do `relatorio.md`, e a guarda o recalcula. O provedor de reserva é **elegível** para uma tarefa se configurado, conferido
 na subida e com entrada que bate no provedor e no modelo que ele usa no perfil da tarefa. Trocar o modelo
 de um perfil tira do caminho as tarefas dele até um relatório novo.
 
-**A chamada.** (1) Sem vaga no principal depois da espera e do modelo menor, vai ao provedor de reserva elegível, no
-balde `provedor:modelo` dele (`LLM_RESERVA_TOKENS_POR_MINUTO`); sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda
-do principal passa à reserva elegível, uma vez, se o sinal da execução não abortou. É queda: disjuntor aberto,
-`IA_INDISPONIVEL` de servidor ou conexão, e `IA_TEMPO_ESGOTADO`. O 429 que sobra da repetição vale como "sem vaga". (3)
-A repetição por saída inválida fica no provedor que respondeu. (4) A reserva que falha termina como hoje: interativo
-indisponível, lote adiado. Uma função só confere a elegibilidade nos dois ramos. **No máximo quatro chamadas por
-execução**, duas por provedor. A reserva passa pelo mesmo `chamarModelo`, com o rótulo `provedor` dela, e soma
-`ia.degradacao{degrau="provedor_de_reserva"}`. O Tutor nunca vai ao menor (D36).
+**A identidade.** Todo adaptador ganha `identidade`: o `provedorId` do envio no `openai_compat`; no falso, `falso` no principal e o
+`IA_RESERVA_PROVEDOR_ID` (`falso-reserva`) na reserva. Balde, rótulo `provedor` das medidas, disjuntor,
+chave do preço e aprovação leem a `identidade`, e não mais `envio.provedorId ?? origem`. O falso segue sem envio externo e com
+`origem = 'falso'`: a linha dele tem `provedor` nulo. A reserva falsa tem preço zero em `PRECO_DOS_MODELOS` e relatório
+sintético; com `AMBIENTE=producao`, `IA_RESERVA_ADAPTADOR=falso` ou `falso-reserva` sobre `openai_compat` recusa a subida. `IA_RESERVA_ADAPTADOR` escolhe o adaptador da reserva; `IA_FALHA_FALSA`
+(`<principal|reserva>:<5xx|prazo|conexao|429>`) só tem efeito no falso e é recusada com `AMBIENTE=producao`. A subida recusa, em
+qualquer ambiente, a reserva com a mesma identidade do principal, salvo com `openai_compat` nos dois e nenhum modelo da reserva igual a um do
+principal, o menor incluído, em qualquer perfil: é a reserva "outro modelo da Maritaca" (PRD §10), com o mesmo suboperador e baldes `provedor:modelo` distintos.
 
-**A subida.** O principal segue como na X6 e na F5a. A reserva passa na mesma conferência (Brasil sempre, treinamento vedado), com as
-categorias das tarefas aprovadas para ela. Sem conferência, ela não é elegível, confere de novo a cada 5 s
-(intervalo injetado) e `ia.provedor_de_reserva.conferido = 0`. Modelo da reserva sem preço recusa a subida, como o do
-principal na F5a (`LLMConfig.exigePreco`; quem confere é o `createLLMGateway`, que cita `LLM_RESERVA_MODELO` ou
-`LLM_RESERVA_MODELO_<PERFIL>`); entrada de `MODELOS_APROVADOS` com tarefa fora de `TAREFAS_DE_IA` quebra o teste da constante.
+**A causa da falha.** O `traduzir` do `ResilientAdapter` deixa de apagar a classificação do `ProviderError`: o `LLMError` ganha os
+motivos `limite` (o 429 que sobrou da repetição) e `rejeitada` (outro 4xx), que **não** são `semEnvio`: o pedido chegou ao provedor,
+a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão.
+
+**A chamada.** (1) Sem vaga no principal (balde cheio ou `limite`, depois da espera e do modelo menor, se a tarefa o tem), vai ao provedor
+de reserva elegível, no balde `provedor:modelo` dele; sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda do principal passa à reserva
+elegível, uma vez, se o sinal da execução não abortou. É queda: `disjuntor`, `IA_INDISPONIVEL` sem motivo (5xx, conexão) e
+`IA_TEMPO_ESGOTADO`. `rejeitada` não é queda nem falta de vaga (defeito de pedido ou de configuração): termina como hoje. (3) A repetição por saída inválida fica no provedor que respondeu. A queda na repetição do principal (a primeira
+inválida, a segunda com 5xx) também vai à reserva, com o pedido sem a correção do principal. (4) A reserva que falha termina como
+hoje: interativo indisponível, lote adiado; duas inválidas nela ainda passam pela saída de reserva da tarefa (`reservaQuandoInvalida`,
+outro sentido de "reserva": glossário). Uma função só confere a elegibilidade nos dois ramos. **No máximo quatro chamadas por
+execução**, duas por destino (principal ou reserva), com contador por destino. O Tutor e a classificação nunca vão ao menor (D36). A função suspensa
+não chega a nenhum provedor (a suspensão vem antes, como hoje).
+
+**O destino por chamada.** `ChamadaEnviada` e o `Gasto` guardam o destino de cada chamada (origem, envio, identidade e
+`peloProvedorDeReserva`); o preço, o rótulo, o balde, a linha de consumo e a `medicao` devolvida leem o destino da chamada, e
+a `medicao` é a do provedor que respondeu. `ConsumoDeIa` ganha `peloProvedorDeReserva`, e o `ConsumoRepository` o grava.
+A reserva soma `ia.degradacao{degrau="provedor_de_reserva"}` (o degrau entra em `DEGRAUS`, nascendo em zero) e loga
+`ia.geracao.provedor_de_reserva`. `usosDoTeto` e `ia.tokens.uso_do_teto` passam a ser por `provedor:modelo`.
+
+**A subida.** O principal segue como na X6 e na F5a. A reserva passa na mesma conferência (Brasil sempre, treinamento vedado, alcance
+`todas`), com as categorias das tarefas aprovadas para ela, numa `SoberaniaNaSubida` própria que **não** segura o consumo das filas.
+Sem conferência, ela não é elegível, confere de novo a cada 5 s (intervalo injetado) e `ia.provedor_de_reserva.conferido = 0`. A
+reserva tem `TokenLimiter` próprio (os mesmos baldes por fila), e `LLM_RESERVA_TOKENS_POR_MINUTO` é obrigatória
+fora do `local` com reserva configurada. Modelo da reserva sem preço recusa a subida, como o do principal (`createLLMGateway`, citando `LLM_RESERVA_MODELO[_<PERFIL>]`);
+entrada de `MODELOS_APROVADOS` com tarefa fora de `TAREFAS_DE_IA` quebra o teste da constante.
+
+**A bancada.** `fila-de-ia.fixture.ts` ganha a montagem do gateway real com principal e reserva (`ScriptedAdapter` com envio
+externo, `provedorId` e suboperador próprios). Os cenários de roteamento e de compartilhamento usam essa montagem, e não
+`comModelo`, que troca o gateway inteiro.
 
 ## 7. Dado pessoal (obrigatório)
 
 | Item | Resposta |
 |---|---|
 | Campos tocados | `consumo_ia.provedor`, `consumo_ia.pelo_provedor_de_reserva` e `aluno_id`, já existentes; nenhum novo de pessoa |
-| `docs/lgpd.md` | a linha 99 cita o provedor de reserva e a estimativa dele |
+| `docs/lgpd.md` | a linha 99 nomeia `pelo_provedor_de_reserva` (contagem da Operação, a retenção da linha, fora do arquivo do titular porque o destino já está em `provedor`) e diz "a `IA_PROVEDOR_ID` ou a `IA_RESERVA_PROVEDOR_ID`", na tarefa que passa a gravar a coluna verdadeira |
 | Log | ids, códigos e o `provedorId` (`ia.geracao.provedor_de_reserva`, `ia.provedor_de_reserva.conferencia_recusada`); nunca a chave de API |
 | Envio externo | o de hoje; a reserva só recebe as tarefas aprovadas para ela; suboperador novo só depois do aviso às escolas (runbook) |
 | Retenção, titular, DTO | sem mudança; o compartilhamento lê `consumo_ia.provedor` |
@@ -73,29 +107,38 @@ principal na F5a (`LLMConfig.exigePreco`; quem confere é o `createLLMGateway`, 
 ## 7b. Conformidade CNE
 
 Sem função nova nem autonomia nova (D9); muda o modelo que atende, e só por aprovação versionada (§5), com as mesmas
-taxas do principal (§3 da avaliação, classificação, risco à vida). A regra fixa da D36 vem antes de qualquer provedor.
-As AIAs ganham principal, reserva, modelo menor e a suspensão do agente na reserva. Amostras por subagente em contexto limpo, sem correção de
-discursiva (D55, com guarda) nem trecho de material de terceiro. Nenhum prompt muda.
+taxas do principal (`avaliacao.md`). A regra fixa da D36 vem antes de qualquer provedor.
+As AIAs ganham principal, reserva, modelo menor e a suspensão do agente na reserva; uma guarda confere que toda entrada de
+`MODELOS_APROVADOS` de função de alto risco aparece, como `provedorId:modelo`, na AIA da função. Amostras por subagente em
+contexto limpo, sem trecho de material de terceiro. **A guarda da D55** proíbe a amostra cujo **esperado** é correção, nota ou
+devolutiva sobre texto de aluno, e exige as que pedem isso com `esperado: recusa`; o texto de aluno delas é sintético e marcado.
+Nenhum prompt muda.
 
 ## 7c. Carga e falha (obrigatório)
 
 | Item | Resposta |
 |---|---|
-| Caminho quente e carga | o gateway: no máximo quatro chamadas por execução (§5) |
-| Dependência fora | principal: reserva; as duas: como na X6, "Provedor de IA fora" para cada uma |
+| Caminho quente e carga | o gateway: no máximo quatro chamadas por execução (§5); `PRAZO_DA_EXECUCAO_MS` não muda: a reserva usa o que sobra dele, e o que não couber termina `IA_TEMPO_ESGOTADO` antes do corte do job (comentário e `docs/infra.md` revistos) |
+| Dependência fora | principal: reserva; as duas: como na X6, "Provedor de IA fora" para cada uma, com o `ia.disjuntor.aberto` de cada `ResilientAdapter` no seu `provedor`; o parágrafo `#provedor-de-ia-fora` do runbook diz o que fazer quando é a reserva |
 | Métrica e alerta | `ia.provedor_de_reserva.conferido` (0 por 10 min, só com reserva configurada), com runbook; `ia.degradacao{degrau="provedor_de_reserva"}` |
 | Carga | fase `reserva` (`cenarios.md` §5); `LLM_RESERVA_TOKENS_POR_MINUTO` em `infra/carga.env`, o contratado em `docs/infra.md` 5.4 |
 
 ## 8. Uso de IA
 
-Nenhuma tarefa nova. A avaliação (`tools/ia/avaliar-modelos.ts`) lê `tools/ia/amostras/avaliacao-1.json` (sha256 no relatório) e grava
-`docs/avaliacao/<finalista>/<data>/` com `saidas.jsonl`, `julgamento.jsonl` e `relatorio.md`. Página, código BNCC (`medir-classificacao`) e disparo da D36 (`medir-risco-a-vida`) a máquina mede; o resto, como na
-§1.
-O relatório aprovado vira entrada em `MODELOS_APROVADOS`.
+Nenhuma tarefa nova. A avaliação (`tools/ia/avaliar-modelos.ts`) roda a tabela e as regras de `avaliacao.md`: cada linha pela
+tarefa real, no gateway real com um `OpenAICompatAdapter` de `AVALIACAO_*` (chave fora do repositório), os preços do finalista e
+`soberania: { conferida: true }`, que só vale porque as amostras são sintéticas. Lê `tools/ia/amostras/avaliacao-1.json` e os
+critérios de julgamento, e grava `docs/avaliacao/<finalista>/<data>/` com `saidas.jsonl`, `julgamento.jsonl`, `resultado.json` e `relatorio.md`
+(o sha256 de cada lote, a versão do modelo, as três contagens de `avaliacao.md`). Página, código BNCC (conferido
+no catálogo) e a D36 a máquina mede, com as funções de medida de `medir-classificacao` e a medida, a leitura e o alvo de `golden.ts`/`golden.test.ts`, que
+vão para `ia/medida-do-ouro.ts`, e a D55 dos lotes retidos com as políticas do `ouro`. Os lotes retidos seguem `avaliacao.md`. Uma guarda prende o ponto
+de entrada: não importa teste, fixture, `db/schema` nem repository, não lê `DATABASE_URL`, e nenhum teste o executa contra a
+rede. O relatório aprovado vira entrada em `MODELOS_APROVADOS`.
 
-Cada amostra roda pela tarefa real, num `OpenAICompatAdapter` de `AVALIACAO_*` (chave fora do repositório): ~325
-chamadas, ~R$ 30 por finalista. Nenhuma chamada nova por professor ou aluno; a
-reserva custa a diferença de preço, que o relatório traz.
+Custo: cerca de 2.100 chamadas (as linhas de três execuções e os lotes retidos), de R$ 150 a R$ 250 por finalista
+(o real no relatório). Sem chamada nova por usuário. A reserva custa a diferença de preço nas
+chamadas desviadas durante a queda; a execução que cai nos dois chega a quatro chamadas, e a interrompida com reserva grava duas
+estimadas, que contam no orçamento da escola (D14). O relatório traz o custo por professor e por aluno por mês.
 
 ## 11. Conformidade com as regras
 
@@ -114,4 +157,5 @@ Magalu Cloud; a seção 20(d) do Google.
 
 - Sem segundo provedor no Brasil, a reserva é outro modelo da Maritaca (PRD §10)
 - A saúde da reserva só aparece quando chamada
+- Contrato do principal vencido e worker reiniciado: o `main-worker` não consome a fila, mesmo com a reserva conferida (a conferência do principal segura o consumo, X6)
 - Aprovação do principal: `TODO.md`
