@@ -112,6 +112,8 @@ tabela de testes ganha o caso na coluna "Caso" (pergunta 11); documento sem a co
   não o que ele deveria fazer
 - Sem `any`, sem `TODO` deixado para trás, sem teste comentado
 - Vocabulário do glossário no código e no banco
+- Lote retido (`*-retido-*.json`, `RETIDOS.json`, `docs/aia/ouro-retido/`) se inspeciona só pela forma (`jq 'keys'`,
+  `jq length`), nunca pelo conteúdo: o texto que passa pelo terminal entra no contexto do modelo e contamina o lote (13.0 da F5b)
 - Descobriu que a Tech Spec está errada: PARE e envie `/seguir DIVERGÊNCIA de Implementador`, com
   `Motivo: desenho`. Não improvise.
 - Renomear peça que o documento não nomeia (fora do mapa, da adenda aprovada ou dos arquivos previstos) também é
