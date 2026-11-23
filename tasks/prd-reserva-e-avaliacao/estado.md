@@ -1,9 +1,9 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** o `Arquiteto`, no andar, tirando a 14.0 da F5b (decisão do Joaquim, 23/11 ~01:3x); depois, a validação. L1, L2 e L3 ociosas.
-- **Devo ainda:** antes da partida da 14.0, levar ao Joaquim as três perguntas da 13.0 (`TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0"): qual modelo a entrada de `MODELOS_APROVADOS` e a AIA do `padrao` citam, se o segundo modelo tem os mesmos termos de contrato, e o custo do segundo passe frente ao teto de R$ 250. na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde); os outros itens da 7.0 já estão no `TODO.md`. Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). A última tarefa (a 14.0) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `38973915`, no encontro da 9.0 (esteira verde em `7a8fc3de`, com a 8.0 e a 13.0; a de `38973915` rodando, execução 45110286053)
+- **Espero:** o `Validador`, no andar, validando a F5b inteira (13 tarefas; a 14.0 saiu, D37 revista em `04e4b68b`: a avaliação vira a F5c, por último). L1, L2 e L3 ociosas; ninguém usa o ambiente de teste 0.
+- **Devo ainda:** na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde); os outros itens da 7.0 já estão no `TODO.md`. As três perguntas da 13.0 (`TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0") vão com a F5c. Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
+- **Base:** `spec/reserva-e-avaliacao` em `04e4b68b` (último commit de código: a 9.0, `1d7d54b5`, via `38973915`)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
