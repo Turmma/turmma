@@ -68,11 +68,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [ ] 8.3 `registrarEstimada(execucao, destinos, precos)` na varredura e na reentrega
   - [ ] 8.4 Testes
 
-- [ ] **9.0 — A fase `reserva` da carga prova a queda do principal**
-  - [ ] 9.1 A fase e o cenário k6
-  - [ ] 9.2 O veredito e o controle negativo
-  - [ ] 9.3 Rodar e registrar
-  - [ ] 9.4 Testes
+- [x] **9.0 — A fase `reserva` da carga prova a queda do principal**
+  - [x] 9.1 A fase e o cenário k6
+  - [x] 9.2 O veredito e o controle negativo
+  - [x] 9.3 Rodar e registrar
+  - [x] 9.4 Testes
 
 - [x] **10.0 — As amostras da avaliação e as guardas que valem antes do gasto**
   - [x] 10.1 Os eliminatórios na fonte (`domain-researcher`)

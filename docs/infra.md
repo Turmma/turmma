@@ -516,6 +516,8 @@ serviços não entrou na medida. O pico de conexões do pool em uso foi 11 (o po
 (Tutor da escola B, 30 alunos, 1,5 turno/s): p95 do turno de 335 ms no anterior e 353 ms no da árvore (+18 ms, o limite é 1 s), e espera p95 da B de 17 ms nos dois. O consumo de base de uma professora no ritmo do pico
 (2,5 pedidos de IA por minuto) foi de uns 9 a 10 mil tokens por minuto de uso (626 mil tokens das 20 professoras em ~3 minutos), no adaptador falso: o custo em reais sai do preço do modelo real, que entra com a D37.
 
+**Cenário "a queda do principal" (reserva-e-avaliacao, tarefa 9.0; RF3)**, local, `npm run carga:reserva` (a `FASE=reserva` do mesmo k6): a carga da sala em cinco janelas (principal atendendo, `5xx`, prazo, `429` e o balde do principal cheio), com a reserva falsa (nunca um provedor pago). **Passa quando** nenhuma janela termina `IA_INDISPONIVEL`, o p95 do turno do Tutor fica até 1 s acima do da janela de controle, e o degrau `provedor_de_reserva` (e, na janela do balde, o `espera`) subiu. O controle negativo (`carga:reserva:controle-negativo`, a reserva sem modelo elegível) prova que a fase reprova quando a reserva não atende. É relatório, não portão; o roteiro e as corridas estão no `docs/runbook.md`, "Rodar a carga da queda do principal".
+
 **Cenário "justiça entre escolas" com o expurgo (F3, tarefa 19.0)**, local, em `npm run carga`: uma escola, a A, expurga
 **1 milhão de linhas** vencidas e troca um nome (o `retencao.expurgar-escola` e o `titular.eliminar`, pelo worker de lote) enquanto a
 B usa a fila interativa **e o Tutor pela rota** `POST /v1/tutor/mensagens` (30 alunos sintéticos, 1,5 turno por segundo, com o

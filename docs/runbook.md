@@ -1961,6 +1961,51 @@ Se reprovar, a saída diz o critério:
 
 O RSS e o pico de conexões do pool saem no relatório. A espera por conexão do pool não tem métrica (`TODO.md`). Vale como registro com as condições da seção seguinte (só a primeira: o cenário não passa pelo hash).
 
+## Rodar a carga da queda do principal
+
+`flock /tmp/educa-carga.lock npm run carga:reserva` roda a fase `reserva` (reserva-e-avaliacao, tarefa 9.0; RF3; `docs/infra.md` 5.4) no projeto `educa-carga` e o derruba no fim. Leva uns 13 min, mais a construção das imagens, e as
+mesmas regras da carga da manhã valem: nada de portão, teste ou outro cenário ao mesmo tempo, e o adaptador é o falso (a reserva também: o script recusa `RESERVA_DA_CARGA_ADAPTADOR` que não seja `falso`). É a carga da sala (dez escolas, 6 s por
+turno do Tutor, 3.000 + 250 tokens por chamada) em **cinco janelas** de carga, com 70 s sem carga entre elas. É nesse intervalo que o script recria os dois `worker-ia` com a configuração da janela seguinte, porque `IA_FALHA_FALSA` só se lê
+na subida do worker; ele espera 45 s depois do fim da carga (a ferramenta de 50 s em voo termina, e o worker ainda dá 20 s de graça aos jobs) antes de recriar:
+
+| Janela | Principal falso | Reserva falsa | O que passa |
+|---|---|---|---|
+| `controle` (30 s) | atende | desligada | é a configuração da `sala`: o p95 do turno do Tutor dela é a referência das outras |
+| `5xx` (30 s) | `principal:5xx` | ligada | zero `IA_INDISPONIVEL`; p95 do turno até 1 s acima do controle; `ia.degradacao{degrau="provedor_de_reserva"}` subiu |
+| `prazo` (30 s) | `principal:prazo` | ligada | zero `IA_INDISPONIVEL`; o `IA_TEMPO_ESGOTADO`, tipado, é permitido e fica contado; o degrau subiu |
+| `429` (30 s) | `principal:429` | ligada | o mesmo da `5xx`: o `limite` vai à reserva, sem o menor (o falso não o tem) |
+| `balde` (60 s) | atende | ligada | o contratado do principal cai a 1,2 milhão por minuto (`LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO`): o balde enche antes do fim, espera os 8 s e transborda à reserva, sem `IA_INDISPONIVEL`; `ia.degradacao{degrau="espera"}` e o degrau da reserva subiram |
+
+A `sala` **não** liga a reserva (comparável à X6): as variáveis dela moram em `infra/carga.env` como `RESERVA_DA_CARGA_*`, e só o script as passa ao worker, janela a janela; em qualquer outra fase o `IA_RESERVA_ADAPTADOR` do worker é vazio.
+As colunas "indisponível", "prazo esgotado" e "outras" do relatório contam as execuções de **qualquer função** (Tutor, ferramenta e proposta) das escolas da sala; turnos e p95 são só do Tutor.
+A janela se lê no banco (`execucao_agente` pelo `criada_em`, de cada escola da sala) e no Prometheus (o degrau no fim da janela, lido desde o instante em que a troca dos `worker-ia` voltou: eles nascem de novo antes de cada janela, o contador começa em zero, e a série do contêiner antigo não entra).
+
+`npm run carga:reserva:controle-negativo` sobe a mesma fase com `IA_RESERVA_PROVEDOR_ID=falso-sem-aprovacao` (o worker sobe, mas a reserva não tem entrada em `MODELOS_APROVADOS`: o modelo dela não é elegível, nada a ver com a aprovação de uma pessoa sobre uma saída de IA) e só sai verde se a fase reprovar **pelo
+`IA_INDISPONIVEL` das janelas `5xx` e `429`, nas duas**: se reprovar só por amostra ou por degrau, o worker nem atendeu a carga, e o controle não provou nada.
+
+Se reprovar, a saída diz o critério:
+- **`indisponivel_<janela>`:** o aluno ficou sem resposta com a reserva ligada. Veja se a reserva era elegível (`ia.provedor_de_reserva.conferido` e o log `ia.provedor_de_reserva.conferida` do `worker-ia`), se o balde dela recusou (`sem_vaga`) e o `IA_RESERVA_PROVEDOR_ID` do worker (`docker compose exec`).
+- **`turno_5xx` ou `turno_429`:** o p95 do turno do Tutor passou do controle mais 1 s. O 429 espera o recuo da repetição (`LLM_RECUO_MS`) antes de ir à reserva; o 5xx, a repetição do `ResilientAdapter`. Veja onde o tempo foi (`consumo_ia` da execução: uma linha por chamada).
+- **`reserva_nao_atendeu_<janela>`:** o degrau `provedor_de_reserva` não subiu (ou o Prometheus não respondeu): a reserva não foi chamada, e uma janela sem indisponível passou por outro caminho.
+- **`balde_nao_recusou`:** o balde do principal não recusou nada na janela do balde cheio: o contratado dela não mordeu, e o transbordo não foi provado.
+- **`troca_atrasada_<janela>`:** o `worker-ia` não subiu nos 70 s de intervalo (45 s de espera pela ferramenta de 50 s, até 20 s de graça e a subida): a carga da janela começou com ele ainda subindo. Repita.
+- **`falhas_<janela>`, `tempo_esgotado_<janela>`:** outro erro além de `IA_INDISPONIVEL`, `IA_TEMPO_ESGOTADO` (só na janela do prazo) e `EXECUCAO_INTERROMPIDA` (se a troca ainda cortar uma ferramenta de 50 s; contada, não julgada).
+- **`sem_amostra_<janela>`:** menos de 30 turnos do Tutor concluídos na janela. `k6_reserva` ou `reserva:<métrica>`: o k6 não rodou até o fim, ou um threshold dele cruzou (429 de limite por pessoa, resposta inesperada, token que expirou: o k6 inteiro tem de caber nos 10 min do token de acesso).
+
+Vale como registro com a primeira condição da seção seguinte (máquina calma: load de 1 minuto abaixo de ~2 e `docker ps` vazio, os dois anotados ao lado dos números), mais o relatório da fase colado na tarefa.
+
+**Corrida de 22/11/2026 (reserva-e-avaliacao, tarefa 9.0; hash `9e09f039` mais as mudanças da tarefa; 12 min; começou às 23:57).** Verde, com a máquina calma: load de 1 minuto **0,70** (5 min: 2,60) e `docker ps` vazio na partida. Foi a quinta corrida da tarefa; as duas primeiras ficaram vermelhas por defeito da carga e estão escritas em `tasks/prd-reserva-e-avaliacao/9_task.md`, "Corridas de carga": o token de acesso que vencia (as dez escolas eram preparadas em série) e a ferramenta de 50 s abortada quando o worker era recriado cedo demais. A terceira, verde, foi com a máquina ocupada (load 4,24) e não vale como registro. Zero `IA_INDISPONIVEL`, zero prazo esgotado e zero resposta inesperada em todas as janelas:
+
+| Janela | Turnos | p95 do turno | Reserva atendeu | Balde recusou |
+|---|---|---|---|---|
+| `controle` (30 s) | 220 | 6.128 ms | 0 | 0 |
+| `5xx` (30 s) | 230 | 6.202 ms | 260 | 0 |
+| `prazo` (30 s) | 220 | 6.145 ms | 240 | 0 |
+| `429` (30 s) | 230 | 6.581 ms | 260 | 0 |
+| `balde` (60 s) | 420 | 14.086 ms | 100 | 140 |
+
+O limite da queda foi 7.128 ms (o do `controle` mais 1 s). Controle negativo (`falso-sem-aprovacao`) logo depois (00:10 de 23/11; `docker ps` vazio e load de 1 minuto **2,41**, ainda com o rastro da corrida que acabara de cair; 15 min: 3,32): reprovou pelo indisponível (260, 230, 260 e 120 nas janelas `5xx`, `prazo`, `429` e `balde`), com o degrau da reserva em 0; o que prova que o worker subiu com a reserva sem modelo elegível são os indisponíveis das janelas `5xx` e `429`. A fase não passa por hash de senha (tokens sintéticos), então as condições 2 e 3 não se aplicam.
+
 ## Quando a carga vale como registro
 
 Os cenários de login, da sala e da importação (`carga:login`, `carga:sala`, `carga:importacao`; o da ingestão, `carga:ingestao`, não passa pelo hash e só pede a primeira condição) medem o p95 de rotas que passam pelo hash de senha, e as duas APIs

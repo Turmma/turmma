@@ -507,12 +507,19 @@ describe('loadLLMConfig: o provedor de reserva (reserva-e-avaliacao, 1.0)', () =
     expect(`${comIdentidadeRepetida.message} ${JSON.stringify(comIdentidadeRepetida.motivos)}`).not.toContain(chave)
   })
 
-  it('o .env.example não liga a reserva e a carga liga a falsa, `falso-reserva`, com o contratado próprio', () => {
+  it('o .env.example não liga a reserva e a carga liga a falsa, `falso-reserva`, com o contratado próprio, pelos nomes que só o script passa ao worker', () => {
     const raiz = fileURLToPath(new URL('../../../../', import.meta.url))
     const exemplo = parseEnv(readFileSync(`${raiz}.env.example`, 'utf8'))
     const carga = parseEnv(readFileSync(`${raiz}infra/carga.env`, 'utf8'))
     expect(loadLLMConfig(exemplo)).not.toHaveProperty('reserva')
-    expect(loadLLMConfig({ ...exemplo, ...carga }).reserva).toEqual({ adaptador: 'falso', identidade: 'falso-reserva', ambiente: 'local', tokensPorMinuto: 1_950_000 })
+    // O `infra/carga.env` guarda a reserva como `RESERVA_DA_CARGA_*` (9.0): com o nome da configuração, o compose a levaria ao worker de toda fase. O `variaveisDaReserva`, em `infra/scripts/carga.ts`, as passa como `IA_RESERVA_*`, e só na fase da queda do principal.
+    const passadasAoWorker = {
+      IA_RESERVA_ADAPTADOR: carga['RESERVA_DA_CARGA_ADAPTADOR'],
+      IA_RESERVA_PROVEDOR_ID: carga['RESERVA_DA_CARGA_PROVEDOR_ID'],
+      LLM_RESERVA_TOKENS_POR_MINUTO: carga['RESERVA_DA_CARGA_TOKENS_POR_MINUTO'],
+    }
+    expect(loadLLMConfig({ ...exemplo, ...carga }).reserva).toBeUndefined()
+    expect(loadLLMConfig({ ...exemplo, ...passadasAoWorker }).reserva).toEqual({ adaptador: 'falso', identidade: 'falso-reserva', ambiente: 'local', tokensPorMinuto: 1_950_000 })
   })
 })
 

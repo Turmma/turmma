@@ -106,15 +106,17 @@ Nota das linhas RF13 da equidade, dos números fiéis e da D36 (tarefa 12.0; o t
 
 ## 5. Carga
 
-A fase `reserva` do `carga.ts`, com `LLM_RESERVA_TOKENS_POR_MINUTO` de `infra/carga.env`. A fase `sala` roda com a
-reserva desligada, para continuar comparável à X6.
+A fase `reserva` do `carga.ts`, com o contratado da reserva de `infra/carga.env` (`RESERVA_DA_CARGA_TOKENS_POR_MINUTO`). A fase `sala` roda com a
+reserva desligada, para continuar comparável à X6. A queda não é ligada a meio de uma carga contínua: são cinco janelas (`controle`, `5xx`, `prazo`, `429` e `balde`) com um intervalo sem carga entre elas, em que
+o `carga.ts` recria os `worker-ia` com a falha da janela seguinte (`techspec.md` §7c, "A fase `reserva` da carga"). "O p95 da fase `sala`" é o da janela `controle`, que roda na configuração da `sala`.
 
 - **Queda por servidor:** a meio da fase, o principal falso responde 5xx em 100% (`IA_FALHA_FALSA=principal:5xx`), e a
   reserva falsa atende. Passa com zero indisponível para o aluno, o p95 do turno do Tutor até 1 s acima do da fase
   `sala`, e `ia.degradacao{degrau="provedor_de_reserva"}` subindo.
 - **Queda por prazo:** `IA_FALHA_FALSA=principal:prazo`. Passa com indisponível só quando o prazo da execução já
 se esgotou antes da reserva, sempre `IA_TEMPO_ESGOTADO` tipado e nunca erro cru; o número fica no relatório da fase.
-- **Balde cheio no pico:** o balde do principal no limite, e o transbordo vai à reserva sem indisponível.
+- **Balde cheio no pico:** o balde do principal no limite (a janela `balde` baixa o contratado do principal a 1,2 milhão por minuto, abaixo da carga do pico), e o transbordo vai à reserva sem indisponível.
+- **A queda por 429:** `IA_FALHA_FALSA=principal:429`, a mesma conta da queda por servidor: o `limite` vai à reserva, sem indisponível e com o p95 do turno até 1 s acima do controle.
 - **Identidade:** a carga roda com `AMBIENTE=local`, como hoje. A reserva falsa liga com `IA_RESERVA_PROVEDOR_ID=falso-reserva`,
   id diferente do principal, com balde, rótulo e disjuntor próprios, e a entrada sintética dela em `MODELOS_APROVADOS`
   vale fora de produção. `IA_FALHA_FALSA` só tem efeito no `FakeAdapter`.

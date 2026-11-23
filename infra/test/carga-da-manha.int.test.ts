@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, describe, expect, it } from 'vitest'
 import { urlDoBancoDeTeste } from '../../tools/testes/integracao.setup.ts'
-import { consumoDaSala, contarExecucoesRodando, falhasDaSala, medirEscolasDaSala, semearEscolaDaSala, TURMAS_POR_ESCOLA_DA_SALA } from '../scripts/carga.ts'
+import { consumoDaSala, contarExecucoesRodando, falhasDaSala, falhasNaJanela, medirEscolasDaSala, medirTutorNaJanela, semearEscolaDaSala, TURMAS_POR_ESCOLA_DA_SALA } from '../scripts/carga.ts'
 
 // Contra o Postgres do compose de teste, com as migrations: o que a carga da manhã (`npm run carga -- --so=sala`, X6, tarefa 11.0) grava e lê no banco, com poucos alunos.
 // A corrida de verdade tem 60 alunos e 2 professoras por escola, em dez escolas: a forma é esta.
@@ -189,6 +189,40 @@ describe('o que a corrida mede no banco', () => {
     expect(await falhasDaSala(pool, [a.escolaId], desde)).toEqual({ EXECUCAO_INTERROMPIDA: 2, IA_INDISPONIVEL: 1 })
     expect(await falhasDaSala(pool, [a.escolaId, b.escolaId], desde)).toEqual({ EXECUCAO_INTERROMPIDA: 2, IA_INDISPONIVEL: 1, IA_TEMPO_ESGOTADO: 1 })
     expect(await falhasDaSala(pool, [a.escolaId], new Date(Date.now() + 60_000))).toEqual({})
+  })
+
+  it('a janela da queda do principal (F5b, 9.0) mede o turno e as falhas só do intervalo [de, até) e só das escolas da sala; o que ficou antes, depois, na outra escola, a falha e a ferramenta não entram', async () => {
+    const a = await escolaComExecucoes()
+    const b = await escolaComExecucoes()
+    const agora = await instante()
+    const de = new Date(agora.getTime() - 20_000)
+    const ate = new Date(agora.getTime() + 20_000)
+    for (let n = 1; n <= 10; n += 1) await execucaoDaEscola(a, { estado: 'concluida', duracaoMs: n * 1_000 })
+    // Fora do intervalo, de uma escola da sala: o p95 iria a 60 s se entrasse.
+    for (let n = 0; n < 2; n += 1) {
+      await execucaoDaEscola(a, { estado: 'concluida', duracaoMs: 60_000, criadaEm: "clock_timestamp() - interval '1 minute'" })
+      await execucaoDaEscola(a, { estado: 'concluida', duracaoMs: 60_000, criadaEm: "clock_timestamp() + interval '1 minute'" })
+      await execucaoDaEscola(a, { estado: 'concluida', funcao: 'conversa_e_ferramentas', duracaoMs: 60_000 })
+      await execucaoDaEscola(a, { estado: 'falhou', erro: 'IA_INDISPONIVEL', duracaoMs: 60_000 })
+      await execucaoDaEscola(b, { estado: 'concluida', duracaoMs: 60_000 })
+    }
+    expect(await medirTutorNaJanela(pool, [a.escolaId], de, ate)).toMatchObject({ amostras: 10 })
+    expect(Math.round((await medirTutorNaJanela(pool, [a.escolaId], de, ate)).p95Ms ?? 0)).toBe(9_550)
+    expect(await medirTutorNaJanela(pool, [a.escolaId, b.escolaId], de, ate)).toMatchObject({ amostras: 12 })
+    // O p95 vem de `percentile_cont` sobre microssegundos do banco: arredonda, como o de cima.
+    const depois = await medirTutorNaJanela(pool, [a.escolaId], new Date(agora.getTime() + 30_000), new Date(agora.getTime() + 90_000))
+    expect(depois.amostras).toBe(2)
+    expect(Math.round(depois.p95Ms ?? 0)).toBe(60_000)
+    expect(await medirTutorNaJanela(pool, [await escola()], de, ate)).toEqual({ amostras: 0, p95Ms: null })
+
+    await execucaoDaEscola(a, { estado: 'falhou', erro: 'IA_TEMPO_ESGOTADO' })
+    await execucaoDaEscola(a, { estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA' })
+    await execucaoDaEscola(a, { estado: 'falhou', erro: 'IA_INDISPONIVEL', criadaEm: "clock_timestamp() - interval '1 minute'" })
+    await execucaoDaEscola(b, { estado: 'falhou', erro: 'IA_SAIDA_INVALIDA' })
+    // As duas `IA_INDISPONIVEL` de dentro (a do laço e a dela mesma, sem o antigo), a do prazo e a interrompida; a do minuto anterior e a da outra escola ficam fora.
+    expect(await falhasNaJanela(pool, [a.escolaId], de, ate)).toEqual({ IA_INDISPONIVEL: 2, IA_TEMPO_ESGOTADO: 1, EXECUCAO_INTERROMPIDA: 1 })
+    expect(await falhasNaJanela(pool, [a.escolaId, b.escolaId], de, ate)).toEqual({ IA_INDISPONIVEL: 2, IA_TEMPO_ESGOTADO: 1, EXECUCAO_INTERROMPIDA: 1, IA_SAIDA_INVALIDA: 1 })
+    expect(await falhasNaJanela(pool, [a.escolaId], new Date(agora.getTime() - 120_000), new Date(agora.getTime() - 30_000))).toEqual({ IA_INDISPONIVEL: 1 })
   })
 
   it('o consumo da janela soma chamadas, tokens e custo por função, e só da escola e da janela', async () => {

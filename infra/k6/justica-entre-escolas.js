@@ -11,6 +11,9 @@
 //               tempo, por 3 min, com a latência por perfil do adaptador falso. Roda só no build da tarefa, e é relatório, não portão: os
 //               thresholds daqui são os de cada escola (nenhum "indisponível", nenhuma 429, turno e ferramenta que terminam); a espera p95 do
 //               Tutor e a da ferramenta saem do `job_registro`, e o `kill -9` do `worker-ia-1` é de infra/scripts/carga.ts.
+//   FASE=reserva a carga da manhã com a queda do principal (F5b, tarefa 9.0): a mesma carga da sala, em cinco janelas com intervalo (a taxa cai a zero entre
+//               elas), e quem troca a falha do principal falso e liga a reserva em cada intervalo é infra/scripts/carga.ts (as variáveis do worker só mudam na
+//               subida). O k6 só gera a carga e conta o que o aluno viu; o veredito de cada janela sai do banco e do Prometheus, e é relatório, não portão.
 //   FASE=carga  as fases 2, 3 e 4 ao mesmo tempo, por 2 min: a escola A enfileira 2.000 lotes urgentes de 2 s
 //               e 500 interativos de 100 ms em rajada, enquanto a B repete a base; 400 usuários da escola C
 //               chamam `contexto` uma vez por segundo, e um usuário da C, cinco vezes; 400 visitantes anônimos
@@ -33,7 +36,9 @@ const FASE = __ENV.FASE
 const API = __ENV.API_URL
 const WEB = __ENV.WEB_URL
 const ARQUIVO_DOS_TOKENS = __ENV.ARQUIVO_DOS_TOKENS
-if (FASE !== 'base' && FASE !== 'expurgo' && FASE !== 'carga' && FASE !== 'sala') throw new Error('FASE precisa ser base, expurgo, carga ou sala')
+if (FASE !== 'base' && FASE !== 'expurgo' && FASE !== 'carga' && FASE !== 'sala' && FASE !== 'reserva') throw new Error('FASE precisa ser base, expurgo, carga, sala ou reserva')
+/** As duas fases que usam as dez escolas da sala: a carga da manhã e a da queda do principal. */
+const NA_SALA = FASE === 'sala' || FASE === 'reserva'
 if (!API || !WEB || !ARQUIVO_DOS_TOKENS) throw new Error('defina API_URL, WEB_URL e ARQUIVO_DOS_TOKENS')
 
 /** Margem declarada sobre a espera da base (PRD, RF18). */
@@ -65,6 +70,9 @@ const TURNOS_DA_SALA_POR_MINUTO = 45
 const FERRAMENTAS_DA_SALA_POR_MINUTO = 1
 const PROPOSTAS_DA_SALA_POR_MINUTO = 4
 const DURACAO_DA_SALA = '3m'
+/** A fase `reserva` (F5b, 9.0): a duração da carga de cada janela e o intervalo sem carga entre duas, em segundos. São os de `JANELAS_DA_RESERVA` de infra/scripts/carga.ts, que `infra/test/carga.test.ts` confere. O intervalo deixa o worker trocar de configuração sem fila e sem execução nova. */
+const DURACOES_DAS_JANELAS_DA_RESERVA_S = [30, 30, 30, 30, 60]
+const INTERVALO_ENTRE_AS_JANELAS_S = 70
 /** O Tutor espera a execução até 90 s: acima dos 60 s do prazo único da execução do perfil `rapido` (`PRAZO_DA_EXECUCAO_MS`, e não os 20 s de uma chamada ao modelo) e dos ~15 s da reentrega do job do worker morto (`EXECUCAO_INTERROMPIDA`). A ferramenta (`padrao`), até 170 s, acima dos 140 s do prazo único da execução dela. */
 const PRAZO_DO_TURNO_DA_SALA_MS = 90_000
 const PRAZO_DA_FERRAMENTA_DA_SALA_MS = 170_000
@@ -95,6 +103,8 @@ const ferramentasDaSalaConcluidas = new Counter('ferramentas_sala_concluidas')
 const propostasDaSalaConcluidas = new Counter('propostas_sala_concluidas')
 /** O aluno que viu "indisponível" (`IA_INDISPONIVEL`): é o que a carga da manhã não pode ter. */
 const indisponiveisDaSala = new Counter('indisponiveis_sala')
+/** Só na `FASE=reserva`: a execução que terminou `IA_TEMPO_ESGOTADO` (a queda por prazo a produz, tipada); na `sala` ela segue sendo resposta inesperada. */
+const temposEsgotadosDaReserva = new Counter('tempos_esgotados_reserva')
 /** Execução que terminou `EXECUCAO_INTERROMPIDA` (o `kill -9` do `worker-ia-1`): fora de `respostas_inesperadas`, com teto lido por infra/scripts/carga.ts. */
 const execucoesInterrompidas = new Counter('execucoes_interrompidas')
 
@@ -107,13 +117,13 @@ const TOKENS_B_TUTOR = tokens('b_tutor')
 const TOKENS_C = tokens('c')
 const TOKEN_ABUSIVO = tokens('abusivo')
 const indicesDaSala = Array.from({ length: ESCOLAS_DA_SALA }, (_, indice) => indice)
-// Só na `FASE=sala` os tokens das dez escolas existem: nas outras, o arquivo não os tem e a lista fica vazia.
-const ALUNOS_DA_SALA = FASE === 'sala' ? indicesDaSala.map((indice) => tokens(`sala_aluno_${indice}`)) : []
-const PROFESSORAS_DA_SALA = FASE === 'sala' ? indicesDaSala.map((indice) => tokens(`sala_professora_${indice}`)) : []
+// Só nas fases `sala` e `reserva` os tokens das dez escolas existem: nas outras, o arquivo não os tem e a lista fica vazia.
+const ALUNOS_DA_SALA = NA_SALA ? indicesDaSala.map((indice) => tokens(`sala_aluno_${indice}`)) : []
+const PROFESSORAS_DA_SALA = NA_SALA ? indicesDaSala.map((indice) => tokens(`sala_professora_${indice}`)) : []
 /** Cada escola da sala guarda, no arquivo dos tokens, a turma e a disciplina em que as professoras têm vínculo: `sala_alvo_<n>` = [turmaId, disciplinaId]. */
-const ALVOS_DA_SALA = FASE === 'sala' ? indicesDaSala.map((indice) => tokens(`sala_alvo_${indice}`)) : []
+const ALVOS_DA_SALA = NA_SALA ? indicesDaSala.map((indice) => tokens(`sala_alvo_${indice}`)) : []
 // O arquivo de tokens tem de trazer os alunos e as professoras que o script criou: sem eles a carga de uma escola pediria com o mesmo usuário e bateria no limite por usuário.
-if (FASE === 'sala') {
+if (NA_SALA) {
   for (const indice of indicesDaSala) {
     if (ALUNOS_DA_SALA[indice].length !== ALUNOS_POR_ESCOLA_DA_SALA || PROFESSORAS_DA_SALA[indice].length !== PROFESSORAS_POR_ESCOLA_DA_SALA) {
       throw new Error(`a escola ${indice + 1} da sala não trouxe ${ALUNOS_POR_ESCOLA_DA_SALA} alunos e ${PROFESSORAS_POR_ESCOLA_DA_SALA} professoras`)
@@ -278,9 +288,42 @@ function sala() {
   return { cenarios, thresholds }
 }
 
-const daBase = FASE === 'sala' ? { cenarios: {}, thresholds: {} } : base()
+/**
+ * A fase `reserva` (F5b, 9.0): a carga da sala em janelas. Cada cenário é o mesmo da sala (o Tutor de cada escola, a ferramenta e a proposta da professora), mas com taxa que
+ * sobe a cada janela e cai a zero no intervalo (`ramping-arrival-rate`): é no intervalo que infra/scripts/carga.ts troca a falha do principal falso e liga ou desliga a reserva. Sem o
+ * intervalo, o worker que reinicia atrasaria o p95 da janela. Os thresholds são os do aluno que não vê erro de rede, e não os de "indisponível" nem de turno: quem julga cada janela é o banco.
+ */
+function reserva() {
+  const cenarios = {}
+  const thresholds = {}
+  for (const grupo of ['sala_tutor', 'sala_ferramenta', 'sala_proposta']) {
+    thresholds[`respostas_429{grupo:${grupo}}`] = ['count==0']
+    thresholds[`respostas_inesperadas{grupo:${grupo}}`] = ['count==0']
+  }
+  const estagios = (porMinuto) => {
+    const lista = []
+    DURACOES_DAS_JANELAS_DA_RESERVA_S.forEach((duracao, indice) => {
+      lista.push({ target: porMinuto, duration: '1s' }, { target: porMinuto, duration: `${duracao - 1}s` })
+      if (indice < DURACOES_DAS_JANELAS_DA_RESERVA_S.length - 1) lista.push({ target: 0, duration: '1s' }, { target: 0, duration: `${INTERVALO_ENTRE_AS_JANELAS_S - 1}s` })
+    })
+    return lista
+  }
+  for (const indice of indicesDaSala) {
+    const escola = `e${indice + 1}`
+    const ambiente = { ESCOLA: String(indice) }
+    const base = { executor: 'ramping-arrival-rate', env: ambiente, startRate: 0, timeUnit: '1m' }
+    cenarios[`sala_tutor_${escola}`] = { ...base, exec: 'salaTutor', stages: estagios(TURNOS_DA_SALA_POR_MINUTO), preAllocatedVUs: 8, maxVUs: 30, gracefulStop: '100s' }
+    cenarios[`sala_ferramenta_${escola}`] = { ...base, exec: 'salaFerramenta', stages: estagios(FERRAMENTAS_DA_SALA_POR_MINUTO), preAllocatedVUs: 2, maxVUs: 6, gracefulStop: '180s' }
+    cenarios[`sala_proposta_${escola}`] = { ...base, exec: 'salaProposta', stages: estagios(PROPOSTAS_DA_SALA_POR_MINUTO), preAllocatedVUs: 1, maxVUs: 4, gracefulStop: '100s' }
+    // Nenhum grupo passa em branco: o Tutor de cada escola termina turnos nas cinco janelas.
+    thresholds[`turnos_sala_concluidos{escola:${escola}}`] = ['count>0']
+  }
+  return { cenarios, thresholds }
+}
+
+const daBase = NA_SALA ? { cenarios: {}, thresholds: {} } : base()
 const daCarga = FASE === 'carga' ? carga() : { cenarios: {}, thresholds: {} }
-const daSala = FASE === 'sala' ? sala() : { cenarios: {}, thresholds: {} }
+const daSala = FASE === 'sala' ? sala() : FASE === 'reserva' ? reserva() : { cenarios: {}, thresholds: {} }
 
 export const options = {
   scenarios: { ...daBase.cenarios, ...daCarga.cenarios, ...daSala.cenarios },
@@ -410,6 +453,7 @@ function esperarExecucao(token, grupo, execucaoId, prazoMs) {
 function fecharExecucaoDaSala(desfecho, grupo, escola) {
   if (desfecho === 'concluida' || desfecho === 'resposta_inesperada') return desfecho === 'concluida'
   if (desfecho === 'IA_INDISPONIVEL') indisponiveisDaSala.add(1, { escola, grupo })
+  else if (desfecho === 'IA_TEMPO_ESGOTADO' && FASE === 'reserva') temposEsgotadosDaReserva.add(1, { escola, grupo })
   else if (desfecho === 'EXECUCAO_INTERROMPIDA') execucoesInterrompidas.add(1, { escola, grupo })
   else respostasInesperadas.add(1, { grupo, status: desfecho })
   return false

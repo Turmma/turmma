@@ -156,7 +156,13 @@ Nenhum prompt muda.
 | Caminho quente e carga | o gateway: no máximo quatro chamadas por execução (§5); `PRAZO_DA_EXECUCAO_MS` não muda: a reserva usa o que sobra dele, e o que não couber termina `IA_TEMPO_ESGOTADO` antes do corte do job (comentário e `docs/infra.md` revistos) |
 | Dependência fora | principal: reserva; as duas: como na X6, "Provedor de IA fora" para cada uma, com o `ia.disjuntor.aberto` de cada `ResilientAdapter` no seu `provedor`; o parágrafo `#provedor-de-ia-fora` do runbook diz o que fazer quando é a reserva |
 | Métrica e alerta | `ia.provedor_de_reserva.conferido` (0 por 10 min, só com reserva configurada), com runbook; `ia.degradacao{degrau="provedor_de_reserva"}` |
-| Carga | fase `reserva` (`cenarios.md` §5); `LLM_RESERVA_TOKENS_POR_MINUTO` em `infra/carga.env`, o contratado em `docs/infra.md` 5.4 |
+| Carga | fase `reserva` (`cenarios.md` §5); o contratado da reserva em `infra/carga.env` como `RESERVA_DA_CARGA_TOKENS_POR_MINUTO` (9.0), o de produção em `docs/infra.md` 5.4 |
+
+**A fase `reserva` da carga (9.0).** `IA_FALHA_FALSA` só se lê na subida do worker, e por isso a fase **não** liga a queda "a meio" de uma carga contínua: ela dá a carga da `sala` em **cinco janelas** (`controle` 30 s, `5xx` 30 s, `prazo` 30 s, `429` 30 s e `balde` 60 s), com 70 s **sem carga**
+entre elas (`ramping-arrival-rate` que cai a zero), e `infra/scripts/carga.ts` recria os dois `worker-ia` nesse intervalo, com a falha e a reserva da janela seguinte, 45 s depois do fim da carga: a ferramenta de 50 s que começou no último instante precisa terminar, e recriar logo a abortava (o aluno via `sem_conclusao`). O `controle` roda com a reserva desligada, que é a configuração da `sala`, e o p95 do turno do Tutor dele é a referência do "até 1 s acima do da `sala`":
+uma corrida `--so=sala` separada não serve, porque o token de acesso vale 10 min (`VALIDADE_TOKEN_ACESSO_SEGUNDOS`) e as duas fases somadas passam disso. A `sala` segue sem reserva: as variáveis da reserva moram em `infra/carga.env` como `RESERVA_DA_CARGA_ADAPTADOR`, `RESERVA_DA_CARGA_PROVEDOR_ID` e `RESERVA_DA_CARGA_TOKENS_POR_MINUTO`
+(com o nome `IA_RESERVA_*` o compose as levaria a toda fase), e só o script as passa ao worker, nas janelas que a ligam (`infra/compose.carga.yml` as repassa vazias por padrão, e vazio vale como ausente). A janela do `balde` baixa o `LLM_TOKENS_POR_MINUTO` do principal para 1,2 milhão (o balde geral é 80 %: 960 mil por minuto contra 1,625 milhão de carga), porque o da `sala`
+(1,95 milhão) deixa o balde 4 % abaixo da carga, e a espera de 8 s do degrau absorve esse excesso sem chegar à reserva. Cada janela é lida no banco (`execucao_agente` pelo `criada_em`: o p95 do turno, o `IA_INDISPONIVEL`, o `IA_TEMPO_ESGOTADO` e o resto) e no Prometheus (`ia.degradacao{degrau="provedor_de_reserva"}` e `{degrau="espera"}` no fim da janela, porque o worker nasce de novo antes dela).
 
 ## 8. Uso de IA
 

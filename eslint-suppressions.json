@@ -924,9 +924,6 @@
   "infra/scripts/carga.ts": {
     "complexity": {
       "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
     }
   },
   "infra/scripts/conferir-carga-login.ts": {

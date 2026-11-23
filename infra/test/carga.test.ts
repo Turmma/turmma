@@ -2,14 +2,36 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseEnv } from 'node:util'
 import { alcanceDe, INTERVALO_DA_CONSULTA_DE_EXECUCAO_MS } from '@educa/shared'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
 import { lerAmbienteDeCarga } from '../../tools/ci/compose.ts'
 import { raizRepositorio } from '../../tools/ci/executar.ts'
 import {
+  ACRESCIMO_MAXIMO_DO_TURNO_NA_QUEDA_MS,
   adaptadorDoAmbienteDeCarga,
   ALUNOS_POR_ESCOLA_DA_SALA,
+  ambienteDaBase,
+  ambienteDaSala,
+  DRENAGEM_ANTES_DE_TROCAR_O_WORKER_S,
+  IDADE_MAXIMA_DO_TOKEN_NO_INICIO_DO_K6_S,
   ambienteDoFalso,
+  AMOSTRAS_MINIMAS_DA_JANELA,
+  codigoDeSaidaDaReserva,
+  exigirReservaFalsa,
+  INTERVALO_ENTRE_AS_JANELAS_S,
+  JANELAS_DA_RESERVA,
+  julgarReserva,
+  falhasNaJanela,
+  limiteDaJanelaS,
+  medirTutorNaJanela,
+  LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO,
+  montarMedidaDaJanela,
+  PROVEDOR_DA_RESERVA_SEM_APROVACAO,
+  reprovadoPeloIndisponivel,
+  variaveisDaReserva,
+  type MedidaDaJanela,
+  type NomeDaJanela,
+  type ResultadoDaReserva,
   ATRASO_DO_KILL_MS,
   AMOSTRAS_MINIMAS_DA_SALA,
   argumentosDoCompose,
@@ -22,6 +44,10 @@ import {
   ESPERA_P95_DO_TUTOR_MS,
   escolherFaseDoExpurgo,
   exigirAdaptadorFalso,
+  degrauNaJanela,
+  descreverReserva,
+  faseDaLinhaDeComando,
+  inicioDaLeituraDaJanela,
   julgarCenario,
   julgarSala,
   julgarSoABase,
@@ -510,6 +536,10 @@ describe('a carga da manhã: o veredito', () => {
   it('o contador das interrompidas só é lido quando é número', () => {
     expect(lerResumoDoK6(0, { metrics: { execucoes_interrompidas: { count: '12' } } }).interrompidas).toBeUndefined()
     expect(lerResumoDoK6(0, { metrics: { execucoes_interrompidas: { count: 0 } } }).interrompidas).toBe(0)
+    // O prazo esgotado da queda por prazo (`FASE=reserva`) é lido do contador próprio, e do mesmo jeito: número, ou nada.
+    expect(lerResumoDoK6(0, { metrics: { tempos_esgotados_reserva: { count: 10 } } }).temposEsgotados).toBe(10)
+    expect(lerResumoDoK6(0, { metrics: { tempos_esgotados_reserva: { count: '10' } } }).temposEsgotados).toBeUndefined()
+    expect(lerResumoDoK6(0, { metrics: {} }).temposEsgotados).toBeUndefined()
   })
 
   it('o RSS do `docker stats` vira MiB, e o que não é memória não vira número', () => {
@@ -520,5 +550,393 @@ describe('a carga da manhã: o veredito', () => {
     expect(memoriaEmMiB('1.2.3MiB / 4GiB')).toBeUndefined()
     expect(memoriaEmMiB('')).toBeUndefined()
     expect(memoriaEmMiB('--')).toBeUndefined()
+  })
+})
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A queda do principal (F5b, tarefa 9.0; RF3): `FASE=reserva`
+// ---------------------------------------------------------------------------------------------------------------------
+
+const doArquivoDeCarga = (): Record<string, string> => lerAmbienteDeCarga()
+const VARIAVEIS_DA_RESERVA = ['IA_RESERVA_ADAPTADOR', 'IA_RESERVA_PROVEDOR_ID', 'LLM_RESERVA_TOKENS_POR_MINUTO', 'IA_FALHA_FALSA'] as const
+const janelaDe = (nome: NomeDaJanela) => {
+  const janela = JANELAS_DA_RESERVA.find((candidata) => candidata.nome === nome)
+  if (janela === undefined) throw new Error(`janela ${nome} não existe`)
+  return janela
+}
+
+describe('a fase `reserva`: o roteiro e o script falam das mesmas janelas', () => {
+  it('as durações e o intervalo do k6 são os do script, e a fase é uma fase como as outras', () => {
+    const lista = /const DURACOES_DAS_JANELAS_DA_RESERVA_S = \[([0-9, ]+)\]/.exec(roteiro())?.[1]?.split(',').map(Number)
+    expect(lista).toEqual(JANELAS_DA_RESERVA.map((janela) => janela.duracaoS))
+    expect(constanteDoK6('INTERVALO_ENTRE_AS_JANELAS_S')).toBe(INTERVALO_ENTRE_AS_JANELAS_S)
+    expect(JANELAS_DA_RESERVA.map((janela) => janela.nome)).toEqual(['controle', '5xx', 'prazo', '429', 'balde'])
+    expect(argumentosDoK6('reserva')).toEqual(expect.arrayContaining(['FASE=reserva', '/execucao/resumo-reserva.json']))
+    expect(ambienteDoFalso('reserva')).toEqual(ambienteDoFalso('sala'))
+  })
+
+  it('cada janela começa depois da anterior e do intervalo, e o k6 inteiro, com a ferramenta no tempo dela e os tokens na idade máxima, cabe nos 10 min do token de acesso', () => {
+    expect(limiteDaJanelaS(0)).toBe(0)
+    expect(limiteDaJanelaS(0, true)).toBe(30)
+    expect(limiteDaJanelaS(1)).toBe(30 + INTERVALO_ENTRE_AS_JANELAS_S)
+    expect(limiteDaJanelaS(4)).toBe(4 * (30 + INTERVALO_ENTRE_AS_JANELAS_S))
+    const fim = limiteDaJanelaS(JANELAS_DA_RESERVA.length - 1, true)
+    const validade = Number(/VALIDADE_TOKEN_ACESSO_SEGUNDOS = (\d+) \* (\d+)/.exec(lerArquivo('packages/core/src/identidade/token-issuer.ts'))?.slice(1).reduce((produto, fator) => produto * Number(fator), 1))
+    expect(validade).toBe(600)
+    // O token nasce antes do k6 (as sessões das dez escolas, em paralelo, com o teto de idade abaixo). Depois do fim da carga ainda corre o que já começou: a ferramenta do falso leva 50 s (a mais lenta) e o k6 a consulta de
+    // segundo em segundo. O prazo de desistência da ferramenta no k6 (170 s) é maior que a folga, de propósito: ferramenta que o passa é corrida que já está vermelha, e o 401 que viria depois não muda o veredito.
+    const latenciaDaFerramentaS = Number(ambienteDoFalso('reserva').IA_LATENCIA_FALSA_MS_PADRAO) / 1_000
+    expect(fim + latenciaDaFerramentaS + constanteDoK6('PASSO_DA_CONSULTA_DA_SALA_S') + IDADE_MAXIMA_DO_TOKEN_NO_INICIO_DO_K6_S).toBeLessThan(validade)
+    expect(constanteDoK6('PRAZO_DA_FERRAMENTA_DA_SALA_MS') / 1_000).toBeGreaterThan(latenciaDaFerramentaS)
+    // O script espera a ferramenta de 50 s terminar antes de trocar o worker, e o worker ainda dá 20 s de graça aos jobs em voo: o intervalo cobre a espera, a graça e a subida do novo.
+    // Sem a espera (2 s), a ferramenta em voo era abortada e o aluno via `sem_conclusao` (segunda corrida da 9.0).
+    expect(DRENAGEM_ANTES_DE_TROCAR_O_WORKER_S * 1_000 + 20_000).toBeGreaterThan(latenciaDaFerramentaS * 1_000)
+    expect(INTERVALO_ENTRE_AS_JANELAS_S).toBeGreaterThan(DRENAGEM_ANTES_DE_TROCAR_O_WORKER_S + 20)
+  })
+
+  it('o k6 da `reserva` dá a carga da sala em estágios que caem a zero no intervalo, e não julga "indisponível" nem o turno: quem julga a janela é o banco', () => {
+    const script = roteiro()
+    const reserva = script.slice(script.indexOf('function reserva()'), script.indexOf('const daBase'))
+    expect(reserva).toContain("executor: 'ramping-arrival-rate'")
+    expect(reserva).toContain('{ target: 0, duration:')
+    for (const grupo of ['sala_tutor', 'sala_ferramenta', 'sala_proposta']) expect(reserva).toContain(`'${grupo}'`)
+    expect(reserva).toContain("thresholds[`turnos_sala_concluidos{escola:${escola}}`] = ['count>0']")
+    expect(reserva).not.toContain('indisponiveis_sala')
+    expect(reserva).not.toContain('turno_sala')
+    // O prazo esgotado é tipado e esperado na queda por prazo, só nesta fase: na `sala` ele continua sendo resposta inesperada.
+    expect(script).toContain("desfecho === 'IA_TEMPO_ESGOTADO' && FASE === 'reserva'")
+    // A validação da `FASE`, a escolha das dez escolas da sala, o intervalo que não vem depois da última janela e a escolha entre `sala` e `reserva`: sem qualquer uma, o k6 não sobe ou sobe sem carga.
+    expect(script).toContain("FASE !== 'sala' && FASE !== 'reserva') throw new Error('FASE precisa ser base, expurgo, carga, sala ou reserva')")
+    expect(script).toContain("const NA_SALA = FASE === 'sala' || FASE === 'reserva'")
+    expect(reserva).toContain('if (indice < DURACOES_DAS_JANELAS_DA_RESERVA_S.length - 1) lista.push({ target: 0, duration:')
+    expect(script).toContain("const daSala = FASE === 'sala' ? sala() : FASE === 'reserva' ? reserva() : { cenarios: {}, thresholds: {} }")
+    const sala = script.slice(script.indexOf('function sala()'), script.indexOf('function reserva()'))
+    expect(sala).toContain("indisponiveis_sala: ['count==0']")
+  })
+
+  it('o contratado da janela do balde cheio deixa o balde do principal abaixo da carga e o enche antes do fim da janela, e o do resto das janelas é o da `sala`', () => {
+    const porChamada = Number(ambienteDoFalso('reserva')['IA_TOKENS_FALSOS_ENTRADA']) + Number(ambienteDoFalso('reserva')['IA_TOKENS_FALSOS_SAIDA'])
+    const chamadasPorMinuto = ESCOLAS_DA_SALA * (constanteDoK6('TURNOS_DA_SALA_POR_MINUTO') + constanteDoK6('FERRAMENTAS_DA_SALA_POR_MINUTO') + constanteDoK6('PROPOSTAS_DA_SALA_POR_MINUTO'))
+    const carga = (chamadasPorMinuto * porChamada) / 60
+    const balde = LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO * 0.8
+    const segundosAteEncher = balde / carga
+    const balde2 = janelaDe('balde')
+    expect(balde2.tokensPorMinuto).toBe(LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO)
+    // Enche e ainda sobra janela para a espera de 8 s do degrau e o transbordo à reserva (o balde zera a cada 60 s).
+    expect(segundosAteEncher + 8).toBeLessThan(balde2.duracaoS)
+    expect(LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO).toBeLessThan(Number(doArquivoDeCarga()['LLM_TOKENS_POR_MINUTO']))
+    for (const janela of JANELAS_DA_RESERVA.filter((candidata) => candidata.nome !== 'balde')) expect(janela.tokensPorMinuto, janela.nome).toBeUndefined()
+  })
+})
+
+describe('a fase `reserva`: a reserva só liga nela', () => {
+  it('a `sala` não liga a reserva: as variáveis dela e a falha ficam vazias, mesmo com o shell exportando as do worker', () => {
+    const vazias = Object.fromEntries(VARIAVEIS_DA_RESERVA.map((variavel) => [variavel, '']))
+    expect(variaveisDaReserva(undefined, doArquivoDeCarga())).toEqual(vazias)
+    vi.stubEnv('IA_RESERVA_ADAPTADOR', 'falso')
+    vi.stubEnv('IA_FALHA_FALSA', 'principal:5xx')
+    vi.stubEnv('LLM_RESERVA_TOKENS_POR_MINUTO', '1')
+    try {
+      const sala = ambienteDaSala('/pasta', doArquivoDeCarga())
+      for (const variavel of VARIAVEIS_DA_RESERVA) expect(sala[variavel], variavel).toBe('')
+      expect(sala['IA_ADAPTADOR']).toBe('falso')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('o `infra/carga.env` guarda a reserva com nomes que o compose não leva ao worker, e o compose só os passa vazios por padrão', () => {
+    const doCarga = parseEnv(lerArquivo('infra/carga.env'))
+    for (const variavel of VARIAVEIS_DA_RESERVA) expect(doCarga[variavel], variavel).toBeUndefined()
+    expect(doCarga['RESERVA_DA_CARGA_ADAPTADOR']).toBe('falso')
+    expect(doCarga['RESERVA_DA_CARGA_PROVEDOR_ID']).toBe('falso-reserva')
+    expect(Number(doCarga['RESERVA_DA_CARGA_TOKENS_POR_MINUTO'])).toBe(Number(doCarga['LLM_TOKENS_POR_MINUTO']))
+    const { services } = parse(lerArquivo('infra/compose.carga.yml'), { merge: true }) as { services: Record<string, { environment?: Record<string, string> }> }
+    for (const nome of ['worker-ia-1', 'worker-ia-2']) {
+      for (const variavel of VARIAVEIS_DA_RESERVA) expect(services[nome]?.environment?.[variavel], `${nome} ${variavel}`).toBe(`\${${variavel}:-}`)
+    }
+    // Só os dois `worker-ia` a recebem: a API não tem provedor, e o compose base não as conhece.
+    for (const nome of ['api-1', 'api-2']) expect(services[nome]?.environment?.['IA_RESERVA_ADAPTADOR']).toBeUndefined()
+    expect(lerArquivo('infra/compose.yml')).not.toContain('IA_RESERVA_ADAPTADOR')
+  })
+
+  it('cada janela leva ao worker a falha e a reserva dela: só o controle a tem desligada, e o do balde troca o contratado do principal', () => {
+    const doArquivo = doArquivoDeCarga()
+    expect(variaveisDaReserva(janelaDe('controle'), doArquivo)).toEqual({ IA_RESERVA_ADAPTADOR: '', IA_RESERVA_PROVEDOR_ID: '', LLM_RESERVA_TOKENS_POR_MINUTO: '', IA_FALHA_FALSA: '' })
+    const ligada = { IA_RESERVA_ADAPTADOR: 'falso', IA_RESERVA_PROVEDOR_ID: 'falso-reserva', LLM_RESERVA_TOKENS_POR_MINUTO: doArquivo['RESERVA_DA_CARGA_TOKENS_POR_MINUTO'] }
+    expect(variaveisDaReserva(janelaDe('5xx'), doArquivo)).toEqual({ ...ligada, IA_FALHA_FALSA: 'principal:5xx' })
+    expect(variaveisDaReserva(janelaDe('prazo'), doArquivo)).toEqual({ ...ligada, IA_FALHA_FALSA: 'principal:prazo' })
+    expect(variaveisDaReserva(janelaDe('429'), doArquivo)).toEqual({ ...ligada, IA_FALHA_FALSA: 'principal:429' })
+    expect(variaveisDaReserva(janelaDe('balde'), doArquivo)).toEqual({ ...ligada, IA_FALHA_FALSA: '', LLM_TOKENS_POR_MINUTO: String(LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO) })
+    // A falha do ensaio só tem formato `<destino>:<falha>` que a configuração aceita (`llm-config.ts`).
+    for (const janela of JANELAS_DA_RESERVA) expect(janela.falha ?? 'principal:5xx').toMatch(/^principal:(5xx|prazo|conexao|429)$/)
+  })
+
+  it('o controle negativo troca só o id do provedor de reserva: o worker sobe com uma reserva que nenhuma aprovação cobre', () => {
+    const doArquivo = doArquivoDeCarga()
+    expect(variaveisDaReserva(janelaDe('5xx'), doArquivo, true)).toEqual({ ...variaveisDaReserva(janelaDe('5xx'), doArquivo), IA_RESERVA_PROVEDOR_ID: PROVEDOR_DA_RESERVA_SEM_APROVACAO })
+    expect(PROVEDOR_DA_RESERVA_SEM_APROVACAO).toBe('falso-sem-aprovacao')
+    // Nas janelas sem reserva ele não muda nada: o controle é a configuração da `sala`.
+    expect(variaveisDaReserva(janelaDe('controle'), doArquivo, true)).toEqual(variaveisDaReserva(janelaDe('controle'), doArquivo))
+  })
+
+  it('a reserva da carga é sempre a falsa: outro adaptador no `infra/carga.env` derruba o script antes de subir', () => {
+    expect(() => exigirReservaFalsa(doArquivoDeCarga())).not.toThrow()
+    expect(() => exigirReservaFalsa({ RESERVA_DA_CARGA_ADAPTADOR: 'openai_compat' })).toThrow(/RESERVA_DA_CARGA_ADAPTADOR=falso/)
+    expect(() => exigirReservaFalsa({})).toThrow(/RESERVA_DA_CARGA_ADAPTADOR=falso/)
+  })
+})
+
+const medidaDaJanela = (janela: NomeDaJanela, mudanca: Partial<MedidaDaJanela> = {}): MedidaDaJanela => ({
+  janela,
+  amostrasDoTutor: 300,
+  turnoDoTutorP95Ms: 6_400,
+  indisponiveis: 0,
+  temposEsgotados: 0,
+  interrompidas: 0,
+  outrasFalhas: 0,
+  degrauDaReserva: janela === 'controle' ? 0 : 120,
+  recusadasPeloBalde: janela === 'balde' ? 80 : 0,
+  ...mudanca,
+})
+const reservaLimpa = (mudancas: Partial<Record<NomeDaJanela, Partial<MedidaDaJanela>>> = {}, resto: Partial<ResultadoDaReserva> = {}): ResultadoDaReserva => ({
+  k6: { codigo: 0, cruzados: [], esperaBP95Ms: undefined },
+  janelas: JANELAS_DA_RESERVA.map((janela) => medidaDaJanela(janela.nome, mudancas[janela.nome])),
+  trocasAtrasadas: [],
+  ...resto,
+})
+const criteriosDaReserva = (resultado: ResultadoDaReserva): string[] => julgarReserva(resultado).map((reprovacao) => reprovacao.criterio)
+
+describe('a fase `reserva`: o veredito', () => {
+  it('passa com a queda atendida pela reserva em todas as janelas, nenhum indisponível e o transbordo do balde cheio', () => {
+    expect(julgarReserva(reservaLimpa())).toEqual([])
+  })
+
+  it('indisponível acima de zero na janela de 5xx reprova com o nome da janela, e no zero passa', () => {
+    expect(julgarReserva(reservaLimpa({ '5xx': { indisponiveis: 3 } }))).toEqual([{ criterio: 'indisponivel_5xx', detalhe: 'reserva: 3 execuções terminaram IA_INDISPONIVEL na janela 5xx' }])
+    expect(criteriosDaReserva(reservaLimpa({ '5xx': { indisponiveis: 0 } }))).toEqual([])
+    // O mesmo vale para o 429 e para o balde cheio: o aluno não fica sem resposta em nenhuma janela.
+    expect(criteriosDaReserva(reservaLimpa({ '429': { indisponiveis: 1 }, balde: { indisponiveis: 1 } }))).toEqual(['indisponivel_429', 'indisponivel_balde'])
+  })
+
+  it('o p95 do turno do Tutor 1 s acima do controle passa, e um milissegundo acima reprova (5xx e 429)', () => {
+    const controle = 6_400
+    const limite = controle + ACRESCIMO_MAXIMO_DO_TURNO_NA_QUEDA_MS
+    expect(ACRESCIMO_MAXIMO_DO_TURNO_NA_QUEDA_MS).toBe(1_000)
+    expect(criteriosDaReserva(reservaLimpa({ controle: { turnoDoTutorP95Ms: controle }, '5xx': { turnoDoTutorP95Ms: limite }, '429': { turnoDoTutorP95Ms: limite } }))).toEqual([])
+    expect(criteriosDaReserva(reservaLimpa({ controle: { turnoDoTutorP95Ms: controle }, '5xx': { turnoDoTutorP95Ms: limite + 1 } }))).toEqual(['turno_5xx'])
+    expect(criteriosDaReserva(reservaLimpa({ controle: { turnoDoTutorP95Ms: controle }, '429': { turnoDoTutorP95Ms: limite + 1 } }))).toEqual(['turno_429'])
+    // A referência é a do controle da mesma corrida: com o controle mais lento, o mesmo p95 da queda passa.
+    expect(criteriosDaReserva(reservaLimpa({ controle: { turnoDoTutorP95Ms: 9_000 }, '5xx': { turnoDoTutorP95Ms: 9_900 } }))).toEqual([])
+    // Na queda por prazo e no balde cheio o turno não é julgado: o prazo da chamada e a espera de 8 s do degrau o alongam por desenho.
+    expect(criteriosDaReserva(reservaLimpa({ prazo: { turnoDoTutorP95Ms: 30_000 }, balde: { turnoDoTutorP95Ms: 30_000 } }))).toEqual([])
+  })
+
+  it('a janela com poucos turnos, ou sem p95, não passa em branco; e sem o controle o limite não existe', () => {
+    expect(AMOSTRAS_MINIMAS_DA_JANELA).toBe(30)
+    expect(criteriosDaReserva(reservaLimpa({ '5xx': { amostrasDoTutor: AMOSTRAS_MINIMAS_DA_JANELA - 1 } }))).toEqual(['sem_amostra_5xx'])
+    expect(criteriosDaReserva(reservaLimpa({ '429': { turnoDoTutorP95Ms: null } }))).toEqual(['sem_amostra_429'])
+    expect(criteriosDaReserva(reservaLimpa({ '5xx': { amostrasDoTutor: AMOSTRAS_MINIMAS_DA_JANELA } }))).toEqual([])
+    expect(criteriosDaReserva(reservaLimpa({ controle: { amostrasDoTutor: 0, turnoDoTutorP95Ms: null } }))).toEqual(['sem_amostra_controle'])
+    // O controle com p95 mas poucos turnos não é referência: o limite da queda não nasce dele, e a janela de 5xx lenta não reprova por ele.
+    expect(criteriosDaReserva(reservaLimpa({ controle: { amostrasDoTutor: AMOSTRAS_MINIMAS_DA_JANELA - 1 }, '5xx': { turnoDoTutorP95Ms: 99_000 } }))).toEqual(['sem_amostra_controle'])
+    // O controle com turnos de sobra e sem p95 também não é referência: o `null` não vira limite de 1 s.
+    expect(criteriosDaReserva(reservaLimpa({ controle: { amostrasDoTutor: 300, turnoDoTutorP95Ms: null }, '5xx': { turnoDoTutorP95Ms: 99_000 } }))).toEqual(['sem_amostra_controle'])
+    const semBalde = reservaLimpa()
+    expect(criteriosDaReserva({ ...semBalde, janelas: semBalde.janelas.filter((medida) => medida.janela !== 'balde') })).toEqual(['sem_amostra_balde'])
+  })
+
+  it('na queda por prazo o `IA_TEMPO_ESGOTADO` passa, contado, e o `IA_INDISPONIVEL` e o prazo esgotado fora da janela do prazo reprovam', () => {
+    expect(criteriosDaReserva(reservaLimpa({ prazo: { temposEsgotados: 12 } }))).toEqual([])
+    expect(criteriosDaReserva(reservaLimpa({ prazo: { indisponiveis: 1 } }))).toEqual(['indisponivel_prazo'])
+    expect(criteriosDaReserva(reservaLimpa({ '5xx': { temposEsgotados: 1 }, controle: { temposEsgotados: 1 } }))).toEqual(['tempo_esgotado_controle', 'tempo_esgotado_5xx'])
+  })
+
+  it('qualquer outro erro em qualquer janela reprova, e as interrompidas da troca de worker são contadas e não julgadas', () => {
+    expect(criteriosDaReserva(reservaLimpa({ prazo: { outrasFalhas: 2 } }))).toEqual(['falhas_prazo'])
+    expect(criteriosDaReserva(reservaLimpa({ controle: { interrompidas: 25 }, '5xx': { interrompidas: 25 } }))).toEqual([])
+  })
+
+  it('o degrau da reserva que não subiu reprova a janela, inclusive o contador que o Prometheus não devolveu; o controle não o exige', () => {
+    expect(criteriosDaReserva(reservaLimpa({ '5xx': { degrauDaReserva: 0 } }))).toEqual(['reserva_nao_atendeu_5xx'])
+    expect(criteriosDaReserva(reservaLimpa({ prazo: { degrauDaReserva: undefined } }))).toEqual(['reserva_nao_atendeu_prazo'])
+    expect(criteriosDaReserva(reservaLimpa({ '429': { degrauDaReserva: 1 }, balde: { degrauDaReserva: 1 } }))).toEqual([])
+    expect(criteriosDaReserva(reservaLimpa({ controle: { degrauDaReserva: 0 } }))).toEqual([])
+  })
+
+  it('o balde cheio que não recusou nada não provou o transbordo: reprova, e sem o Prometheus também', () => {
+    expect(criteriosDaReserva(reservaLimpa({ balde: { recusadasPeloBalde: 0 } }))).toEqual(['balde_nao_recusou'])
+    expect(criteriosDaReserva(reservaLimpa({ balde: { recusadasPeloBalde: undefined } }))).toEqual(['balde_nao_recusou'])
+    expect(criteriosDaReserva(reservaLimpa({ balde: { recusadasPeloBalde: 1 } }))).toEqual([])
+    // Só a janela do balde precisa do balde recusando: nas de queda, o principal sequer chega a pedir vaga ao balde cheio.
+    expect(criteriosDaReserva(reservaLimpa({ '5xx': { recusadasPeloBalde: 0 } }))).toEqual([])
+  })
+
+  it('threshold do k6 cruzado reprova com o nome da fase, o k6 que caiu também, e a troca de worker atrasada reprova a janela dela', () => {
+    expect(julgarReserva(reservaLimpa({}, { k6: { codigo: CODIGO_THRESHOLD_CRUZADO, cruzados: [{ metrica: 'respostas_inesperadas{grupo:sala_tutor}', criterio: 'count==0' }], esperaBP95Ms: undefined } })).map((reprovacao) => reprovacao.criterio)).toEqual([
+      'reserva:respostas_inesperadas{grupo:sala_tutor}',
+    ])
+    expect(criteriosDaReserva(reservaLimpa({}, { k6: { codigo: 107, cruzados: [], esperaBP95Ms: undefined } }))).toEqual(['k6_reserva'])
+    expect(criteriosDaReserva(reservaLimpa({}, { k6: { codigo: CODIGO_THRESHOLD_CRUZADO, cruzados: [], esperaBP95Ms: undefined } }))).toEqual(['k6_reserva'])
+    expect(criteriosDaReserva(reservaLimpa({}, { trocasAtrasadas: ['prazo'] }))).toEqual(['troca_atrasada_prazo'])
+  })
+
+  it('o resultado de cada janela separa as falhas do banco: indisponível, prazo esgotado e interrompida têm campo próprio, e o resto é "outra"', () => {
+    const medida = montarMedidaDaJanela('prazo', { amostras: 250, p95Ms: 6_500 }, { IA_INDISPONIVEL: 1, IA_TEMPO_ESGOTADO: 4, EXECUCAO_INTERROMPIDA: 3, IA_SAIDA_INVALIDA: 2, ERRO_X: 5 }, 120, 0)
+    expect(medida).toEqual({ janela: 'prazo', amostrasDoTutor: 250, turnoDoTutorP95Ms: 6_500, indisponiveis: 1, temposEsgotados: 4, interrompidas: 3, outrasFalhas: 7, degrauDaReserva: 120, recusadasPeloBalde: 0 })
+    expect(montarMedidaDaJanela('controle', { amostras: 0, p95Ms: null }, {}, undefined, undefined)).toMatchObject({ indisponiveis: 0, temposEsgotados: 0, interrompidas: 0, outrasFalhas: 0, degrauDaReserva: undefined })
+    expect(lerResumoDoK6(0, { metrics: { tempos_esgotados_reserva: { count: 9 } } }).temposEsgotados).toBe(9)
+    expect(lerResumoDoK6(0, { metrics: {} }).temposEsgotados).toBeUndefined()
+  })
+})
+
+describe('a fase `reserva`: o controle negativo', () => {
+  it('a fase que não terminou, porque o compose ou o worker não subiu, sai 1 também no controle negativo: não provou nada', () => {
+    expect(codigoDeSaidaDaReserva(undefined, false)).toBe(1)
+    expect(codigoDeSaidaDaReserva(undefined, true)).toBe(1)
+  })
+
+  it('o controle negativo exige o indisponível nas duas janelas de queda, e o de uma só não basta', () => {
+    expect(reprovadoPeloIndisponivel(julgarReserva(reservaLimpa({ '5xx': { indisponiveis: 40 } })))).toBe(false)
+    expect(reprovadoPeloIndisponivel(julgarReserva(reservaLimpa({ '429': { indisponiveis: 35 } })))).toBe(false)
+    expect(reprovadoPeloIndisponivel(julgarReserva(reservaLimpa({ '5xx': { indisponiveis: 40 }, '429': { indisponiveis: 35 } })))).toBe(true)
+  })
+
+  it('reprova pelo indisponível das janelas de queda por servidor e por 429, e não pela subida, pela amostra ou pelo degrau', () => {
+    const semReserva = reservaLimpa({ '5xx': { indisponiveis: 40, degrauDaReserva: 0 }, '429': { indisponiveis: 35, degrauDaReserva: 0 }, prazo: { indisponiveis: 20, degrauDaReserva: 0 } })
+    const reprovacoes = julgarReserva(semReserva)
+    expect(reprovadoPeloIndisponivel(reprovacoes)).toBe(true)
+    expect(codigoDeSaidaDaReserva(reprovacoes, true)).toBe(0)
+    // Com a reserva elegível, passar é o certo, e o controle negativo que passa não provou nada.
+    expect(codigoDeSaidaDaReserva([], true)).toBe(1)
+    expect(codigoDeSaidaDaReserva([], false)).toBe(0)
+    expect(codigoDeSaidaDaReserva(reprovacoes, false)).toBe(1)
+  })
+
+  it('o worker que nem subiu reprova por outro motivo, e o controle negativo não o aceita como prova', () => {
+    // Sem worker não há execução concluída nem falha lida: a janela reprova por amostra e por degrau, e nenhuma por indisponível.
+    const semWorker = julgarReserva(reservaLimpa({ '5xx': { amostrasDoTutor: 0, turnoDoTutorP95Ms: null, degrauDaReserva: 0 }, '429': { amostrasDoTutor: 0, turnoDoTutorP95Ms: null, degrauDaReserva: 0 } }))
+    expect(semWorker.map((reprovacao) => reprovacao.criterio)).toEqual(['sem_amostra_5xx', 'reserva_nao_atendeu_5xx', 'sem_amostra_429', 'reserva_nao_atendeu_429'])
+    expect(reprovadoPeloIndisponivel(semWorker)).toBe(false)
+    expect(codigoDeSaidaDaReserva(semWorker, true)).toBe(1)
+    // O indisponível só do prazo ou do controle não é o que o controle negativo precisa ver.
+    expect(reprovadoPeloIndisponivel(julgarReserva(reservaLimpa({ prazo: { indisponiveis: 9 } })))).toBe(false)
+  })
+})
+
+describe('a fase `reserva`: as leituras da janela no banco', () => {
+  it('as consultas da janela levam as escolas e o intervalo [de, até) como parâmetros, e leem só o turno concluído do Tutor e as falhas', async () => {
+    // O comportamento no banco é o do `infra/test/carga-da-manha.int.test.ts` (projeto `infra`, que o portão roda mas a corrida de mutações não alcança): aqui ficam as cláusulas e a ordem dos parâmetros.
+    const chamadas: Array<{ texto: string; valores: unknown[] }> = []
+    const banco = {
+      query: (texto: string, valores: unknown[]) => {
+        chamadas.push({ texto, valores })
+        return Promise.resolve({ rows: [] })
+      },
+    } as unknown as Parameters<typeof medirTutorNaJanela>[0]
+    const de = new Date('2026-11-23T10:00:00Z')
+    const ate = new Date('2026-11-23T10:01:00Z')
+    await medirTutorNaJanela(banco, ['escola-1'], de, ate)
+    await falhasNaJanela(banco, ['escola-1'], de, ate)
+    const [tutor = '', falhas = ''] = chamadas.map((chamada) => chamada.texto)
+    for (const chamada of chamadas) expect(chamada.valores).toEqual([['escola-1'], de, ate])
+    for (const texto of [tutor, falhas]) {
+      expect(texto).toContain('escola_id = any($1::uuid[])')
+      expect(texto).toContain('criada_em >= $2 and criada_em < $3')
+    }
+    expect(tutor).toContain("funcao = 'tutor_com_o_aluno' and estado = 'concluida'")
+    expect(falhas).toContain("estado = 'falhou'")
+  })
+})
+
+describe('a fase `reserva`: o que a corrida lê e escolhe', () => {
+  it('as fases `base` e `carga` também levam a reserva e a falha falsa desligadas, mesmo com o shell exportando as do worker', () => {
+    vi.stubEnv('IA_RESERVA_ADAPTADOR', 'falso')
+    vi.stubEnv('IA_FALHA_FALSA', 'principal:5xx')
+    vi.stubEnv('LLM_RESERVA_TOKENS_POR_MINUTO', '1')
+    try {
+      const base = ambienteDaBase('/pasta', doArquivoDeCarga(), false)
+      for (const variavel of VARIAVEIS_DA_RESERVA) expect(base[variavel], variavel).toBe('')
+      expect(base['IA_ADAPTADOR']).toBe('falso')
+      expect(base['VAGAS_POR_ESCOLA_DESLIGADAS']).toBe('false')
+      expect(ambienteDaBase('/pasta', doArquivoDeCarga(), true)['VAGAS_POR_ESCOLA_DESLIGADAS']).toBe('true')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('`--so=` escolhe uma das três fases, e qualquer outro valor derruba o script antes de subir', () => {
+    expect(faseDaLinhaDeComando(['node', 'carga.ts'])).toBeUndefined()
+    expect(faseDaLinhaDeComando(['node', 'carga.ts', '--controle-negativo'])).toBeUndefined()
+    for (const fase of ['base', 'sala', 'reserva'] as const) expect(faseDaLinhaDeComando(['node', 'carga.ts', `--so=${fase}`, '--controle-negativo'])).toBe(fase)
+    for (const invalido of ['--so=outra', '--so=', '--so=Reserva']) expect(() => faseDaLinhaDeComando(['node', 'carga.ts', invalido]), invalido).toThrow('--so aceita base, sala ou reserva')
+  })
+
+  it('o degrau da janela é a soma das séries no fim da janela, lida com `max_over_time` por tantos segundos quantos a janela tem (no mínimo 10); o Prometheus mudo é `undefined`', async () => {
+    const chamadas: string[] = []
+    const responder = (corpo: unknown, ok = true) =>
+      vi.fn((url: string) => {
+        chamadas.push(url)
+        return Promise.resolve({ ok, json: () => Promise.resolve(corpo) })
+      })
+    try {
+      vi.stubGlobal('fetch', responder({ data: { result: [{ value: [0, '7'] }, { value: [0, '3'] }] } }))
+      expect(await degrauNaJanela('http://prom', 'espera', { inicio: new Date(0), fim: new Date(30_500) })).toBe(10)
+      const url = new URL(chamadas[0] ?? '')
+      expect(url.searchParams.get('query')).toBe('sum(max_over_time(ia_degradacao_total{degrau="espera"}[31s]))')
+      expect(url.searchParams.get('time')).toBe('30.5')
+      await degrauNaJanela('http://prom', 'provedor_de_reserva', { inicio: new Date(0), fim: new Date(5_000) })
+      expect(new URL(chamadas[1] ?? '').searchParams.get('query')).toBe('sum(max_over_time(ia_degradacao_total{degrau="provedor_de_reserva"}[10s]))')
+      vi.stubGlobal('fetch', responder({ data: { result: [] } }))
+      expect(await degrauNaJanela('http://prom', 'espera', { inicio: new Date(0), fim: new Date(60_000) })).toBe(0)
+      vi.stubGlobal('fetch', responder({}, false))
+      expect(await degrauNaJanela('http://prom', 'espera', { inicio: new Date(0), fim: new Date(60_000) })).toBeUndefined()
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('sem rede'))))
+      expect(await degrauNaJanela('http://prom', 'espera', { inicio: new Date(0), fim: new Date(60_000) })).toBeUndefined()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('a leitura do Prometheus de cada janela começa quando a troca do worker voltou, e a da primeira, 5 s antes da carga', () => {
+    const comeco = { inicioLocalMs: 1_000_000 }
+    expect(inicioDaLeituraDaJanela(0, comeco, {}).getTime()).toBe(1_000_000 - 5_000)
+    expect(inicioDaLeituraDaJanela(2, comeco, { 2: 1_200_000 }).getTime()).toBe(1_200_000)
+    // Sem a hora da troca (a que não houve), vale o começo da carga da janela menos os 5 s.
+    expect(inicioDaLeituraDaJanela(1, comeco, { 2: 1_200_000 }).getTime()).toBe(1_000_000 + limiteDaJanelaS(1) * 1_000 - 5_000)
+  })
+
+  it('o turno do Tutor e as falhas da janela viram o que o banco devolve: sem linha ou sem p95, nada medido; com p95, o número', async () => {
+    const bancoCom = (rows: unknown[]) => ({ query: () => Promise.resolve({ rows }) }) as unknown as Parameters<typeof medirTutorNaJanela>[0]
+    const de = new Date('2026-11-23T10:00:00Z')
+    const ate = new Date('2026-11-23T10:01:00Z')
+    expect(await medirTutorNaJanela(bancoCom([]), ['e1'], de, ate)).toEqual({ amostras: 0, p95Ms: null })
+    expect(await medirTutorNaJanela(bancoCom([{ amostras: 0, p95: null }]), ['e1'], de, ate)).toEqual({ amostras: 0, p95Ms: null })
+    expect(await medirTutorNaJanela(bancoCom([{ amostras: 230, p95: 6228.5 }]), ['e1'], de, ate)).toEqual({ amostras: 230, p95Ms: 6228.5 })
+    expect(await falhasNaJanela(bancoCom([{ erro: 'IA_INDISPONIVEL', n: 3 }, { erro: 'IA_TEMPO_ESGOTADO', n: 1 }]), ['e1'], de, ate)).toEqual({ IA_INDISPONIVEL: 3, IA_TEMPO_ESGOTADO: 1 })
+    expect(await falhasNaJanela(bancoCom([]), ['e1'], de, ate)).toEqual({})
+  })
+
+  it('o relatório da fase traz, por janela, o prazo esgotado e o resto, o que não foi lido e o limite da queda; diz que as falhas são de qualquer função', () => {
+    const linhas = descreverReserva(
+      reservaLimpa(
+        { prazo: { temposEsgotados: 10, indisponiveis: 2 }, '5xx': { degrauDaReserva: undefined, turnoDoTutorP95Ms: null }, balde: { recusadasPeloBalde: 140 } },
+        { k6: { codigo: 0, cruzados: [], esperaBP95Ms: undefined, temposEsgotados: 10, interrompidas: 3 }, trocasAtrasadas: ['429'] },
+      ),
+    )
+    const texto = linhas.join('\n')
+    expect(linhas[1]).toBe('▶ queda do principal (FASE=reserva): por janela')
+    expect(linhas[2]).toContain('prazo esgotado')
+    // A linha da janela do prazo: 2 indisponíveis na coluna delas e 10 na do prazo esgotado, na ordem do cabeçalho.
+    expect(linhas.find((linha) => linha.trimStart().startsWith('prazo'))).toMatch(/prazo\s+\d+\s+\d+ ms\s+2\s+10\s+0\s+0\s/)
+    // O que o Prometheus não devolveu e o p95 que não houve aparecem como tal, e não como zero.
+    expect(linhas.find((linha) => linha.trimStart().startsWith('5xx'))).toMatch(/5xx\s+\d+\s+-\s/)
+    expect(linhas.find((linha) => linha.trimStart().startsWith('5xx'))).toContain('não lido')
+    expect(texto).toContain('limite da queda 7400 ms')
+    expect(texto).toContain('k6: 10 execuções com IA_TEMPO_ESGOTADO e 3 interrompidas vistas pelo aluno; trocas de worker atrasadas: 429')
+    expect(texto).toContain('de qualquer função (Tutor, ferramenta e proposta)')
+    // Sem o controle medido, o limite não existe.
+    expect(descreverReserva(reservaLimpa({ controle: { turnoDoTutorP95Ms: null } })).join('\n')).toContain('p95 do turno -; limite da queda -')
   })
 })

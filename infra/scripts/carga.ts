@@ -40,6 +40,8 @@ import {
  *   npm run carga:controle-negativo  o mesmo, com VAGAS_POR_ESCOLA_DESLIGADAS=true, e reprova se o cenário passar
  *   npm run carga -- --so=base       só a fase `base` (a de RF6: o p95 do turno do Tutor, no build que estiver na árvore)
  *   npm run carga -- --so=sala       só a carga da manhã (X6, tarefa 11.0): `FASE=sala`, dez escolas, o `kill -9` do `worker-ia-1`; relatório, não portão
+ *   npm run carga -- --so=reserva    só a carga da queda do principal (F5b, tarefa 9.0): `FASE=reserva`, as mesmas dez escolas, cinco janelas (controle, 5xx, prazo, 429 e balde cheio) e a reserva falsa; relatório, não portão
+ *   npm run carga -- --so=reserva --controle-negativo   o mesmo, com a reserva sem modelo elegível (`falso-sem-aprovacao`): reprova se a queda não deixar aluno sem resposta
  *
  * 1. sobe o projeto `educa-carga` (infra/compose.yml com infra/compose.carga.yml, CPU fixa por serviço);
  * 2. cria a rede e as escolas sintéticas A, B e C com `ops:escola` e as sessões de cada grupo com
@@ -62,7 +64,7 @@ export const PROJETO_CARGA = 'educa-carga'
 export { ARQUIVOS_AMBIENTE_CARGA, lerAmbienteDeCarga }
 export const ARQUIVOS_COMPOSE_CARGA = ['infra/compose.yml', 'infra/compose.carga.yml'] as const
 export const SCRIPT_DO_K6 = '/cenario/justica-entre-escolas.js'
-export type FaseDoK6 = 'base' | 'expurgo' | 'carga' | 'sala'
+export type FaseDoK6 = 'base' | 'expurgo' | 'carga' | 'sala' | 'reserva'
 
 /**
  * Escolas sintéticas do cenário: A enche a fila, B mede a espera, C prova o rate limit. Desde a tarefa 3.0 elas
@@ -116,6 +118,8 @@ export interface ResumoDoK6 {
   turnoBP95Ms?: number | undefined
   /** As execuções que terminaram `EXECUCAO_INTERROMPIDA` (`execucoes_interrompidas`, só na `FASE=sala`); `undefined` sem nenhuma. */
   interrompidas?: number | undefined
+  /** As execuções que terminaram `IA_TEMPO_ESGOTADO` (`tempos_esgotados_reserva`, só na `FASE=reserva`); `undefined` sem nenhuma. */
+  temposEsgotados?: number | undefined
 }
 
 /** Lê o `--summary-export` do k6, em que `true` num threshold quer dizer cruzado. */
@@ -126,16 +130,20 @@ export function lerResumoDoK6(codigo: number, resumo: unknown): ResumoDoK6 {
       .filter(([, cruzado]) => cruzado)
       .map(([criterio]) => ({ metrica, criterio })),
   )
-  const p95 = metricas['espera_b']?.['p(95)']
-  const turno = metricas['turno_b']?.['p(95)']
-  const interrompidas = metricas['execucoes_interrompidas']?.['count']
   return {
     codigo,
     cruzados,
-    esperaBP95Ms: typeof p95 === 'number' ? p95 : undefined,
-    turnoBP95Ms: typeof turno === 'number' ? turno : undefined,
-    interrompidas: typeof interrompidas === 'number' ? interrompidas : undefined,
+    esperaBP95Ms: numeroDaMetrica(metricas, 'espera_b', 'p(95)'),
+    turnoBP95Ms: numeroDaMetrica(metricas, 'turno_b', 'p(95)'),
+    interrompidas: numeroDaMetrica(metricas, 'execucoes_interrompidas', 'count'),
+    temposEsgotados: numeroDaMetrica(metricas, 'tempos_esgotados_reserva', 'count'),
   }
+}
+
+/** Um número do resumo do k6, ou `undefined` quando a métrica não existe (o k6 não a escreve sem nenhuma amostra). */
+function numeroDaMetrica(metricas: Record<string, Record<string, unknown>>, nome: string, campo: string): number | undefined {
+  const valor = metricas[nome]?.[campo]
+  return typeof valor === 'number' ? valor : undefined
 }
 
 export interface Veredito {
@@ -258,10 +266,15 @@ export async function criarEscolasDoCenario(ambiente: NodeJS.ProcessEnv): Promis
   return Object.fromEntries(entradas) as EscolasDoCenario
 }
 
-/** Uma sessão real por token, pelo `ops:sessao-sintetica`: não existe mais token sem sessão gravada. */
-async function sessoesSinteticas(ambiente: NodeJS.ProcessEnv, escolaId: string, papel: string, quantidade: number, grupo: string): Promise<string[]> {
-  const argumentos = ['run', '-s', 'ops:sessao-sintetica', '--', '--escola', escolaId, '--papel', papel, '--quantidade', String(quantidade)]
-  const { codigo, saida } = await rodar('npm', argumentos, ambiente, true)
+/**
+ * Uma sessão real por token, pelo `ops:sessao-sintetica`: não existe mais token sem sessão gravada. Com `semBuild`, chama o `dist` direto (que o `escola criar` e o
+ * script da fase já construíram): o `npm run ops:sessao-sintetica` reconstrói três pacotes a cada chamada, e dezenas delas em paralelo se pisariam no `dist`.
+ */
+async function sessoesSinteticas(ambiente: NodeJS.ProcessEnv, escolaId: string, papel: string, quantidade: number, grupo: string, semBuild = false): Promise<string[]> {
+  const pedido = ['--escola', escolaId, '--papel', papel, '--quantidade', String(quantidade)]
+  const { codigo, saida } = semBuild
+    ? await rodar('node', ['--env-file=.env.example', 'apps/api/dist/ops/sessao-sintetica.js', ...pedido], ambiente, true)
+    : await rodar('npm', ['run', '-s', 'ops:sessao-sintetica', '--', ...pedido], ambiente, true)
   const linhas = saida.split('\n').filter((linha) => linha.startsWith('ey'))
   if (codigo !== 0 || linhas.length !== quantidade) throw new Error(`ops:sessao-sintetica não criou as ${quantidade} sessões do grupo ${grupo}`)
   return linhas
@@ -393,7 +406,7 @@ export const WORKERS_DE_IA = ['worker-ia-1', 'worker-ia-2'] as const
  * (300 ms) e a estimativa pelo texto: é a mesma medida do build anterior, que a comparação do RF6 exige.
  */
 export function ambienteDoFalso(fase: FaseDoK6): Record<string, string> {
-  if (fase === 'sala') return { IA_LATENCIA_FALSA_MS: '6000', IA_LATENCIA_FALSA_MS_PADRAO: '50000', IA_TOKENS_FALSOS_ENTRADA: '3000', IA_TOKENS_FALSOS_SAIDA: '250' }
+  if (fase === 'sala' || fase === 'reserva') return { IA_LATENCIA_FALSA_MS: '6000', IA_LATENCIA_FALSA_MS_PADRAO: '50000', IA_TOKENS_FALSOS_ENTRADA: '3000', IA_TOKENS_FALSOS_SAIDA: '250' }
   return { IA_LATENCIA_FALSA_MS_PADRAO: '0', IA_TOKENS_FALSOS_ENTRADA: '0', IA_TOKENS_FALSOS_SAIDA: '0' }
 }
 
@@ -706,6 +719,278 @@ export function descreverSala(resultado: ResultadoDaSala, extras: { amostras: Am
   return linhas
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// A queda do principal (F5b, tarefa 9.0; RF3): `FASE=reserva` de infra/k6/justica-entre-escolas.js
+// ---------------------------------------------------------------------------------------------------------------------
+
+export type NomeDaJanela = 'controle' | '5xx' | 'prazo' | '429' | 'balde'
+
+export interface JanelaDaReserva {
+  readonly nome: NomeDaJanela
+  /** Quanto dura a carga da janela, em segundos: o k6 tem a mesma lista (`DURACOES_DAS_JANELAS_DA_RESERVA_S`), e `infra/test/carga.test.ts` as confere. */
+  readonly duracaoS: number
+  /** O `IA_FALHA_FALSA` do worker na janela: o principal falso falha de propósito. Ausente, ele atende. */
+  readonly falha: string | undefined
+  /** A reserva falsa ligada. Só o controle a tem desligada: é a configuração da `sala`, e o p95 dele é a referência das outras janelas. */
+  readonly reserva: boolean
+  /** O contratado do principal na janela, quando não é o de `infra/carga.env`: o do balde cheio é menor, para a carga do pico passar do balde e o transbordo acontecer. */
+  readonly tokensPorMinuto: number | undefined
+}
+
+/** O intervalo sem carga entre duas janelas: o tempo de o worker parar (até 20 s com um job de 50 s em curso) e subir de novo com a configuração da janela seguinte. */
+export const INTERVALO_ENTRE_AS_JANELAS_S = 70
+
+/**
+ * Quanto o script espera, depois do fim da carga de uma janela, antes de recriar os `worker-ia`: a ferramenta de 50 s que começou no último instante da carga precisa
+ * terminar. O `stop_grace_period` do worker dá mais 20 s aos jobs em voo, e o intervalo cobre a espera, a graça e a subida do worker novo. Recriar logo (2 s) abortava a
+ * ferramenta em voo, e o aluno via `sem_conclusao` (a primeira corrida da 9.0 perdeu uma ferramenta por escola em cada troca).
+ */
+export const DRENAGEM_ANTES_DE_TROCAR_O_WORKER_S = 45
+/**
+ * O contratado do principal na janela do balde cheio. O balde geral é 80 % dele (960 mil por minuto), e a carga do pico são 1,625 milhão por minuto (`ESCOLAS_DA_SALA` × 50 chamadas × 3.250 tokens):
+ * o balde enche aos 35 s da janela de 60 s, e a chamada que chega depois espera os 8 s do degrau, sem modelo menor, e vai à reserva. O da `sala` (1,95 milhão) deixa o balde 4 % abaixo da carga, de propósito, para a espera bastar.
+ */
+export const LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO = 1_200_000
+/** RF3 e `cenarios.md` §5: o p95 do turno do Tutor na queda fica até 1 s acima do da janela de controle (a configuração da `sala`). */
+export const ACRESCIMO_MAXIMO_DO_TURNO_NA_QUEDA_MS = 1_000
+/** Menos turnos que isto numa janela e o p95 não diz nada: a janela reprova como "sem amostra". */
+export const AMOSTRAS_MINIMAS_DA_JANELA = 30
+/** O id do controle negativo: o provedor de reserva que o worker aceita na subida e que não tem entrada em `MODELOS_APROVADOS`, logo não é elegível para nenhuma tarefa. */
+export const PROVEDOR_DA_RESERVA_SEM_APROVACAO = 'falso-sem-aprovacao'
+
+export const JANELAS_DA_RESERVA: readonly JanelaDaReserva[] = [
+  { nome: 'controle', duracaoS: 30, falha: undefined, reserva: false, tokensPorMinuto: undefined },
+  { nome: '5xx', duracaoS: 30, falha: 'principal:5xx', reserva: true, tokensPorMinuto: undefined },
+  { nome: 'prazo', duracaoS: 30, falha: 'principal:prazo', reserva: true, tokensPorMinuto: undefined },
+  { nome: '429', duracaoS: 30, falha: 'principal:429', reserva: true, tokensPorMinuto: undefined },
+  { nome: 'balde', duracaoS: 60, falha: undefined, reserva: true, tokensPorMinuto: LLM_TOKENS_POR_MINUTO_NO_BALDE_CHEIO },
+]
+
+/** O segundo, contado do começo da carga do k6, em que a janela `indice` começa (ou termina, com `fim`). */
+export function limiteDaJanelaS(indice: number, fim = false): number {
+  const antes = JANELAS_DA_RESERVA.slice(0, indice).reduce((soma, janela) => soma + janela.duracaoS + INTERVALO_ENTRE_AS_JANELAS_S, 0)
+  return fim ? antes + (JANELAS_DA_RESERVA[indice]?.duracaoS ?? 0) : antes
+}
+
+/**
+ * As variáveis do worker na janela. Sem janela (a `sala` e a subida do ambiente) a reserva e a falha ficam **vazias**, e vazio vale como ausente na configuração: o que o shell exportar não
+ * passa na frente, e a `sala` segue comparável à X6. O adaptador e o contratado da reserva vêm de `infra/carga.env` (`RESERVA_DA_CARGA_*`), que não os dá a nenhuma outra fase; o controle negativo
+ * troca só o id do provedor.
+ */
+export function variaveisDaReserva(janela: JanelaDaReserva | undefined, doArquivo: Readonly<Record<string, string>>, controleNegativo = false): Record<string, string> {
+  const ligada = janela?.reserva === true
+  const provedor = controleNegativo ? PROVEDOR_DA_RESERVA_SEM_APROVACAO : doArquivo['RESERVA_DA_CARGA_PROVEDOR_ID']
+  return {
+    IA_RESERVA_ADAPTADOR: daReserva(ligada, doArquivo['RESERVA_DA_CARGA_ADAPTADOR']),
+    IA_RESERVA_PROVEDOR_ID: daReserva(ligada, provedor),
+    LLM_RESERVA_TOKENS_POR_MINUTO: daReserva(ligada, doArquivo['RESERVA_DA_CARGA_TOKENS_POR_MINUTO']),
+    IA_FALHA_FALSA: janela?.falha ?? '',
+    ...(janela?.tokensPorMinuto === undefined ? {} : { LLM_TOKENS_POR_MINUTO: String(janela.tokensPorMinuto) }),
+  }
+}
+
+/** O valor da reserva na janela: o que o arquivo diz quando ela está ligada, e vazio (ausente para o worker) quando não está. */
+function daReserva(ligada: boolean, valor: string | undefined): string {
+  return ligada ? (valor ?? '') : ''
+}
+
+/** A reserva da carga é sempre a falsa (regra 80, item 11; regra 30, item 3): o `infra/carga.env` que diga outra coisa derruba o script antes de subir. */
+export function exigirReservaFalsa(doArquivo: Readonly<Record<string, string>>): void {
+  const adaptador = doArquivo['RESERVA_DA_CARGA_ADAPTADOR']
+  if (adaptador !== 'falso') throw new Error(`a carga só roda com RESERVA_DA_CARGA_ADAPTADOR=falso (veio ${adaptador ?? 'nada'}): ela nunca chama provedor pago`)
+}
+
+export interface MedidaDaJanela {
+  readonly janela: NomeDaJanela
+  /** Os turnos do Tutor concluídos, criados na janela, e o p95 de `criada_em` a `concluida_em`: o que o aluno espera. */
+  readonly amostrasDoTutor: number
+  readonly turnoDoTutorP95Ms: number | null
+  /** As execuções criadas na janela que terminaram `IA_INDISPONIVEL`: o que a reserva existe para impedir. */
+  readonly indisponiveis: number
+  /** As que terminaram `IA_TEMPO_ESGOTADO`: tipado, e só a queda por prazo as produz. */
+  readonly temposEsgotados: number
+  /** As que terminaram `EXECUCAO_INTERROMPIDA`: a troca de worker no intervalo interrompe a ferramenta de 50 s que ainda corria. Contadas, não julgadas. */
+  readonly interrompidas: number
+  /** As que terminaram com outro erro: nenhuma janela pode ter. */
+  readonly outrasFalhas: number
+  /** `ia.degradacao{degrau="provedor_de_reserva"}` na janela: as chamadas que a reserva atendeu. `undefined`: o Prometheus não respondeu. */
+  readonly degrauDaReserva: number | undefined
+  /** `ia.degradacao{degrau="espera"}` na janela: as reservas que o balde do principal recusou. */
+  readonly recusadasPeloBalde: number | undefined
+}
+
+export interface ResultadoDaReserva {
+  readonly k6: ResumoDoK6
+  readonly janelas: readonly MedidaDaJanela[]
+  /** As janelas cuja troca de worker passou do intervalo: a carga delas começou com o worker ainda subindo. */
+  readonly trocasAtrasadas: readonly NomeDaJanela[]
+}
+
+/** As falhas de uma janela, por erro do banco, separadas no que o veredito julga. */
+export function montarMedidaDaJanela(
+  janela: NomeDaJanela,
+  tutor: { amostras: number; p95Ms: number | null },
+  falhas: Readonly<Record<string, number>>,
+  degrauDaReserva: number | undefined,
+  recusadasPeloBalde: number | undefined,
+): MedidaDaJanela {
+  return {
+    janela,
+    amostrasDoTutor: tutor.amostras,
+    turnoDoTutorP95Ms: tutor.p95Ms,
+    indisponiveis: falhas['IA_INDISPONIVEL'] ?? 0,
+    temposEsgotados: falhas['IA_TEMPO_ESGOTADO'] ?? 0,
+    interrompidas: falhas['EXECUCAO_INTERROMPIDA'] ?? 0,
+    outrasFalhas: Object.entries(falhas)
+      .filter(([erro]) => erro !== 'IA_INDISPONIVEL' && erro !== 'IA_TEMPO_ESGOTADO' && erro !== 'EXECUCAO_INTERROMPIDA')
+      .reduce((soma, [, n]) => soma + n, 0),
+    degrauDaReserva,
+    recusadasPeloBalde,
+  }
+}
+
+/**
+ * O que reprova a fase `reserva`: os thresholds do k6, a troca de worker atrasada e, por janela, o aluno sem resposta (`IA_INDISPONIVEL`), a falha que não é a esperada, o degrau da reserva que não
+ * subiu e, na queda por servidor e por 429, o turno do Tutor acima do da janela de controle mais 1 s. Na queda por prazo o `IA_TEMPO_ESGOTADO` é permitido (tipado, com o número no relatório) e o
+ * `IA_INDISPONIVEL` não. Relatório, não portão: o que a esteira roda é a unidade (`infra/test/carga.test.ts`).
+ */
+export function julgarReserva(resultado: ResultadoDaReserva): Reprovacao[] {
+  const reprovacoes = reprovacoesDoK6(resultado)
+  const controle = resultado.janelas.find((medida) => medida.janela === 'controle')
+  for (const { nome } of JANELAS_DA_RESERVA) {
+    const medida = resultado.janelas.find((candidata) => candidata.janela === nome)
+    if (medida === undefined) {
+      reprovacoes.push({ criterio: `sem_amostra_${nome}`, detalhe: `reserva: a janela ${nome} não foi medida` })
+      continue
+    }
+    reprovacoes.push(...reprovacoesDasFalhas(nome, medida), ...reprovacoesDoTurno(nome, medida, controle), ...reprovacoesDaReserva(nome, medida))
+  }
+  return reprovacoes
+}
+
+/** O k6 da fase: os thresholds cruzados, o código de saída que não bate com o resumo e as trocas de worker que passaram do intervalo. */
+function reprovacoesDoK6(resultado: ResultadoDaReserva): Reprovacao[] {
+  const reprovacoes: Reprovacao[] = []
+  for (const { metrica, criterio } of resultado.k6.cruzados) reprovacoes.push({ criterio: `reserva:${metrica}`, detalhe: `reserva: ${metrica} ${criterio}` })
+  const saidaEsperada = resultado.k6.cruzados.length > 0 ? CODIGO_THRESHOLD_CRUZADO : 0
+  if (resultado.k6.codigo !== saidaEsperada) reprovacoes.push({ criterio: 'k6_reserva', detalhe: `reserva: k6 saiu com ${resultado.k6.codigo}, e o resumo pedia ${saidaEsperada}` })
+  for (const nome of resultado.trocasAtrasadas) reprovacoes.push({ criterio: `troca_atrasada_${nome}`, detalhe: `reserva: o worker da janela ${nome} não subiu dentro do intervalo de ${INTERVALO_ENTRE_AS_JANELAS_S} s` })
+  return reprovacoes
+}
+
+/** As falhas de uma janela: o aluno sem resposta, o erro que ninguém previu e o prazo esgotado fora da queda por prazo. */
+function reprovacoesDasFalhas(nome: NomeDaJanela, medida: MedidaDaJanela): Reprovacao[] {
+  const reprovacoes: Reprovacao[] = []
+  if (medida.indisponiveis > 0) reprovacoes.push({ criterio: `indisponivel_${nome}`, detalhe: `reserva: ${medida.indisponiveis} execuções terminaram IA_INDISPONIVEL na janela ${nome}` })
+  if (medida.outrasFalhas > 0) reprovacoes.push({ criterio: `falhas_${nome}`, detalhe: `reserva: ${medida.outrasFalhas} execuções falharam na janela ${nome} com outro erro que não IA_INDISPONIVEL, IA_TEMPO_ESGOTADO nem EXECUCAO_INTERROMPIDA` })
+  if (medida.temposEsgotados > 0 && nome !== 'prazo') reprovacoes.push({ criterio: `tempo_esgotado_${nome}`, detalhe: `reserva: ${medida.temposEsgotados} execuções terminaram IA_TEMPO_ESGOTADO na janela ${nome}, e só a queda por prazo as produz` })
+  return reprovacoes
+}
+
+/** O p95 do controle, que é a referência da queda: só existe com p95 e com o mínimo de turnos (sem isso o limite não nasce, e a janela de queda não reprova por ele). */
+function p95DoControle(controle: MedidaDaJanela | undefined): number | undefined {
+  if (controle?.turnoDoTutorP95Ms == null || controle.amostrasDoTutor < AMOSTRAS_MINIMAS_DA_JANELA) return undefined
+  return controle.turnoDoTutorP95Ms
+}
+
+/** O turno do Tutor: sem amostra a janela não passa em branco, e na queda por servidor e por 429 o p95 não passa do controle mais 1 s. */
+function reprovacoesDoTurno(nome: NomeDaJanela, medida: MedidaDaJanela, controle: MedidaDaJanela | undefined): Reprovacao[] {
+  const turnoMedido = medida.amostrasDoTutor >= AMOSTRAS_MINIMAS_DA_JANELA && medida.turnoDoTutorP95Ms !== null
+  const referencia = p95DoControle(controle)
+  if (!turnoMedido && (nome === 'controle' || nome === '5xx' || nome === '429')) {
+    return [{ criterio: `sem_amostra_${nome}`, detalhe: `reserva: a janela ${nome} tem ${medida.amostrasDoTutor} turnos do Tutor, e o p95 pede ao menos ${AMOSTRAS_MINIMAS_DA_JANELA}` }]
+  }
+  if ((nome === '5xx' || nome === '429') && turnoMedido && referencia !== undefined) return reprovacaoDoLimiteDoTurno(nome, medida, referencia)
+  return []
+}
+
+/** O p95 do turno acima do limite: o do controle mais 1 s. O limite exato passa. */
+function reprovacaoDoLimiteDoTurno(nome: NomeDaJanela, medida: MedidaDaJanela, referencia: number): Reprovacao[] {
+  const limite = referencia + ACRESCIMO_MAXIMO_DO_TURNO_NA_QUEDA_MS
+  const turno = medida.turnoDoTutorP95Ms ?? 0
+  if (turno > limite) {
+    return [{ criterio: `turno_${nome}`, detalhe: `reserva: o turno do Tutor na janela ${nome} tem p95 de ${Math.round(turno)} ms, e o limite é ${Math.round(limite)} ms (o do controle ${Math.round(referencia)} ms mais ${ACRESCIMO_MAXIMO_DO_TURNO_NA_QUEDA_MS} ms)` }]
+  }
+  return []
+}
+
+/** A reserva atendeu (o degrau subiu) em toda janela de queda, e o balde do principal recusou na janela do balde cheio. */
+function reprovacoesDaReserva(nome: NomeDaJanela, medida: MedidaDaJanela): Reprovacao[] {
+  const reprovacoes: Reprovacao[] = []
+  if (nome !== 'controle' && !((medida.degrauDaReserva ?? 0) > 0)) {
+    reprovacoes.push({ criterio: `reserva_nao_atendeu_${nome}`, detalhe: `reserva: ia.degradacao{degrau="provedor_de_reserva"} não subiu na janela ${nome} (${medida.degrauDaReserva === undefined ? 'o Prometheus não respondeu' : medida.degrauDaReserva}): a reserva não atendeu` })
+  }
+  if (nome === 'balde' && !((medida.recusadasPeloBalde ?? 0) > 0)) {
+    reprovacoes.push({ criterio: 'balde_nao_recusou', detalhe: 'reserva: o balde do principal não recusou nenhuma reserva na janela do balde cheio: o contratado da janela não mordeu, e o transbordo não foi provado' })
+  }
+  return reprovacoes
+}
+
+/** As janelas de queda em que o aluno sem resposta prova que a reserva faltou: é por elas, e só por elas, que o controle negativo precisa reprovar. */
+export const JANELAS_DO_CONTROLE_NEGATIVO_DA_RESERVA = ['5xx', '429'] as const
+
+/** Reprovou pelo aluno sem resposta numa janela de queda, e não pela subida: o worker subiu, atendeu a carga e a reserva é que não era elegível. */
+export function reprovadoPeloIndisponivel(reprovacoes: readonly Reprovacao[]): boolean {
+  return JANELAS_DO_CONTROLE_NEGATIVO_DA_RESERVA.every((nome) => reprovacoes.some((reprovacao) => reprovacao.criterio === `indisponivel_${nome}`))
+}
+
+/** Zero quando a fase faz o que se espera dela: passar com a reserva elegível, e reprovar pelo indisponível com a reserva sem modelo elegível. */
+export function codigoDeSaidaDaReserva(reprovacoes: readonly Reprovacao[] | undefined, controleNegativo: boolean): number {
+  // A fase que nem terminou (o compose não subiu, o worker não subiu na troca) não provou nada, nem como controle negativo.
+  if (reprovacoes === undefined) return 1
+  if (controleNegativo) return reprovadoPeloIndisponivel(reprovacoes) ? 0 : 1
+  return reprovacoes.length === 0 ? 0 : 1
+}
+
+/** Os turnos do Tutor concluídos entre `de` e `ate` (o relógio do banco) e o p95 do turno, de `criada_em` a `concluida_em`. Rotina nossa de teste, sem contexto de requisição (regra 10, item 9). */
+export async function medirTutorNaJanela(banco: Consultavel, escolas: readonly string[], de: Date, ate: Date): Promise<{ amostras: number; p95Ms: number | null }> {
+  const { rows } = await banco.query<{ amostras: number; p95: number | null }>(
+    `select count(*)::int as amostras, percentile_cont(0.95) within group (order by extract(epoch from concluida_em - criada_em)::float8 * 1000) as p95
+       from execucao_agente where escola_id = any($1::uuid[]) and funcao = 'tutor_com_o_aluno' and estado = 'concluida' and criada_em >= $2 and criada_em < $3`,
+    [escolas, de, ate],
+  )
+  const linha = rows[0]
+  return { amostras: Number(linha?.amostras ?? 0), p95Ms: linha?.p95 === null || linha?.p95 === undefined ? null : Number(linha.p95) }
+}
+
+/** As execuções que falharam entre `de` e `ate`, por erro, das escolas da sala e **de qualquer função** (o Tutor, a ferramenta e a proposta): o `IA_INDISPONIVEL` de uma janela pode não ser do Tutor. */
+export async function falhasNaJanela(banco: Consultavel, escolas: readonly string[], de: Date, ate: Date): Promise<Record<string, number>> {
+  const { rows } = await banco.query<{ erro: string; n: number }>(
+    "select erro, count(*)::int as n from execucao_agente where escola_id = any($1::uuid[]) and estado = 'falhou' and criada_em >= $2 and criada_em < $3 group by erro",
+    [escolas, de, ate],
+  )
+  return Object.fromEntries(rows.map((linha) => [linha.erro, linha.n]))
+}
+
+/**
+ * Um degrau de `ia.degradacao` somado na janela. Os dois `worker-ia` **nascem de novo no intervalo que antecede a janela**, e o contador deles começa em zero: o valor que ele tem no fim da janela é o que a
+ * janela somou, e o `max_over_time` o lê mesmo quando a série nasce já com valor (o `increase` não conta o primeiro ponto de uma série nova). A janela de leitura começa depois da troca, e a do vizinho
+ * termina antes dela, porque o contêiner antigo parou no intervalo e o Prometheus não o devolve.
+ */
+export async function degrauNaJanela(prometheus: string, degrau: string, janela: { inicio: Date; fim: Date }): Promise<number | undefined> {
+  const segundos = Math.max(10, Math.ceil((janela.fim.getTime() - janela.inicio.getTime()) / 1_000))
+  return consultarPrometheus(prometheus, `sum(max_over_time(ia_degradacao_total{degrau="${degrau}"}[${String(segundos)}s]))`, janela.fim)
+}
+
+/** O relatório da fase, janela a janela. */
+export function descreverReserva(resultado: ResultadoDaReserva): string[] {
+  const ms = (valor: number | null) => (valor === null ? '-' : `${Math.round(valor)} ms`)
+  const numero = (valor: number | undefined) => (valor === undefined ? 'não lido' : String(Math.round(valor)))
+  const linhas = ['', '▶ queda do principal (FASE=reserva): por janela', '  janela    turnos  p95 do turno   indisponível  prazo esgotado  outras  interrompidas  reserva atendeu  balde recusou']
+  for (const medida of resultado.janelas) {
+    linhas.push(
+      `  ${medida.janela.padEnd(8)}  ${String(medida.amostrasDoTutor).padStart(6)}  ${ms(medida.turnoDoTutorP95Ms).padEnd(12)}  ${String(medida.indisponiveis).padStart(12)}  ${String(medida.temposEsgotados).padStart(14)}  ${String(medida.outrasFalhas).padStart(6)}  ${String(medida.interrompidas).padStart(13)}  ${numero(medida.degrauDaReserva).padStart(15)}  ${numero(medida.recusadasPeloBalde).padStart(13)}`,
+    )
+  }
+  const controle = resultado.janelas.find((medida) => medida.janela === 'controle')
+  linhas.push(
+    `  referência (controle, a configuração da sala, sem reserva): p95 do turno ${ms(controle?.turnoDoTutorP95Ms ?? null)}; limite da queda ${controle?.turnoDoTutorP95Ms == null ? '-' : `${Math.round(controle.turnoDoTutorP95Ms + ACRESCIMO_MAXIMO_DO_TURNO_NA_QUEDA_MS)} ms`}`,
+    '  indisponível, prazo esgotado, outras e interrompidas contam as execuções de qualquer função (Tutor, ferramenta e proposta) das escolas da sala; turnos e p95 são só do Tutor',
+    `  k6: ${resultado.k6.temposEsgotados ?? 0} execuções com IA_TEMPO_ESGOTADO e ${resultado.k6.interrompidas ?? 0} interrompidas vistas pelo aluno; trocas de worker atrasadas: ${resultado.trocasAtrasadas.join(', ') || 'nenhuma'}`,
+  )
+  return linhas
+}
+
 /** Só a fase `base`: o veredito dela sozinha (os thresholds do k6 limpos, o código de saída coerente e o p95 da espera da B lido). */
 export function julgarSoABase(base: ResumoDoK6): Veredito {
   const reprovacoes: Reprovacao[] = base.cruzados.map(({ metrica, criterio }) => ({ criterio: `base:${metrica}`, detalhe: `base: ${metrica} ${criterio}` }))
@@ -715,17 +1000,31 @@ export function julgarSoABase(base: ResumoDoK6): Veredito {
   return { passou: reprovacoes.length === 0, reprovacoes, reprovadoPelaJustica: false }
 }
 
-/** As sessões, a estrutura e o material de cada escola da sala, e o arquivo dos tokens que o k6 lê (com a turma e a disciplina de cada escola). */
-async function prepararAsEscolasDaSala(banco: pg.Client, ambiente: NodeJS.ProcessEnv, escolas: readonly string[], arquivoDosTokens: string): Promise<void> {
+/**
+ * O token de acesso vale 10 min (`VALIDADE_TOKEN_ACESSO_SEGUNDOS`) e a corrida inteira do k6 (carga e cauda) passa de 7 min: o token mais antigo, na hora em que o k6
+ * começa, não pode ter mais que isto. Em série, dez escolas levavam mais que os 10 min, e as primeiras escolas passavam a receber 401 no meio da carga (corrida da 9.0).
+ */
+export const IDADE_MAXIMA_DO_TOKEN_NO_INICIO_DO_K6_S = 30
+
+/**
+ * As sessões, a estrutura e o material de cada escola da sala, e o arquivo dos tokens que o k6 lê (com a turma e a disciplina de cada escola). As dez escolas vão em
+ * paralelo (cada uma: os alunos, as professoras, depois a estrutura que precisa deles) e sem reconstruir o `dist` a cada sessão. Devolve há quantos segundos o primeiro
+ * token foi emitido; quem chama soma o tempo até o k6 e confere contra `IDADE_MAXIMA_DO_TOKEN_NO_INICIO_DO_K6_S`.
+ */
+async function prepararAsEscolasDaSala(banco: pg.Client, ambiente: NodeJS.ProcessEnv, escolas: readonly string[], arquivoDosTokens: string): Promise<number> {
+  const comecou = Date.now()
   const tokens: Record<string, string[]> = {}
-  for (const [indice, escolaId] of escolas.entries()) {
-    tokens[`sala_aluno_${indice}`] = await sessoesSinteticas(ambiente, escolaId, 'aluno', ALUNOS_POR_ESCOLA_DA_SALA, `sala_aluno_${indice}`)
-    tokens[`sala_professora_${indice}`] = await sessoesSinteticas(ambiente, escolaId, 'professor', PROFESSORAS_POR_ESCOLA_DA_SALA, `sala_professora_${indice}`)
-    const { turmaId, disciplinaId } = await semearEscolaDaSala(banco, escolaId)
-    tokens[`sala_alvo_${indice}`] = [turmaId, disciplinaId]
-  }
+  await Promise.all(
+    escolas.map(async (escolaId, indice) => {
+      tokens[`sala_aluno_${indice}`] = await sessoesSinteticas(ambiente, escolaId, 'aluno', ALUNOS_POR_ESCOLA_DA_SALA, `sala_aluno_${indice}`, true)
+      tokens[`sala_professora_${indice}`] = await sessoesSinteticas(ambiente, escolaId, 'professor', PROFESSORAS_POR_ESCOLA_DA_SALA, `sala_professora_${indice}`, true)
+      const { turmaId, disciplinaId } = await semearEscolaDaSala(banco, escolaId)
+      tokens[`sala_alvo_${indice}`] = [turmaId, disciplinaId]
+    }),
+  )
   writeFileSync(arquivoDosTokens, JSON.stringify(tokens))
   chmodSync(arquivoDosTokens, 0o644)
+  return Math.round((Date.now() - comecou) / 1_000)
 }
 
 /** O `kill -9` do `worker-ia-1` com a carga no ritmo: lê as execuções em `rodando` (o teto das interrompidas) e o derruba; ele volta cinco segundos depois. */
@@ -739,9 +1038,9 @@ async function matarOWorkerDeIa(banco: pg.Client, escolas: readonly string[], co
   return teto
 }
 
-function lerResumoDaSala(pasta: string, codigo: number): ResumoDoK6 {
+function lerResumoDaSala(pasta: string, codigo: number, fase: 'sala' | 'reserva' = 'sala'): ResumoDoK6 {
   try {
-    return lerResumoDoK6(codigo, JSON.parse(readFileSync(join(pasta, 'resumo-sala.json'), 'utf8')))
+    return lerResumoDoK6(codigo, JSON.parse(readFileSync(join(pasta, `resumo-${fase}.json`), 'utf8')))
   } catch {
     return lerResumoDoK6(codigo, undefined)
   }
@@ -782,14 +1081,33 @@ async function lerASala(banco: pg.Client, leitura: { escolas: readonly string[];
   return resultado
 }
 
-/** O ambiente da carga da manhã: o do cenário de sempre (sem o que o shell exporta de `infra/carga.env`), o adaptador falso e a latência e os tokens da sala. */
-function ambienteDaSala(pasta: string, doArquivo: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+/**
+ * O ambiente da carga da manhã e o de partida da queda do principal: o do cenário de sempre (sem o que o shell exporta de `infra/carga.env`), o adaptador falso, a latência e os tokens da sala, e a
+ * **reserva e a falha falsa desligadas** (vazias, que passam na frente do que o shell exportar): a `sala` não liga a reserva, para seguir comparável à X6.
+ */
+export function ambienteDaSala(pasta: string, doArquivo: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
   return {
     ...Object.fromEntries(Object.entries(process.env).filter(([chave]) => !(chave in doArquivo))),
     CARGA_PASTA_DA_EXECUCAO: pasta,
     VAGAS_POR_ESCOLA_DESLIGADAS: 'false',
     IA_ADAPTADOR: 'falso',
     ...ambienteDoFalso('sala'),
+    ...variaveisDaReserva(undefined, doArquivo),
+  }
+}
+
+/**
+ * O ambiente das fases `base` e `carga`: o de sempre (sem o que o shell exporta de `infra/carga.env`), o adaptador falso com a latência e os tokens das fases de sempre (a da sala os troca) e a
+ * **reserva e a falha falsa desligadas** (vazias, que passam na frente do que o shell exportar): um `IA_RESERVA_ADAPTADOR` ou um `IA_FALHA_FALSA` exportado não chega ao worker por `${...:-}` do compose.
+ */
+export function ambienteDaBase(pasta: string, doArquivo: Readonly<Record<string, string>>, controleNegativo: boolean): NodeJS.ProcessEnv {
+  return {
+    ...Object.fromEntries(Object.entries(process.env).filter(([chave]) => !(chave in doArquivo))),
+    CARGA_PASTA_DA_EXECUCAO: pasta,
+    VAGAS_POR_ESCOLA_DESLIGADAS: controleNegativo ? 'true' : 'false',
+    IA_ADAPTADOR: 'falso',
+    ...ambienteDoFalso('base'),
+    ...variaveisDaReserva(undefined, doArquivo),
   }
 }
 
@@ -844,6 +1162,170 @@ async function executarASala(): Promise<number> {
   return reprovacoes.length === 0 ? 0 : 1
 }
 
+/** Espera até o instante (relógio desta máquina), e volta na hora se ele já passou. */
+async function esperarAte(instanteMs: number): Promise<void> {
+  const falta = instanteMs - Date.now()
+  if (falta > 0) await esperar(falta)
+}
+
+/** Quando a carga do k6 começou de fato: a primeira execução criada depois de `desde`, no relógio do banco e no desta máquina. Sem ela em 2 min, o k6 não subiu. */
+async function aguardarOInicioDaCarga(banco: pg.Client, escolas: readonly string[], desde: Date): Promise<{ inicioDoBanco: Date; inicioLocalMs: number }> {
+  const limite = Date.now() + 120_000
+  while (Date.now() < limite) {
+    const { rows } = await banco.query<{ primeira: Date | null }>('select min(criada_em) as primeira from execucao_agente where escola_id = any($1::uuid[]) and criada_em >= $2', [escolas, desde])
+    const primeira = rows[0]?.primeira
+    if (primeira !== null && primeira !== undefined) return { inicioDoBanco: new Date(primeira), inicioLocalMs: Date.now() }
+    await esperar(500)
+  }
+  throw new Error('o k6 da fase reserva não criou nenhuma execução em 2 min')
+}
+
+type ComposeCom = (variaveis: NodeJS.ProcessEnv, ...argumentos: string[]) => ReturnType<typeof rodar>
+
+/** O que a corrida da queda do principal leva de um passo ao outro: a pasta do k6, o ambiente e o compose (com a configuração de cada janela). */
+interface CorridaDaReserva {
+  readonly pasta: string
+  readonly doArquivo: Readonly<Record<string, string>>
+  readonly ambiente: NodeJS.ProcessEnv
+  readonly composeCom: ComposeCom
+  readonly comJanela: (janela: JanelaDaReserva) => NodeJS.ProcessEnv
+}
+
+/** No intervalo antes de cada janela, depois de a ferramenta em voo terminar, recria os `worker-ia` com a falha e a reserva dela. Devolve as trocas que passaram do começo da carga seguinte. */
+async function trocarOsWorkersEntreAsJanelas(corrida: CorridaDaReserva, comeco: { inicioLocalMs: number }): Promise<{ trocasAtrasadas: NomeDaJanela[]; trocadasEmMs: Record<number, number> }> {
+  const { composeCom, comJanela } = corrida
+  const trocasAtrasadas: NomeDaJanela[] = []
+  const trocadasEmMs: Record<number, number> = {}
+  for (const [indice, janela] of JANELAS_DA_RESERVA.entries()) {
+    if (indice === 0) continue
+    // A carga da janela anterior terminou; o intervalo é do worker. A carga da janela seguinte começa no instante que o k6 marca, com ou sem o worker de pé.
+    await esperarAte(comeco.inicioLocalMs + limiteDaJanelaS(indice - 1, true) * 1_000 + DRENAGEM_ANTES_DE_TROCAR_O_WORKER_S * 1_000)
+    escrever(`\n▶ janela ${janela.nome}: ${janela.falha ?? 'principal atendendo'}, reserva ${janela.reserva ? 'ligada' : 'desligada'}${janela.tokensPorMinuto === undefined ? '' : `, contratado ${janela.tokensPorMinuto}`}`)
+    const troca = await composeCom(comJanela(janela), 'up', '--detach', '--no-deps', '--force-recreate', '--wait', 'worker-ia-1', 'worker-ia-2')
+    if (troca.codigo !== 0) throw new Error(`o worker-ia não subiu com a configuração da janela ${janela.nome}`)
+    trocadasEmMs[indice] = Date.now()
+    if (Date.now() > comeco.inicioLocalMs + limiteDaJanelaS(indice) * 1_000 - 1_000) trocasAtrasadas.push(janela.nome)
+  }
+  return { trocasAtrasadas, trocadasEmMs }
+}
+
+/**
+ * Onde a leitura do Prometheus de uma janela começa: no instante em que a troca do worker voltou (o `--wait` do `up`), e não antes. O contêiner antigo parou no intervalo, e uma série dele raspada
+ * antes disso somaria à janela o contador da janela vizinha (o `max_over_time` lê o valor mais alto da série no intervalo). A primeira janela não tem troca: começa 5 s antes da carga, como o banco.
+ */
+export function inicioDaLeituraDaJanela(indice: number, comeco: { inicioLocalMs: number }, trocadasEmMs: Readonly<Record<number, number | undefined>>): Date {
+  const trocadaEm = trocadasEmMs[indice]
+  return new Date(trocadaEm ?? comeco.inicioLocalMs + limiteDaJanelaS(indice) * 1_000 - 5_000)
+}
+
+/** Lê, de cada janela, o turno do Tutor e as falhas (no banco) e o degrau da reserva e o balde que recusou (no Prometheus). */
+async function medirAsJanelas(
+  banco: pg.Client,
+  escolas: readonly string[],
+  comeco: { inicioDoBanco: Date; inicioLocalMs: number },
+  trocadasEmMs: Readonly<Record<number, number | undefined>>,
+  prometheus: string,
+): Promise<MedidaDaJanela[]> {
+  const janelas: MedidaDaJanela[] = []
+  for (const [indice, janela] of JANELAS_DA_RESERVA.entries()) {
+    // A leitura começa um pouco antes da carga (a primeira execução nasce ~1 s depois do começo) e vai até a telemetria da janela chegar, bem antes da carga seguinte.
+    const deNoBanco = new Date(comeco.inicioDoBanco.getTime() + limiteDaJanelaS(indice) * 1_000 - 5_000)
+    const ateNoBanco = new Date(comeco.inicioDoBanco.getTime() + limiteDaJanelaS(indice, true) * 1_000 + 20_000)
+    const leitura = {
+      inicio: inicioDaLeituraDaJanela(indice, comeco, trocadasEmMs),
+      fim: new Date(comeco.inicioLocalMs + limiteDaJanelaS(indice, true) * 1_000 + 20_000),
+    }
+    janelas.push(
+      montarMedidaDaJanela(
+        janela.nome,
+        await medirTutorNaJanela(banco, escolas, deNoBanco, ateNoBanco),
+        await falhasNaJanela(banco, escolas, deNoBanco, ateNoBanco),
+        await degrauNaJanela(prometheus, 'provedor_de_reserva', leitura),
+        await degrauNaJanela(prometheus, 'espera', leitura),
+      ),
+    )
+  }
+  return janelas
+}
+
+/** Sobe o compose na configuração do controle, cria as dez escolas e as sessões, e confere a idade dos tokens. Guarda a conexão em `conexao` para o `finally` de quem chama fechá-la. */
+async function prepararAReserva(corrida: CorridaDaReserva, conexao: { cliente?: pg.Client }): Promise<{ cliente: pg.Client; escolas: string[] }> {
+  const { pasta, doArquivo, ambiente, composeCom, comJanela } = corrida
+  await composeCom(ambiente, 'down', '--volumes', '--remove-orphans')
+  // Sobe com a configuração da primeira janela (o controle: reserva desligada, principal atendendo), que é a da `sala`.
+  if ((await composeCom(comJanela(JANELAS_DA_RESERVA[0] as JanelaDaReserva), 'up', '--detach', '--build', '--wait')).codigo !== 0) throw new Error('o compose de carga não subiu')
+  const ambienteDosOps: NodeJS.ProcessEnv = { ...ambiente, ...doArquivo }
+  escrever('\n▶ escolas da sala')
+  const escolas = await criarEscolasDaSala(ambienteDosOps)
+  const cliente = new pg.Client({ connectionString: urlDoBancoDoAmbiente(doArquivo) })
+  conexao.cliente = cliente
+  await cliente.connect()
+  escrever('\n▶ sessões, estrutura e material de cada escola')
+  const idadeDosTokensS = await prepararAsEscolasDaSala(cliente, ambienteDosOps, escolas, join(pasta, 'tokens.json'))
+  escrever(`  sessões e estrutura das dez escolas em ${idadeDosTokensS} s (o token mais antigo tem essa idade quando o k6 começa; o teto é ${IDADE_MAXIMA_DO_TOKEN_NO_INICIO_DO_K6_S} s)`)
+  if (idadeDosTokensS > IDADE_MAXIMA_DO_TOKEN_NO_INICIO_DO_K6_S) throw new Error(`as sessões levaram ${idadeDosTokensS} s: o token mais antigo venceria no meio da carga`)
+  return { cliente, escolas }
+}
+
+/** A corrida: prepara, roda o k6, troca os workers entre as janelas, lê cada janela, escreve o relatório e devolve o que reprova. */
+async function correrAReserva(corrida: CorridaDaReserva, conexao: { cliente?: pg.Client }): Promise<Reprovacao[]> {
+  const { pasta, doArquivo, ambiente, composeCom } = corrida
+  const { cliente, escolas } = await prepararAReserva(corrida, conexao)
+  const desde = new Date(await agoraDoBanco(cliente))
+  escrever('\n▶ k6, fase reserva')
+  const execucaoDoK6 = composeCom(ambiente, 'run', '--rm', '--no-deps', 'k6', ...argumentosDoK6('reserva'))
+  const comeco = await aguardarOInicioDaCarga(cliente, escolas, desde)
+  const { trocasAtrasadas, trocadasEmMs } = await trocarOsWorkersEntreAsJanelas(corrida, comeco)
+  const k6 = lerResumoDaSala(pasta, (await execucaoDoK6).codigo, 'reserva')
+  await esperar(PRAZO_DA_TELEMETRIA_MS)
+  const prometheus = `http://127.0.0.1:${doArquivo['PROMETHEUS_PORTA_HOST'] ?? ''}`
+  const resultado: ResultadoDaReserva = { k6, janelas: await medirAsJanelas(cliente, escolas, comeco, trocadasEmMs, prometheus), trocasAtrasadas }
+  for (const linha of descreverReserva(resultado)) escrever(linha)
+  return julgarReserva(resultado)
+}
+
+/** O fim da corrida: o veredito escrito e o código de saída (zero quando a fase faz o que se espera dela, no controle negativo ou fora dele). */
+function encerrarAReserva(reprovacoes: Reprovacao[] | undefined, inicio: Date, controleNegativo: boolean): number {
+  const codigo = codigoDeSaidaDaReserva(reprovacoes, controleNegativo)
+  if (reprovacoes === undefined) return codigo
+  escrever(`\n■ queda do principal em ${inicio.toISOString()} (${Math.round((Date.now() - inicio.getTime()) / 60_000)} min): ${reprovacoes.length === 0 ? 'passou' : 'reprovou'}`)
+  for (const reprovacao of reprovacoes) escrever(`  reprovado: ${reprovacao.detalhe}`)
+  if (controleNegativo) escrever(codigo === 0 ? '✔ controle negativo: com a reserva sem modelo elegível, a queda deixou aluno sem resposta, e a fase reprovou pelo indisponível' : '✖ controle negativo: a fase não reprovou pelo indisponível nas janelas de queda')
+  else escrever(codigo === 0 ? '✔ fase passou' : '✖ fase reprovou')
+  return codigo
+}
+
+/**
+ * A queda do principal (F5b, tarefa 9.0; RF3), `--so=reserva`: sobe o compose de carga com a reserva desligada (a configuração da `sala`), cria as dez escolas e roda o k6 da `FASE=reserva`, que dá a carga da
+ * manhã em cinco janelas com intervalo. No intervalo antes de cada janela, troca a falha do principal falso e liga a reserva nos dois `worker-ia` (`up --force-recreate`: o `IA_FALHA_FALSA` só se lê na subida).
+ * Depois lê, de cada janela, o aluno sem resposta, o p95 do turno do Tutor, o degrau da reserva e o balde que recusou, e escreve o relatório. Relatório, não portão: a corrida é por demanda.
+ */
+async function executarAReserva(controleNegativo: boolean): Promise<number> {
+  const pasta = mkdtempSync(join(tmpdir(), 'educa-carga-'))
+  chmodSync(pasta, 0o777)
+  const doArquivo = lerAmbienteDeCarga()
+  exigirAdaptadorFalso(adaptadorDoAmbienteDeCarga(doArquivo))
+  exigirReservaFalsa(doArquivo)
+  const ambiente = ambienteDaSala(pasta, doArquivo)
+  const comJanela = (janela: JanelaDaReserva): NodeJS.ProcessEnv => ({ ...ambiente, ...variaveisDaReserva(janela, doArquivo, controleNegativo) })
+  const composeCom: ComposeCom = (variaveis, ...argumentos) => rodar('docker', [...argumentosDoCompose(), ...argumentos], variaveis)
+  const inicio = new Date()
+  const conexao: { cliente?: pg.Client } = {}
+  let reprovacoes: Reprovacao[] | undefined
+  try {
+    escrever(`\n▶ queda do principal (FASE=reserva), dez escolas${controleNegativo ? `, controle negativo (reserva ${PROVEDOR_DA_RESERVA_SEM_APROVACAO})` : ''}`)
+    reprovacoes = await correrAReserva({ pasta, doArquivo, ambiente, composeCom, comJanela }, conexao)
+  } catch (erro) {
+    escrever(`\n✖ a queda do principal não terminou: ${erro instanceof Error ? erro.message : String(erro)}`)
+    await composeCom(ambiente, 'logs', '--no-color', '--tail', '100')
+  } finally {
+    await conexao.cliente?.end().catch(() => undefined)
+    await composeCom(ambiente, 'down', '--volumes', '--remove-orphans')
+    rmSync(pasta, { recursive: true, force: true })
+  }
+  return encerrarAReserva(reprovacoes, inicio, controleNegativo)
+}
+
 async function executar(controleNegativo: boolean, soABase = false): Promise<number> {
   const pasta = mkdtempSync(join(tmpdir(), 'educa-carga-'))
   // O k6 do container roda com outro usuário: ele lê os tokens e grava o resumo nesta pasta.
@@ -852,14 +1334,7 @@ async function executar(controleNegativo: boolean, soABase = false): Promise<num
   // uma porta exportada para o ambiente de desenvolvimento faria o cenário disputar a porta dele.
   const doArquivo = lerAmbienteDeCarga()
   exigirAdaptadorFalso(adaptadorDoAmbienteDeCarga(doArquivo))
-  const ambiente: NodeJS.ProcessEnv = {
-    ...Object.fromEntries(Object.entries(process.env).filter(([chave]) => !(chave in doArquivo))),
-    CARGA_PASTA_DA_EXECUCAO: pasta,
-    VAGAS_POR_ESCOLA_DESLIGADAS: controleNegativo ? 'true' : 'false',
-    // O adaptador é o falso, e a latência e os tokens dele são os das fases de sempre (a da sala os troca): nada que o shell exporte entra.
-    IA_ADAPTADOR: 'falso',
-    ...ambienteDoFalso('base'),
-  }
+  const ambiente = ambienteDaBase(pasta, doArquivo, controleNegativo)
   const compose = (...argumentos: string[]) => rodar('docker', [...argumentosDoCompose(), ...argumentos], ambiente)
   const inicio = new Date()
   let veredito: Veredito | undefined
@@ -976,8 +1451,16 @@ function encerrar(veredito: Veredito, inicio: Date, controleNegativo: boolean): 
   return codigo
 }
 
+/** A fase que `--so=` pede (`base`, `sala` ou `reserva`), ou `undefined` sem ele; outro valor derruba o script antes de subir qualquer coisa. */
+export function faseDaLinhaDeComando(argumentos: readonly string[]): 'base' | 'sala' | 'reserva' | undefined {
+  const so = argumentos.find((argumento) => argumento.startsWith('--so='))?.slice('--so='.length)
+  if (so !== undefined && so !== 'base' && so !== 'sala' && so !== 'reserva') throw new Error('--so aceita base, sala ou reserva')
+  return so
+}
+
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const so = process.argv.find((argumento) => argumento.startsWith('--so='))?.slice('--so='.length)
-  if (so !== undefined && so !== 'base' && so !== 'sala') throw new Error('--so aceita base ou sala')
-  process.exitCode = so === 'sala' ? await executarASala() : await executar(process.argv.includes('--controle-negativo'), so === 'base')
+  const so = faseDaLinhaDeComando(process.argv)
+  const controleNegativo = process.argv.includes('--controle-negativo')
+  if (so === 'reserva') process.exitCode = await executarAReserva(controleNegativo)
+  else process.exitCode = so === 'sala' ? await executarASala() : await executar(controleNegativo, so === 'base')
 }
