@@ -228,10 +228,12 @@ decidida pela coordenação e valendo no servidor como as demais (1.10, "Suspens
 2. **Quais indicadores, com que limiar e com que texto.** É decisão em aberto no `CLAUDE.md`, do
    Joaquim e do Gabriel, a fechar antes do PRD do F6. Entra aí o **número mínimo de questões por
    habilidade** para o diagnóstico afirmar alguma coisa: com uma questão só, um erro vira "0% na
-   habilidade".
+   habilidade". *Decidido na D88 (23/11/2026):* ao menos 2 atividades aprovadas e 4 questões da habilidade.
 3. **O caminho de contestação**, para o aluno e para o professor, e a explicação em linguagem
    comum. Exigidos pela D60; ainda sem desenho. Etapas 4 e 6.
-4. **Retirar um diagnóstico já aprovado** (1.7). Depende do Joaquim. **Continua em aberto:** a decisão de 1.9 sobre a chave não a resolve.
+4. **Retirar um diagnóstico já aprovado** (1.7). *Decidido na D88 (23/11/2026):* o professor corrige o gabarito, a turma é
+   recorrigida e o lote volta a "para revisar"; o diagnóstico anterior vale até a nova aprovação. O aluno contesta a questão
+   corrigida (item 3, parte do aluno).
 5. **A retenção** de ano letivo + 1 ano é proposta, a confirmar com a escola (`docs/lgpd.md`).
 6. **O roteiro da demonstração e o N3.** No passo 3 de `docs/mvp-rapido.md`, o Tutor "lembra do
    que ele errou" antes de o professor aprovar a correção, que é o passo 4. Para o N3 valer, o

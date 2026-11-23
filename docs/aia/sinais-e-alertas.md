@@ -295,7 +295,8 @@ servidor: função suspensa recusa executar. São duas chaves, suspensas uma sem
 2. **Quais sinais, com que limiar e com que texto.** É a decisão em aberto dos indicadores
    (`CLAUDE.md`), do Joaquim e do Gabriel: os de turma e aluno antes do PRD do F6, os de professor
    antes do PRD do F12. Ponto de partida: percentual de erro e acerto por habilidade e o sinal
-   "concluiu o que foi atribuído".
+   "concluiu o que foi atribuído". *Decidido na D88 (23/11/2026)* para "aluno que precisa de atenção" em Turmas e para o
+   piso de 3 na tela projetada; os limiares dos sinais do Tutor seguem em aberto (F9).
 3. **A lista de tipos de sinal não é a mesma em todo lugar.** `docs/agentes.md` lista travou,
    errou muito, pediu resposta pronta, principal dificuldade e dúvida repetida; o glossário
    acrescenta "concluiu o que foi atribuído"; `docs/modelo-de-dados.md` traz `fora_de_escopo`; o

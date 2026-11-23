@@ -6,7 +6,7 @@ O alvo é o sistema inteiro, não um MVP fatiado, porque a venda acontece em reu
 coordenação e em assembleia de pais, e o que convence é o fluxo completo. Um pedaço não
 vende.
 
-**A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 (F5a e F5b) com a X6 parcial, F18, F6, F6b, F7 mínima (rubrica), F11 mínima, trio da F12
+**A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 (F5a e F5b) com a X6 parcial, F18, F6, F6c (dividida da F6 em 23/11/2026), F6b, F7 mínima (rubrica), F11 mínima, trio da F12
 (Auditoria, Conformidade, Denúncias), portal da família (F19) e F9, nesta ordem de construção. O Tutor fica pronto e
 alinhado antes da entrada da escola, mas desligado na escola até a Turmma liberá-lo, por chave no painel da Operação (D84). Ficam fora: o resto de F7, F11 e F12,
 F17, F14, F15 e F16. A avaliação dos modelos com provedor real (F5c) vem por último, antes do portão da primeira escola real (D37
@@ -672,21 +672,32 @@ e o registro da validação (`validacao_do_lote`, D56); resposta salva por item,
 mais nova; retomada após queda; e **Turmas**, com as abas Hoje, Atividades e Alunos e o acerto por habilidade
 (D69, D73).
 
-**Falta:** a **prova online de verdade**: duração e prazo no relógio do servidor, extensão pelo professor,
-tela de foco, versões (A/B, embaralhamento) e a saída da aba mostrada só ao professor, com o aluno avisado e
-sem consequência automática (D70); a **discursiva e a redação**: rubrica e critérios antes da aplicação,
-organização do lote e correção cega, **sem a IA corrigir, avaliar, dar nota, conceito ou devolutiva, nem como
-rascunho para o professor** (D55); em Turmas, a evolução no tempo e os alunos que precisam de atenção, com os
-indicadores de turma e aluno fechados antes do PRD, e as abas que faltam (P11 e P28 de
-`docs/pendencias-dos-mockups.md`); e as etapas 2 a 6 das AIA da correção e do diagnóstico (D60). A nota
-oficial e o boletim ficam no F17.
+**Falta:** a **prova online de verdade**: janela e duração no relógio do servidor, tempo adicional proposto pela
+adaptação registrada e confirmado pelo professor, extensão pelo professor, tela de foco, embaralhamento por aluno e a
+saída da aba mostrada só ao professor, com o aluno avisado e sem consequência automática (D70); em Turmas, a ficha do
+aluno com a evolução por habilidade, os alunos que precisam de atenção e o piso da tela projetada (D88); gabarito
+corrigido depois da aprovação e a contestação da questão pelo aluno (D88); e as etapas 2 a 6 das AIA da correção e do
+diagnóstico (D60), num rascunho para o Joaquim ler antes do piloto. A nota oficial e o boletim ficam no F17.
 
 **Pronto quando:** uma queda de rede no meio de uma prova com tempo não perde resposta nem tempo do aluno;
-teste prova que a contagem de saídas da aba não existe fora de avaliação nem somada por aluno; a discursiva
-tem rubrica, lote e correção cega, e **nenhum campo do sistema guarda nota, conceito ou devolutiva de
-discursiva gerada por IA**; e o professor vê em Turmas quem precisa de atenção, pelo indicador decidido.
+teste prova que a contagem de saídas da aba não existe fora de avaliação nem somada por aluno; e o professor vê em
+Turmas quem precisa de atenção, pelo indicador da D88, com o motivo e o caminho de contestação.
 
-**Fora desta fase:** a prova no papel (impressão, folha de resposta e leitura por foto) é a F6b (D83).
+**Fora desta fase:** a discursiva e a redação são a F6c (dividida em 23/11/2026, no PRD); a prova no papel
+(impressão, folha de resposta e leitura por foto) é a F6b (D83).
+
+## F6c — `discursiva-e-redacao` [ ]
+**Depende de:** F6 · constrói-se antes da F6b
+
+Dividida da F6 em 23/11/2026, pelo Joaquim, no PRD dela: a resposta em texto é dado novo de menor e traz os testes da
+D55, e a F6 inteira passava do teto do PRD. **Falta:** a questão discursiva e a redação na atividade, com a resposta do
+aluno em texto salva como a objetiva; rubrica e critérios antes da aplicação (inclusive pela conversa, com a recusa da
+D55 sem falso positivo: `tasks/prd-reserva-e-avaliacao/achado-d55-recusa-rubrica.md`); organização do lote e correção
+cega pelo professor, **sem a IA corrigir, avaliar, dar nota, conceito ou devolutiva, nem como rascunho para o
+professor** (D55); e a devolutiva escrita pelo professor.
+
+**Pronto quando:** a discursiva tem rubrica, lote e correção cega, e **nenhum campo do sistema guarda nota, conceito
+ou devolutiva de discursiva gerada por IA**.
 
 ## F6b — `prova-no-papel` [ ]
 **Depende de:** F6
@@ -1008,6 +1019,7 @@ staging (D31 revista). O provedor de nuvem é escolhido na migração (D42).
 - F5 corre desde o início, independente do domínio; a fatia mínima dela nasceu na A2
 - F3 corre em paralelo com F4 e F5, e **não pode ser a última**
 - F13 pode correr junto de F12; a fila do F11 e o gateway do F5 chegam pela X6
+- F6c (discursiva e redação) corre depois da F6 e antes da F6b (dividida da F6 em 23/11/2026)
 - F6b (prova no papel) corre depois da F6; antes ou depois da F9 se decide com o piloto (D83)
 - F17 (nota oficial) corre depois de F6, F11 e F13, em paralelo com F12 e F14, e antes do F15
 - O teste de carga começa no F0 com um cenário mínimo e cresce a cada funcionalidade do

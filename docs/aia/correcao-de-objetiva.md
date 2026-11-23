@@ -258,15 +258,18 @@ um registro próprio, com quem suspendeu, quando e o motivo, e com auditoria.
    lê ao lado do número, e se a contagem aparece para aluno com adaptação registrada. Depende do
    Joaquim e do Gabriel, com o `conformidade-reviewer`. *A decisão de 1.9 sobre a chave não resolve
    este item:* continua aberto, e sem poder desligar a contagem por escola o risco permanece.
+   *Decidido na D88 (23/11/2026):* a contagem aparece para todo aluno, com o aviso fixo de que a tecnologia assistiva
+   também conta; não é destaque e não trava a aprovação. A medida de se ela cai mais sobre quem tem adaptação fica na etapa 5.
 4. **O limiar de "muito fora do histórico" e o critério de "padrão de erro suspeito".** Fazem
    parte da decisão em aberto dos indicadores (`CLAUDE.md`, "Decisões em aberto"), do Joaquim e
-   do Gabriel, antes do PRD do F6.
+   do Gabriel, antes do PRD do F6. *Decidido na D88 (23/11/2026):* fora do histórico a 40 pontos; padrão de erro só pela
+   mesma alternativa repetida, sem comparar o aluno com os colegas.
 5. **O que vai ao modelo para escrever o relatório.** Ver 1.6. Depende do Joaquim.
 6. **Um destaque que a D56 cita e que a D55 proíbe.** O texto da D56 lista "discursiva com baixa
    confiança" entre os casos destacados. Pela D55 a IA não produz nada sobre texto discursivo,
    nem grau de confiança. Esta AIA segue a D55 e a lista de `docs/agentes.md` (prova em branco,
    resultado longe do histórico, item com padrão de erro suspeito). O texto da D56 precisa de
-   correção. Depende do Joaquim.
+   correção. Depende do Joaquim. *Corrigido na D56 revista pela D88 (23/11/2026).*
 7. **Decidido para o MVP (1.9; a rever antes do primeiro aluno real).** **Se o diagnóstico ganha chave própria em `FUNCOES`,** e se a saída da aba pode ser desligada
    por escola (1.7). Depende do Joaquim.
    *Decisão:* o diagnóstico fica sem chave própria, suspenso junto de `correcao_de_objetiva`; e a

@@ -831,9 +831,9 @@ IndicadorTurma     → escola*, anoLetivo*, turma*, disciplina*, habilidade?, pe
                      valor*, calculadoEm*
 ```
 
-Os tipos concretos, os limiares e o texto dos alertas estão em aberto (`CLAUDE.md`, decisões em
-aberto): os de turma e aluno fecham antes do PRD do F6, porque "Turmas" nasce lá (D69, D73);
-os de professor, antes do PRD do F12. A coordenação só lê agregado de recorte com dois ou mais
+Os de turma e aluno estão na D88 ("precisa de atenção" por habilidade e por entrega, evolução por
+habilidade, piso de 3 na tela projetada); os de professor estão em aberto (`docs/decisoes-em-aberto.md`)
+e fecham antes do PRD do F12. A coordenação só lê agregado de recorte com dois ou mais
 professores (D45 revista). Tempo ocioso do aluno não é tipo de indicador. `IndicadorProfessor` é lido pelo próprio professor; a
 coordenação lê agregado e o nominal com `Auditoria`; a rede só agregado; nenhum caminho o
 liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa de dados de
