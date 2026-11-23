@@ -48,6 +48,7 @@ Definidos com o `test-engineer`. Não improvise aqui.
 | estados da tela: [carregando, erro, vazio, com dado; o vazio e o "falta" só com a leitura terminada e sem erro; o foco depois de cada ação que troca o que aparece] | e2e | | | |
 | recomeço da tela: [a segunda pessoa na mesma aba, sem reload; a mesma entrada de novo — mesmo link, mesmo token; a resposta atrasada da entrada anterior, com a resposta segurada no teste (`page.route` ou `page.clock.pauseAt`); a lista recarregada ou a falha com o diálogo aberto] | e2e | | | |
 | log novo: [a linha capturada] | integração | não leva nome, e-mail, matrícula, token, senha nem código (regra 20, item 9) | | |
+| saída do modelo fora do esquema: [a resposta crua que não é JSON, ou JSON truncado] | unidade | é julgada, contada e conferida como as outras, a D55 inclusive; não some da conta | | |
 
 O que distingue: o dado sem o qual a regra apagada passa igual — duas redes e a da escola não é a primeira (7.0 da
 F5a); custos diferentes, semeados fora da ordem esperada (8.0); duas na trava, não uma (4.0); a asserção que o nome do
@@ -75,6 +76,8 @@ atualiza o cenário de carga que a mede. Na F2c, a fase `professores` passou pel
 corrida, na validação (crítico 1), e a 16.0 mudou o que a sala manda sem atualizar o k6 dela.
 A linha de log vale para toda linha de log nova, e sai quando a tarefa não escreve nenhuma: três
 recomendações na A0 (7.0, 8.0, 9.0) foram log sem teste do conteúdo.
+A linha da saída fora do esquema vale para tarefa que lê, julga, mede ou confere a saída de um modelo, e sai quando a tarefa
+não faz isso. Na F5b, a 11.0 e a 13.0 reprovaram três vezes pela resposta que não era JSON e sumia do julgamento e da D55.
 
 ## Como testar
 
@@ -103,7 +106,10 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    em outro arquivo e as que entram depois, para atender um revisor. Cada uma ganha um bloco na seção "Mutações"; bloco cujo
    teste continua verde reprova o portão: falta o teste, e não o bloco. Trava se prova pelo efeito (dois registros), não
    pela espera. Entram também as linhas sem condição que protegem — a chamada que confere antes (`#conferir`,
-   `semaforo.executar`: a mutação é tirar a linha), a fiação de uma guarda, o campo de um esquema zod. O `--faltando` lista um
+   `semaforo.executar`: a mutação é tirar a linha), a fiação de uma guarda, o campo de um esquema zod. E o argumento que a fiação passa adiante (a `useFactory` de um
+   módulo Nest, a montagem de um adaptador): o bloco troca o argumento pelo vazio (`[]`, `undefined`, o padrão), e o teste precisa
+   de um dado em que o vazio dá outro resultado (2.0 e 4.0 da F5b: `tarefas: []` e a reserva montada sem resiliência passavam em
+   todos os testes). O `--faltando` lista um
    item por termo de uma condição composta, um por argumento do `and(`/`or(` de várias linhas (a `eq(t.escolaId, escolaId),` sozinha) e a linha de SQL ou Lua em template string (`sql`, `execute(`, `eval(`); não vê o SQL
    sem etiqueta, o `&&` e o `||` com os operandos em linhas diferentes, o `&&` dentro de um `and(`, o ternário nem essas
    linhas sem condição: confira esses à mão (8 reprovações na F2c, a maioria já coberta pela ferramenta).
@@ -115,7 +121,10 @@ rodada nova; o caso que originou cada pergunta está em `docs/processo-licoes.md
    isolados os specs que o contam (`toHaveCount`, `nth`): o portão só puxa os specs que citam texto **removido**.
 3. **A coluna "O que distingue" está no teste? O cenário tem o segundo dado que torna a cláusula observável?** Se o repository filtra por turma, aluno em **duas**
    turmas; se filtra por estado, vínculo em cada estado; se lê `inatividadeMin`, escola com valor **diferente** do padrão.
-   Apagar a cláusula tem de deixar algo vermelho.
+   Apagar a cláusula tem de deixar algo vermelho. Na guarda estática (`tools/guardas/`, varredura de código ou de arquivo), a
+   fixture da violação está na forma mais provável no repositório real (o jeito de abrir o banco que o código usa de fato; a cópia
+   do lote na pasta em que ela cairia), há o vizinho legítimo que a guarda não pode calar (o `import type` seguido de um import
+   real), e a exclusão é por caminho a partir da raiz, nunca por nome de pasta (10.0 e 11.0 da F5b, quatro reprovações).
 4. **Alguma checagem anterior responde antes da regra sob teste?** A rota cai em `requireAnoEmCurso()`, o e-mail não acha
    ninguém: o teste fica verde pelo motivo errado. Percorra o caminho até a linha que interessa e confirme que o cenário
    chega nela. E o teste cria a condição de que depende (o serviço parado, o job que roda, o objeto que existe), em vez

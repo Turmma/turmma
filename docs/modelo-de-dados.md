@@ -831,9 +831,9 @@ IndicadorTurma     → escola*, anoLetivo*, turma*, disciplina*, habilidade?, pe
                      valor*, calculadoEm*
 ```
 
-Os tipos concretos, os limiares e o texto dos alertas estão em aberto (`CLAUDE.md`, decisões em
-aberto): os de turma e aluno fecham antes do PRD do F6, porque "Turmas" nasce lá (D69, D73);
-os de professor, antes do PRD do F12. A coordenação só lê agregado de recorte com dois ou mais
+Os de turma e aluno estão na D88 ("precisa de atenção" por habilidade e por entrega, evolução por
+habilidade, piso de 3 na tela projetada); os de professor estão em aberto (`docs/decisoes-em-aberto.md`)
+e fecham antes do PRD do F12. A coordenação só lê agregado de recorte com dois ou mais
 professores (D45 revista). Tempo ocioso do aluno não é tipo de indicador. `IndicadorProfessor` é lido pelo próprio professor; a
 coordenação lê agregado e o nominal com `Auditoria`; a rede só agregado; nenhum caminho o
 liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa de dados de
@@ -862,7 +862,10 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
      `SuboperadorDaEscolaRepository` lê — ver "Comunicação, conta e conformidade";
    - o `Incidente` (F3), o que as escolas afetadas por um incidente de segurança dividem, da nossa operação: só o
      `OperacaoPrivacidadeRepository` escreve, o `IncidenteDaEscolaRepository` lê pela `IncidenteEscola` (esta tem `escolaId`) e
-     o expurgo de acesso apaga por prazo — ver "Comunicação, conta e conformidade".
+     o expurgo de acesso apaga por prazo — ver "Comunicação, conta e conformidade";
+   - o `PulsoDaApi` e a `Indisponibilidade` (F6, `avaliacao-e-correcao`): o último pulso das instâncias da API (linha
+     única) e as janelas em que ela ficou fora, que devolvem o tempo da prova online (regra 80, item 6). Fato operacional
+     global, sem dono e sem pessoa: só o repository do pulso escreve, e o cálculo do limite da tentativa lê.
    A lista de escolas da rotina noturna (`CronEscolasRepository.listIds`, F3) não é tabela sem escola: é a
    consulta sem escopo que abre o contexto de cada escola — ver "Comunicação, conta e conformidade".
 2. Id é UUID. Nunca sequencial.
