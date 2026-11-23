@@ -672,8 +672,8 @@ e o registro da validação (`validacao_do_lote`, D56); resposta salva por item,
 mais nova; retomada após queda; e **Turmas**, com as abas Hoje, Atividades e Alunos e o acerto por habilidade
 (D69, D73).
 
-**Falta:** a **prova online de verdade**: janela e duração no relógio do servidor, tempo adicional proposto pela
-adaptação registrada e confirmado pelo professor, extensão pelo professor, tela de foco, embaralhamento por aluno e a
+**Falta:** a **prova online de verdade**: janela e duração no relógio do servidor, tempo adicional escolhido pelo
+professor por aluno, extensão pelo professor, tela de foco, embaralhamento por aluno e a
 saída da aba mostrada só ao professor, com o aluno avisado e sem consequência automática (D70); em Turmas, a ficha do
 aluno com a evolução por habilidade, os alunos que precisam de atenção e o piso da tela projetada (D88); gabarito
 corrigido depois da aprovação e a contestação da questão pelo aluno (D88); e as etapas 2 a 6 das AIA da correção e do
@@ -748,6 +748,8 @@ sem campo em que caiba um diagnóstico.
 **No piloto (D84):** construída e alinhada antes da entrada da escola, mas com o Tutor desligado na escola até a Turmma liberá-lo, por **chave por escola no painel da Operação** (D76, D84), desligada por padrão.
 Se soma à suspensão da função pela coordenação e à política por turma (modo do professor; fora da sala, D19). O padrão do modo em sala se decide no PRD.
 O parecer do art. 24 do ECA Digital, a AIA e o contrato de IA no Brasil (D62) vêm antes dela.
+
+**Vem da F6 (23/11/2026):** o registro da adaptação necessária por aluno pela coordenação (`AdaptacaoAluno`, D35; tela Adaptações), que o Tutor lê (D66); com ele, a prova online passa a propor o tempo adicional de quem tem `tempo_adicional` registrado, e o professor confirma. A F6 entrega só o tempo adicional escolhido pelo professor.
 
 Conferido contra o código em 24/10/2026. **Já existe** (A4, X4): o Tutor socrático, com a conferência que descarta a resposta pronta; o escopo
 da turma, com teste de isolamento; a trava durante avaliação; a identidade de IA, que nunca se passa por pessoa
