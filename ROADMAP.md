@@ -662,7 +662,7 @@ para rodar.
 principal fora, a reserva aprovada atende; e a avaliação de modelos está pronta para rodar (as amostras, a ferramenta, as
 medidas e a guarda que liga cada aprovação ao relatório e à AIA), provada com o modelo falso.
 
-## F6 — `avaliacao-e-correcao` [ ]
+## F6 — `avaliacao-e-correcao` [~]
 **Depende de:** F4, F4b (o diagnóstico por habilidade passa a ser BNCC), F5a, F5b
 
 Conferido contra o código em 24/10/2026. **Já existe** (A3, X3, X5): atividade objetiva a partir do material, com página citada; gabarito que
