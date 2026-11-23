@@ -446,6 +446,9 @@ export function exigirModeloDaMedida(config: ConfiguracaoLida, argumentos: reado
 interface Gateway {
   generate(pedido: { tarefa: unknown; entrada: unknown; escolaId: string }): Promise<{ saida: unknown }>
 }
+/** O núcleo, módulo a módulo do `dist`, e nunca o barril: `tools/ia/avaliar-modelos.ts` importa este arquivo, e a guarda do ponto de entrada da avaliação reprova o barril em qualquer arquivo que ela alcança. */
+const MODULOS_DO_NUCLEO = ['packages/core/dist/config/llm-config.js', 'packages/core/dist/ia/llm-gateway.js', 'packages/core/dist/ia/consumo.js', 'packages/core/dist/ia/suspensao.js', 'packages/core/dist/context/context.js'] as const
+
 interface NucleoEmDist {
   loadLLMConfig(ambiente: Record<string, string | undefined>): ConfiguracaoLida
   createLLMGateway(config: ConfiguracaoLida, portas: { registro: unknown; orcamento: unknown; suspensao: unknown; soberania: { conferida: boolean } }): Gateway
@@ -480,7 +483,7 @@ async function principal(argumentos: readonly string[]): Promise<void> {
     const series = linha.etapa === 'em' ? [1, 2, 3].map((ano) => ({ etapa: 'em' as const, ano })) : (linha.anos ?? []).map((ano) => ({ etapa: 'ef_anos_finais' as const, ano }))
     return carga.habilidades.filter((habilidade) => shared.habilidadeEhCandidata(habilidade.codigo, linha.componente, series)).map(({ codigo, descricao }) => ({ codigo, descricao })).sort((a, b) => (a.codigo < b.codigo ? -1 : 1))
   }
-  const nucleo = await importar<NucleoEmDist>('packages/core/dist/index.js')
+  const nucleo = Object.assign({}, ...(await Promise.all(MODULOS_DO_NUCLEO.map((caminho) => importar<Record<string, unknown>>(caminho))))) as NucleoEmDist
   const tarefa = await importar<TarefaEmDist>('packages/core/dist/ia/tasks/classificar-secoes.js')
   const config = nucleo.loadLLMConfig(process.env)
   exigirModeloDaMedida(config, argumentos)

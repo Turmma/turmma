@@ -94,12 +94,12 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 12.4 A D36
   - [x] 12.5 Testes
 
-- [ ] **13.0 — Os lotes retidos e a classificação medidos por `medida-do-ouro.ts`, e a guarda que liga aprovação, relatório e AIA**
-  - [ ] 13.1 `medida-do-ouro.ts`
-  - [ ] 13.2 Os lotes retidos
-  - [ ] 13.3 A classificação no `rapido` e no `padrao`
-  - [ ] 13.4 A guarda do RF16
-  - [ ] 13.5 Testes
+- [x] **13.0 — Os lotes retidos e a classificação medidos por `medida-do-ouro.ts`, e a guarda que liga aprovação, relatório e AIA**
+  - [x] 13.1 `medida-do-ouro.ts`
+  - [x] 13.2 Os lotes retidos
+  - [x] 13.3 A classificação no `rapido` e no `padrao`
+  - [x] 13.4 A guarda do RF16
+  - [x] 13.5 Testes
 
 - [ ] **14.0 — Principal e reserva saem da avaliação executada, com preço e aprovação no código**
   - [ ] 14.1 Rodar por finalista, com as chaves do Joaquim (os lotes retidos, pelo Arquiteto)

@@ -3,7 +3,7 @@ import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync }
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { raizDoOuro } from './__fixtures__/golden.js'
+import { raizDoOuro } from './medida-do-ouro.js'
 
 /**
  * O selo do `ouro` (`docs/aia/ouro/SELO.json`): o sha256 de todo arquivo da pasta, menos o próprio selo, e o mesmo
