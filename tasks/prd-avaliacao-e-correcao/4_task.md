@@ -37,12 +37,12 @@ o relatório e o diagnóstico continuam pela ordem original.
 
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
-| Sorteio fixo, dois alunos | integração | ordens diferentes e conhecidas; a certa pelo índice original acerta nos dois | sequência injetada | |
+| Sorteio fixo, dois alunos | integração | ordens diferentes e conhecidas; a certa, em posição de tela diferente nos dois, acerta nos dois | sequência injetada | |
 | Desempenho por habilidade com a ordem embaralhada | integração | igual ao da ordem original | as duas habilidades do fixture | |
 | Só alternativas | integração | questões na ordem original | as alternativas mudam | |
-| Sem embaralhar | integração | `ordem` nula, ordem original | | |
+| Sem embaralhar | integração | `ordem` nula, ordem original | sorteador injetado que embaralharia | |
 | Retomada | integração | a segunda leitura traz a mesma ordem | sorteador que daria outra | |
-| Começar × começar com embaralhar | integração | uma `ordem` | a segunda chamada não sorteia de novo | |
+| Começar × começar com embaralhar | integração | uma `ordem` | a primeira segurada com `WriteBlockTrigger` na tentativa; o sorteador da segunda daria outra ordem | |
 
 ## Como testar
 

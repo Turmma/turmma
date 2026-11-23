@@ -14,19 +14,16 @@ a instância que não consegue pulsar recusa as rotas de prova em vez de cobrar 
 - `techspec.md` §5.4, §5.7, §7c (alerta do pulso), §11 (desvio da regra 10), §13
 - `prd.md` RF6
 - `cenarios.md` §1 RF6 (as linhas do pulso, da lacuna e do 503), §2 (alerta do pulso), §3 (g)
-- `revisao-spec.md` rodada 4: as "rotas de prova" são `comecar`, `prova`, `tempo`, PUT, envio e `saidas-da-aba`; só as
-  instâncias HTTP pulsam; uma consulta lê pulso e indisponibilidades; o alerta é por instância
+- `revisao-spec.md` rodada 4 (rotas de prova, só HTTP pulsa, uma consulta, alerta por instância)
 - `.claude/rules/80`; `apps/api/src/main.ts` (o `listen`)
 
 ## Subtarefas
 
-- [ ] 2.1 — `limiteDaTentativa` pura: base, extensões, indisponibilidades fechadas e a aberta (acima de 30 s), em
-  ponto fixo
-- [ ] 2.2 — O pulso numa instrução, com o `now()` do banco, em conexão própria que reconecta; tique e relógio
-  injetáveis; o primeiro antes do `listen`; o `main-worker` não pulsa
-- [ ] 2.3 — Sem pulso há 30 s, 503 nas rotas de prova de hoje (`prova`, PUT, envio); a 3.0 e a 8.0 a aplicam às novas
-- [ ] 2.4 — A leitura do pulso e das indisponibilidades numa consulta
-- [ ] 2.5 — Métrica por instância; alerta (2 min com a API respondendo); `docs/runbook.md`; `docs/arquitetura.md`
+- [ ] 2.1 — `limiteDaTentativa` pura, em ponto fixo (§5.4)
+- [ ] 2.2 — O pulso (§5.7): uma instrução, conexão própria, tique e relógio injetáveis, antes do `listen`, só no HTTP
+- [ ] 2.3 — 503 nas rotas de prova de hoje (`prova`, PUT, envio); a 3.0 e a 8.0 a aplicam às novas
+- [ ] 2.4 — Pulso e indisponibilidades lidos numa consulta
+- [ ] 2.5 — Expurgo da indisponibilidade aos 13 meses (como `expurgar-acesso`); métrica, alerta, runbook, arquitetura
 - [ ] 2.6 — Testes
 
 ## Arquivos previstos
@@ -59,9 +56,10 @@ a instância que não consegue pulsar recusa as rotas de prova em vez de cobrar 
 | Pulso parado 40 min, volta | integração | grava 40, igual à lacuna aberta | sem teto em nenhuma | |
 | Falha forçada depois do `update` | integração | nada grava; aparece no próximo | commits separados ficam vermelhos | |
 | `pg_terminate_backend` na conexão do pulso | integração | o tique seguinte reconecta, sem indisponibilidade | tique injetado | |
-| Relógio injetado +31 s; +29 s | integração | 503 nas rotas de prova, só a partir de 30 s; `minhas-atividades` segue; o tique volta e aceitam | os dois lados | |
-| Primeiro pulso antes do `listen` | integração | sem tráfego antes | pulso depois do `listen` | |
-| Corrida (g) pulso × pulso | integração | uma lacuna só | partida com 40 s; `for update` | |
+| Relógio injetado +31 s; +29 s | integração | 503 em `prova`, PUT e envio, só a partir de 30 s; `minhas-atividades` segue; o tique volta e aceitam | os dois lados | |
+| Primeiro pulso antes do `listen` | integração | sem tráfego antes | primeiro pulso segurado (`WriteBlockTrigger` em `pulso_da_api`): a porta só aceita depois de soltar | |
+| Corrida (g) pulso × pulso | integração | uma lacuna só | a primeira segurada no insert da indisponibilidade; partida com 40 s | |
+| Expurgo da indisponibilidade | integração | sai aos 13 meses; a de 12 fica | os dois lados da fronteira | |
 | Regra do alerta | unidade | dispara com pulso de 2 min, por instância | a outra instância pulsando | |
 
 ## Como testar

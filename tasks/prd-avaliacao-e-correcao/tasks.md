@@ -6,23 +6,27 @@
 ## Lista
 
 - [ ] **1.0 — Migration da prova online; aplicar com janela, duração, embaralhar e tempo adicional; mudar a janela**
-  - [ ] 1.1 Migration `00NN_prova_online` e schema Drizzle (techspec §3)
-  - [ ] 1.2 Contratos de todas as rotas da §4 e a matriz de permissão em `packages/shared`
-  - [ ] 1.3 Classificação, expurgo e arquivo do titular das quatro tabelas com aluno; exceções do `architecture.test.ts`
-  - [ ] 1.4 Aplicar com janela, duração, embaralhar e tempo adicional; PATCH parcial da janela
-  - [ ] 1.5 Testes: RF1 a RF3 do lado do professor, corridas (b) e (k), isolamento, schema, expurgo, titular
+  - [ ] 1.1 Migration `0068_prova_online` e schema Drizzle (techspec §3)
+  - [ ] 1.2 Contratos de todas as rotas da §4 e a matriz de permissão
+  - [ ] 1.3 Classificação, expurgo e as exceções do `architecture.test.ts`
+  - [ ] 1.4 Aplicar com janela, duração, embaralhar e tempo adicional
+  - [ ] 1.5 PATCH parcial da janela
+  - [ ] 1.6 Testes: RF1 a RF3 do professor, corridas (b) e (k), isolamento, schema, expurgo, titular
 
 - [ ] **2.0 — Pulso da API, indisponibilidade, `limiteDaTentativa` e o 503 das rotas de prova**
   - [ ] 2.1 `limiteDaTentativa` pura, com a lacuna aberta
   - [ ] 2.2 O pulso numa instrução, com conexão própria, antes do `listen`
-  - [ ] 2.3 A recusa das rotas de prova com o pulso parado; alerta e runbook
-  - [ ] 2.4 Testes: RF6 do pulso, corrida (g)
+  - [ ] 2.3 A recusa das rotas de prova com o pulso parado
+  - [ ] 2.4 Pulso e indisponibilidades lidos numa consulta
+  - [ ] 2.5 Expurgo da indisponibilidade aos 13 meses; alerta e runbook
+  - [ ] 2.6 Testes: RF6 do pulso, corrida (g)
 
 - [ ] **3.0 — O aluno começa e responde dentro do limite**
-  - [ ] 3.1 Alcance primeiro; `comecar`; `prova` sem gravar; `tempo`
-  - [ ] 3.2 PUT com `TEMPO_ESGOTADO`; envio no limite na leitura; `minhas-atividades` com janela
-  - [ ] 3.3 A tela de atividade de hoje chama `comecar`
-  - [ ] 3.4 Testes: RF1, RF5, RF6 por chamador, RF7 (API), corrida (a), §1b do aluno
+  - [ ] 3.1 Alcance, janela e limite, nessa ordem
+  - [ ] 3.2 `comecar`; `prova` sem gravar; `tempo`
+  - [ ] 3.3 PUT e envio no limite; `minhas-atividades` com janela
+  - [ ] 3.4 A tela de atividade de hoje chama `comecar`
+  - [ ] 3.5 Testes: RF1, RF5, RF6 por chamador, RF7 (API), corridas (a) e (b), §1b do aluno
 
 - [ ] **4.0 — Embaralhamento por aluno, mantido na retomada, corrigido pela ordem original**
   - [ ] 4.1 Sorteador injetável; `ordem` gravada no começo; a prova na ordem do aluno
@@ -33,10 +37,12 @@
   - [ ] 5.2 Testes: RF4, corrida (d), §1b do professor
 
 - [ ] **6.0 — A rotina encerra a prova vencida no fim efetivo, e não durante uma queda**
-  - [ ] 6.1 `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas`; `encerrarPeloLimite`
-  - [ ] 6.2 Alertas (prova aberta além do fim efetivo; p95 do PUT) e runbook; etapa 1 da AIA
-  - [ ] 6.3 Carga `prova-online.js`
-  - [ ] 6.4 Testes: §2 da rotina, corridas (c), (e), (f), (j), (l)
+  - [ ] 6.1 `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas`
+  - [ ] 6.2 `encerrarPeloLimite`
+  - [ ] 6.3 Alertas (prova aberta além do fim efetivo; p95 do PUT) e runbook
+  - [ ] 6.4 Etapa 1 da AIA
+  - [ ] 6.5 Carga `prova-online.js`
+  - [ ] 6.6 Testes: §2 da rotina, corridas (c), (e), (f), (j), (l)
 
 - [ ] **7.0 — Tutor travado por aluno até o fim da janela ou o limite dele**
   - [ ] 7.1 `avaliativaAberta` por aluno, com `limiteDaTentativa`, e o convocado
@@ -61,9 +67,13 @@
   - [ ] 11.2 Testes: §4 Acompanhar, Estender, Segunda chamada, Encerrar; `professor-prova.spec.ts`
 
 - [ ] **12.0 — Tela do aluno: "Antes de começar" e a prova em foco**
-  - [ ] 12.1 Antes de começar; `/aluno/prova/:id` fora da casca; relógio do servidor
-  - [ ] 12.2 Fila de respostas no app; fila de saídas em série; acessibilidade
-  - [ ] 12.3 Testes: RF6 e RF7 da tela, §4 do aluno; `aluno-prova.spec.ts`
+  - [ ] 12.1 Atividades e "Antes de começar"
+  - [ ] 12.2 `/aluno/prova/:id` fora da casca; relógio do servidor
+  - [ ] 12.3 Fila de respostas no app
+  - [ ] 12.4 Fila de saídas em série
+  - [ ] 12.5 Acessibilidade e os textos de erro
+  - [ ] 12.6 Roteiro da demonstração; `docs/interface.md` §2
+  - [ ] 12.7 Testes: RF6 e RF7 da tela, §4 do aluno; `aluno-prova.spec.ts`
 
 ## Dependências e paralelismo
 
@@ -76,8 +86,8 @@
 | 5.0 | 2.0 | 3.0, 4.0, 7.0, 10.0 |
 | 6.0 | 3.0, 5.0 | 7.0, 8.0, 10.0 |
 | 7.0 | 2.0 | 3.0, 4.0, 5.0, 6.0, 8.0, 9.0, 10.0 |
-| 8.0 | 4.0 | 6.0, 7.0, 9.0, 10.0 |
-| 9.0 | 5.0 | 7.0, 8.0, 10.0 |
+| 8.0 | 4.0 | 6.0, 7.0, 10.0 |
+| 9.0 | 5.0, 8.0 | 6.0, 7.0, 10.0 |
 | 10.0 | 1.0 | 2.0 a 9.0 |
 | 11.0 | 5.0, 8.0, 9.0, 10.0 | 12.0 |
 | 12.0 | 3.0, 4.0, 8.0 | 11.0 |

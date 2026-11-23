@@ -6,7 +6,7 @@
 
 ## Objetivo
 
-O professor aplica a prova e a muda antes do primeiro começo. É o tronco: migration, contratos e matriz da spec inteira.
+O professor aplica a prova e a muda antes do primeiro começo.
 
 ## Contexto necessário
 
@@ -17,19 +17,12 @@ O professor aplica a prova e a muda antes do primeiro começo. É o tronco: migr
 
 ## Subtarefas
 
-- [ ] 1.1 — `packages/core/drizzle/0068_prova_online.sql`, à mão: colunas e tabelas da §3; a `saida_da_aba` **sem `id`
-  nem tempo** (PK nas cinco colunas); a linha única do `pulso_da_api`; checks `NOT VALID` e `VALIDATE`; o índice novo
-  das abertas antes de derrubar o antigo
-- [ ] 1.2 — Schema Drizzle
-- [ ] 1.3 — Contratos de **todas** as rotas da §4 (`.strict()`, sem motivo, `chave` só uuid v4) e as ações novas na
-  matriz, coordenação e rede em `nunca`
-- [ ] 1.4 — As quatro tabelas com aluno em `trabalho_do_aluno` (autor e `chave` em `fora`) e no expurgo; `pulso_da_api` e
-  `indisponibilidade` nas exceções do `apps/api/test/architecture.test.ts`
-- [ ] 1.5 — `aplicar` com janela (opcional até a 10.0), duração, embaralhar e tempo adicional; o que não cabe na janela
-  é `ENTRADA_INVALIDA`; auditoria com quantos têm tempo adicional, sem quem
-- [ ] 1.6 — `PATCH …/:id/janela` parcial: `for update`, valida o estado relido; `tempoAdicional` substitui a lista;
-  `PROVA_JA_COMECOU` com tentativa iniciada; auditoria `atividade.janela_alterada`
-- [ ] 1.7 — Testes
+- [ ] 1.1 — Migration `0068_prova_online.sql` à mão e schema (§3; `saida_da_aba` **sem `id` nem tempo**)
+- [ ] 1.2 — Contratos de **todas** as rotas da §4 e a matriz
+- [ ] 1.3 — Classificação, expurgo e as exceções do `architecture.test.ts` (§3, §11)
+- [ ] 1.4 — `aplicar` com janela (opcional até a 10.0), duração, embaralhar e tempo adicional (§5.1)
+- [ ] 1.5 — `PATCH …/:id/janela` parcial, com `for update` e o estado relido (§5.1)
+- [ ] 1.6 — Testes
 
 ## Arquivos previstos
 
@@ -51,20 +44,20 @@ O professor aplica a prova e a muda antes do primeiro começo. É o tronco: migr
 
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
-| Aplicar com janela, duração e tempo adicional | integração | RF1, RF3; auditoria só com a contagem | nenhum `alunoId` na auditoria | |
-| +25%, +50% e +100% sobre 40 min | integração | RF3 | um aluno sem tempo adicional | |
-| Janela de 50 min, duração 40, aluno com +50% | integração | `ENTRADA_INVALIDA` | a janela de 60 min passa | |
-| Aluno de outra turma, de outra escola, inexistente | integração | a mesma resposta, nada gravado | três ids | |
+| Aplicar com +25%, +50% e +100% sobre 40 min | integração | RF1, RF3: as três linhas; auditoria só com a contagem | colega sem linha; nenhum `alunoId` na auditoria | |
+| Janela de 50 min, duração 40, aluno com +50% | integração | `ENTRADA_INVALIDA` no campo da janela, no aplicar e no PATCH | a janela de 60 min passa | |
+| Aluno de outra turma, de outra escola, inexistente, no aplicar e no PATCH | integração | a mesma resposta, nada gravado | três ids | |
 | Não avaliativa com janela | integração | `ENTRADA_INVALIDA` | a avaliativa passa | |
-| PATCH antes e depois de uma tentativa iniciada | integração | RF2 | a mesma aplicação | |
-| Corrida (b) janela × começar | integração | `PROVA_JA_COMECOU` pela trava | tentativa inserida no banco | |
-| Corrida (k) janela × janela | integração | a segunda relê e é recusada | `WriteBlockTrigger` | |
-| Professor de B; sem vínculo; outra disciplina; escola sem ano em curso; aluno e coordenação | integração | `NAO_ENCONTRADO` ou a matriz | ids da B no contexto da A | |
+| PATCH (só janela; só `tempoAdicional`) antes e depois de uma tentativa | integração | RF2: grava e audita sem `alunoId`; depois, `PROVA_JA_COMECOU` e a aplicação igual | os dois campos, na mesma aplicação | |
+| Corrida (b) janela × começar | integração | `PROVA_JA_COMECOU` pela trava | sem `comecar` ainda: por SQL, `for share` e o insert da tentativa numa transação segurada | |
+| Corrida (k) janela × janela | integração | a segunda relê e é recusada | PATCH só da janela (50 min) segurado; o outro só +50% sobre 40 | |
+| Professor de B; sem vínculo; outra disciplina; vínculo encerrado em X e aberto em Y; escola sem ano em curso; aluno e coordenação | integração | `NAO_ENCONTRADO` ou a matriz | ids da B no contexto da A | |
 | Colunas da `saida_da_aba` | integração | só as cinco, sem default de uuid | lista exata | |
-| Expurgo das quatro tabelas | integração | o ano vencido sai, o em curso fica | dois anos | |
+| Expurgo das quatro tabelas | integração | o ano vencido sai, o em curso fica | dois anos; a extensão da turma (aluno nulo) sai | |
+| Repository chamado direto: contexto da A com ids da B; contexto da A no ano anterior | integração | vazio | sem passar pela rota | |
 | Eliminar o aluno | integração | as linhas dele saem; as do colega ficam | | |
-| Arquivo do titular | integração | pelo `aluno_id`, sem `concedido_por` nem `chave` | | |
-| Matriz e contratos | unidade | ações novas, coordenação e rede em `nunca`; `motivo` no corpo recusado | | |
+| Arquivo do titular | integração | pelo `aluno_id`, sem `concedido_por` nem `chave` | o arquivo do professor que concedeu não traz o adicional | |
+| Matriz e contratos | unidade | ações novas, coordenação e rede em `nunca`; `motivo` e `chave` v7 recusados | | |
 
 ## Como testar
 
@@ -83,7 +76,7 @@ As perguntas do modelo (`.claude/skills/criar-tasks/task-template.md`).
 
 ## Fora do escopo desta tarefa
 
-O comportamento das outras rotas (2.0 a 9.0): aqui só contratos e tabelas. A tela (10.0).
+As outras rotas (2.0 a 9.0) e a tela (10.0).
 
 ## Divergências resolvidas nesta tarefa
 

@@ -1,6 +1,6 @@
 # Tarefa 9.0 — Segunda chamada para quem não enviou, com lote próprio
 
-**Funcionalidade:** avaliacao-e-correcao · **Depende de:** 5.0
+**Funcionalidade:** avaliacao-e-correcao · **Depende de:** 5.0, 8.0
 **Subagentes obrigatórios:** `tenancy-guardian`, `conformidade-reviewer`, `infra-guardian`
 **Porte:** grande
 
@@ -41,16 +41,17 @@ as tentativas formam um lote próprio, sem mudar o da original.
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
 | Original aberta | integração | `ENTRADA_INVALIDA` | encerrada passa | |
+| Janela de 50 min, duração 40, convocado com +50% | integração | `ENTRADA_INVALIDA` | 60 min passa | |
 | Aluno que enviou; que venceu sem enviar | integração | `ENTRADA_INVALIDA` | o que faltou passa | |
 | Segunda chamada de segunda chamada | integração | `ENTRADA_INVALIDA` | | |
 | Artefato que não é objetiva; versão adaptada não aprovada | integração | as recusas do aplicar | | |
 | Aluno de outra turma, de outra escola, inexistente | integração | a mesma resposta, nada gravado | | |
-| Convocado vê e começa | integração | aparece em `minhas-atividades` | | |
-| Não convocado | integração | não vê; `NAO_ENCONTRADO` em `comecar`, `prova`, `tempo`, PUT e saídas | o colega da mesma turma | |
+| Convocado vê e começa | integração | aparece em `minhas-atividades` e `comecar` cria a tentativa | | |
+| Não convocado | integração | não vê; `NAO_ENCONTRADO` em `comecar`, `prova`, `tempo`, PUT e saídas; fora da janela, nunca `PROVA_FORA_DA_JANELA` | o convocado recebe `PROVA_FORA_DA_JANELA` | |
 | Convocado transferido antes | integração | não começa | vínculo encerrado | |
-| Lote próprio com a original **aprovada** | integração | o lote da original não muda | | |
+| Lote próprio com a original **aprovada** | integração | a segunda chamada encerra com lote pendente próprio; o da original não muda | | |
 | Corrida (h) | integração | `CONFLITO` na segunda | `WriteBlockTrigger` na aplicação | |
-| Professor de B, sem vínculo | integração | `NAO_ENCONTRADO` | | |
+| Professor de B; sem vínculo; outra disciplina; vínculo encerrado em X; aluno pela matriz | integração | `NAO_ENCONTRADO` ou a matriz | ids da B no contexto da A; o repository de convocados vazio | |
 | Auditoria | integração | sem percentual por aluno | | |
 
 ## Como testar

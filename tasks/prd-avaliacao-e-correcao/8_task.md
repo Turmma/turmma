@@ -45,22 +45,19 @@ aba", sempre com o aviso fixo; não é destaque, não trava a aprovação, não 
 
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
-| Saída em prova em andamento | integração | soma 1 | | |
-| A mesma chave de novo | integração | não soma | | |
-| A, B e A | integração | 2 | a chave antiga volta | |
+| Saída nova; a mesma chave; A, B e A | integração | 1; 1; 2 | a chave antiga volta | |
 | Não avaliativa; enviada; vencida | integração | `NAO_ENCONTRADO`, nada muda | três estados | |
 | Chave v7 na rota | integração | `ENTRADA_INVALIDA` | a v4 passa | |
 | Prova 2 começa em 0 | integração | nada somado por aluno | saídas na prova 1 | |
-| 0 e 9 saídas | integração | mesma correção e mesmos destaques | | |
-| Lote com saídas e sem destaque | integração | aprova sem abrir ninguém | | |
-| PUT depois de 9 saídas | integração | segue gravando | | |
+| 0 e 9 saídas | integração | mesma correção e destaques; o lote aprova sem abrir ninguém; o PUT grava | a tentativa sem outro destaque | |
+| Saída depois do limite original, com indisponibilidade fechada de 5 min; com lacuna aberta de 3 min; pulso parado 31 s | integração | soma; soma; 503 | sem indisponibilidade, `NAO_ENCONTRADO`; a 29 s aceita | |
 | `saidasDaAba` no lote | integração | na avaliativa; ausente na não avaliativa | | |
 | A validação | integração | marca a coluna mostrada; sem contagem no `apresentado` | a não avaliativa não marca | |
-| Contrato | unidade | nenhuma rota do aluno, da coordenação nem da rede traz `saidas` | | |
+| Contrato | unidade | nenhuma rota do aluno, da coordenação nem da rede traz `saidas` | a `correcao` do professor traz | |
 | Corrida (i) | integração | 2 com chaves diferentes; 1 com a mesma | `WriteBlockTrigger` no `insert` | |
-| 31ª saída no minuto | integração | 429; outro aluno no mesmo IP passa | | |
-| Aluno de A na B; transferido | integração | `NAO_ENCONTRADO` | | |
-| Coluna no Aprovar | unidade web | só em avaliativa, sempre com o aviso, também a 360 px | coluna sem o aviso fica vermelha | |
+| 31ª saída no minuto | integração | 429; outro aluno no mesmo IP passa | a 30ª passa | |
+| Aluno de A na B; transferido; repository da `saida_da_aba` no contexto da A, e de outro ano, com ids da B | integração | `NAO_ENCONTRADO` e a contagem da B segue 0; vazio | a tentativa da B em andamento | |
+| Coluna no Aprovar | unidade web | só em avaliativa; o aviso da §4 pela frase inteira (`getByText` exato), acima da tabela; a contagem também no cartão | coluna sem o aviso fica vermelha | |
 | Estados do Aprovar | unidade web | carregando, erro, com dado, como hoje | | |
 
 ## Como testar

@@ -49,12 +49,13 @@ antes de confirmar, e muda a janela antes do primeiro começo; a API passa a rec
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
 | Avaliativa nova sem janela | integração | `ENTRADA_INVALIDA` | a não avaliativa sem janela passa; a antiga segue | |
-| Resumo | unidade web | "7ºA · abre 24/11 às 10:00 · fecha às 11:40 · 40 min · 2 alunos com tempo adicional" | | |
-| Tempo que não cabe | unidade web | o texto da §4, no campo | | |
-| Sem campo de motivo | unidade web | nenhum campo além dos da §4 | | |
-| Mudar janela | unidade web | aparece só antes do primeiro início; o resumo antes | com alguém começado, some | |
+| Resumo | unidade web | "7ºA · abre 24/11 às 10:00 · fecha às 11:40 · 40 min · 2 alunos com tempo adicional" | fuso do navegador diferente do da escola | |
+| Tempo que não cabe | unidade web | o texto da §4, no campo | com 30 min e +100%, a frase muda os números | |
+| Campos | unidade web | por `getByLabelText`: "Abre em", "Fecha em", "Duração (minutos)", "Embaralhar questões", "Embaralhar alternativas", "Tempo adicional" (+25/+50/+100); erro ligado ao campo; nenhum outro (sem motivo) | | |
+| Mudar janela | unidade web | aparece só antes do primeiro início, com "Ninguém começou ainda"; o resumo antes | com alguém começado, some | |
 | Estados | e2e | carregando, erro com "Tentar de novo", com dado | | |
-| 360 px, sem rolar de lado; cabe a 1366 × 768 | e2e `celular` e `chromebook` | `paginaNaoRola` | | |
+| 360 px, sem rolar de lado; cabe a 1366 × 768 | e2e `celular` e `chromebook` | `paginaNaoRola`; tempo adicional em uma coluna; alvos de 24 px, Confirmar com 44 px | | |
+| Recomeço | e2e | falha com o diálogo aberto e reaberto: o erro anterior sai | | |
 | Roteiro | e2e | o passo de aplicar como avaliativa com a janela | | |
 | Rótulos e axe | e2e | sem violação | | |
 

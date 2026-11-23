@@ -40,12 +40,15 @@ depois; prova de amanhã não trava; a segunda chamada trava só o convocado.
 |---|---|---|---|---|
 | Prova de amanhã | integração | não trava | `abre_em` no futuro | |
 | Dentro da janela | integração | trava a turma, só ela | a outra turma da escola | |
-| Depois do fim efetivo | integração | destrava | | |
+| Depois do fim efetivo | integração | destrava | a aplicação segue `aberta` (a rotina não rodou) | |
 | Aluno estendido além do `fecha_em` | integração | segue travado até o limite dele; o colega destrava | trava só pelo `fecha_em` fica vermelho | |
-| Indisponibilidade fechada empurrando o limite além do `fecha_em` | integração | segue travado | | |
-| Lacuna aberta montada à mão | integração | segue travado além do limite original | limite original = `fecha_em`, já passado | |
+| Indisponibilidade fechada empurrando o limite além do `fecha_em` | integração | segue travado | a mesma cena sem a indisponibilidade destrava | |
+| Lacuna aberta montada à mão | integração | segue travado além do limite original (= `fecha_em`, já passado) | tique parado e relógio da recusa injetado ainda fresco; sem a lacuna, destrava | |
 | Segunda chamada aberta | integração | trava o convocado, não o colega | convocado semeado no banco | |
-| Memória do Tutor | integração | sem tempo adicional, saídas nem limite | | |
+| Memória do Tutor | integração | sem tempo adicional, saídas nem limite | aluno com +50%, 7 saídas e extensão; o prompt capturado no adaptador falso não traz nenhum | |
+| Avaliativa sem janela | integração | trava enquanto aberta; encerrada, destrava | `abre_em` nulo semeado no banco | |
+| Extensão da turma, aluno sem tentativa | integração | travado até `fecha_em` + extensão | sem a extensão, destrava | |
+| Repository no contexto da A com turma e aluno da B, prova da B na janela | integração | não trava | a B travada no contexto dela | |
 | Latência da trava | integração | `EXPLAIN` pelo índice | o `.toSQL()` | |
 
 ## Como testar

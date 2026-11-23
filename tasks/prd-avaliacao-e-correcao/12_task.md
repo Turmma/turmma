@@ -13,7 +13,6 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 - `techspec.md` §4 (`prova`, `tempo`), §5.8, §9
 - `prd.md` RF5, RF6, RF7; §7
 - `cenarios.md` §1 (as linhas da tela de RF5, RF6, RF7 e RF9), §4 (aluno), §4b
-- `revisao-spec.md` rodada 4: o texto quando "Enviar" recebe 503
 - `.claude/rules/50`, `70` item 4b; `docs/interface.md` §2
 - `apps/web/src/areas/aluno/fila-de-respostas.ts` e `routes.tsx`; `apps/web/src/paths.ts` (`ALUNO_ROUTES`)
 
@@ -22,8 +21,8 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 - [ ] 12.1 — Atividades: "Abre em…", "Fechou"; "Antes de começar" lendo `prova` sem tentativa (duração sem "adicional")
   e "Começar"
 - [ ] 12.2 — `/aluno/prova/:id` fora da casca: relógio com o desvio, "Salvando…", "Sair da prova" de um clique; o fim
-- [ ] 12.3 — A fila de respostas no app: rede, 503 e 5xx mantêm o item; relê `tempo` e reenvia depois do "Sair" e do fim
-- [ ] 12.4 — A fila de saídas: `visibilitychange` e `blur` contam uma; chave v4; em série; o 429 não para a de respostas
+- [ ] 12.3 — A fila de respostas no app (§9)
+- [ ] 12.4 — A fila de saídas (§5.8)
 - [ ] 12.5 — Acessibilidade da §4; os textos de erro e o do "Enviar" com 503
 - [ ] 12.6 — Roteiro da demonstração e o spec dele; `docs/interface.md` §2
 - [ ] 12.7 — Testes e `e2e/aluno-prova.spec.ts`
@@ -50,21 +49,18 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
-| Fim do tempo | unidade web | "O tempo acabou…" e a questão sai | | |
 | Relógio do cliente 10 min adiantado | unidade web | o tempo do servidor | `Date.now()` sem desvio fica vermelho | |
-| 3 respostas sem rede, a rede volta | unidade web | gravam uma vez | | |
-| 503 e depois 200 | unidade web | gravam uma vez; a saída volta com a mesma chave; `tempo` mantém o último limite | descartar no 5xx | |
-| `TEMPO_ESGOTADO`, extensão, `tempo` com o limite novo | unidade web | a fila reenvia e grava | | |
-| "Sair" com 2 pendentes | unidade web | a fila segue; o fim mostra "2 respostas não chegaram" | fila presa à rota | |
-| 429 das saídas | unidade web | a de respostas segue | uma fila só | |
-| `visibilitychange` e `blur` seguidos | unidade web | 1 | | |
-| A, queda, B, A | unidade web | em série | em paralelo | |
-| Duração sem "adicional" | unidade web | o texto de Antes de começar | | |
-| Acessibilidade | unidade web | relógio fora de região viva; anúncios a 10, 5 e 1 min; o fim `assertive` com o foco; o foco ao entrar e ao voltar | | |
-| Estados e erros | unidade web | os textos da `cenarios.md` §4; nenhum código na tela | | |
-| `aluno-prova.spec.ts` | e2e `chromebook` e `celular` | antes de começar; sem lateral nem Tutor; rede cai, três respostas, volta: gravadas uma vez, o mesmo relógio; "Sair" e voltar; axe | descartar a fila na queda | |
-| Recomeço | e2e | a resposta atrasada da prova anterior não aparece | `page.route` segurando | |
-| 360 px e 1366 × 768 | e2e | faixa de uma linha; `paginaNaoRola`; alvos de 44 px | | |
+| Sem rede; 503 e depois 200 | unidade web | gravam uma vez; a saída volta com a mesma chave; `tempo` mantém o último limite | descartar na queda ou no 5xx | |
+| "Enviar" com 503 | unidade web | o item fica; o texto da §4 | | |
+| `TEMPO_ESGOTADO`, extensão, `tempo` com o limite novo | unidade web | a fila reenvia e grava | parar no primeiro | |
+| "Sair" com 2 pendentes | unidade web | a fila segue; o fim mostra "2 respostas não chegaram"; Atividades, "2 respostas ainda não chegaram" até esvaziar | fila presa à rota | |
+| Fila de saídas | unidade web | `visibilitychange`+`blur`: 1; separadas pela volta do foco: 2; A, queda, B, A em série; o 429 não para a de respostas | contar os dois; em paralelo; fila única | |
+| Antes de começar | unidade web | os textos da §4; "60" sem "adicional"; "Abre em…", "Fechou" | o colega lê 40 | |
+| Acessibilidade | unidade web | relógio fora de região viva; anúncios a 10, 5 e 1 min; o fim ("O tempo acabou…") `assertive` com o foco e a questão sai; "Salvando…" `polite`; o foco ao entrar e ao voltar | a 11 min, nenhum anúncio | |
+| Estados e erros | unidade web | "Não foi possível abrir a prova. Tente de novo.", "Aguarde um instante." e os outros da §4; nenhum código | | |
+| `aluno-prova.spec.ts` | e2e `chromebook` e `celular` | antes de começar; sem lateral nem Tutor; rede cai ("Sem conexão…"), três respostas, volta: gravadas uma vez, o mesmo relógio; "Sair" e voltar; axe | descartar a fila na queda | |
+| Recomeço | e2e | a resposta atrasada da prova anterior não aparece; a fila da primeira pessoa não sai com a sessão da segunda | `page.route` segurando | |
+| 360 px e 1366 × 768 | e2e | faixa de uma linha; `paginaNaoRola`; Começar e Sair da prova com 44 px | | |
 | Roteiro | e2e | o passo do aluno na prova | | |
 
 ## Como testar

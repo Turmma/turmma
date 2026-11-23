@@ -47,14 +47,15 @@ quantos ainda fazem; o e2e prova a prova online do lado dele, de aplicar a aprov
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
 | Estados do Acompanhar | unidade web | carregando, erro com "Tentar de novo", "Não começou", "Fazendo · termina às 10:42", "Enviou", "Tempo esgotado" em texto | | |
+| Releitura | unidade web | a cada 15 s com a aba à vista; oculta, nenhuma; na tela da sala, nenhuma | relógio falso; aos 14 s, nenhuma | |
 | Fuso da escola | unidade web | o horário da escola | o fuso do navegador diferente | |
 | Mesmo nome | unidade web | os dois distinguidos | | |
-| Estender | unidade web | "Ana termina às 10:52 em vez de 10:42" antes de confirmar | | |
-| Segunda chamada | unidade web | os convocados por nome e a janela antes de confirmar | | |
-| Encerrar | unidade web | "3 alunos ainda estão fazendo…" | com 0, sem a frase | |
-| Recomeço | e2e | a resposta atrasada do acompanhamento anterior não sobrescreve | `page.route` segurando | |
-| 360 px e 1366 × 768 | e2e | cartões, sem rolar de lado; `paginaNaoRola` | | |
-| `professor-prova.spec.ts` | e2e | aplica com janela e tempo adicional, acompanha, estende; o aluno faz (pela API) e sai da aba uma vez; encerra pelo botão; aprova com "1" na coluna e o aviso; axe | coluna sem o aviso; contagem errada | |
+| Estender | unidade web | "Mais quantos minutos?"; 0 e 121 recusados; "a turma toda"; "Ana termina às 10:52 em vez de 10:42" antes de confirmar; duplo Confirmar e reenvio com a mesma `chave` | com 5 min, 10:47 | |
+| Segunda chamada | unidade web | os convocados por nome, a janela, a duração e o tempo adicional antes de confirmar | | |
+| Encerrar | unidade web | a frase inteira da `cenarios.md` §4, com "3" | com 0, sem a frase | |
+| Recomeço | e2e | a resposta atrasada do acompanhamento anterior não sobrescreve; a falha do Estender com o diálogo aberto sai ao reabrir | `page.route` segurando | |
+| 360 px e 1366 × 768 | e2e | cartões, sem rolar de lado; `paginaNaoRola`; Estender e Confirmar com 44 px; segunda chamada em uma coluna | | |
+| `professor-prova.spec.ts` | e2e `chromebook` e `celular` | aplica com janela e tempo adicional, acompanha, estende; o aluno faz (pela API) e sai da aba uma vez; encerra pelo botão; aprova com "1" na coluna e o aviso (no celular, dentro do cartão do aluno); axe | coluna sem o aviso; contagem errada | |
 
 ## Como testar
 

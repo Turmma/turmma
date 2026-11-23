@@ -39,14 +39,16 @@ lê por aluno quem não começou, quem está fazendo e até quando, e quem envio
 | Cenário | Tipo | O que prova | O que distingue | Caso |
 |---|---|---|---|---|
 | Estender 10 min só para A | integração | A grava depois do limite antigo; B recebe `TEMPO_ESGOTADO` | dois alunos | |
-| Estender a turma | integração | todos andam, e o fim efetivo da janela também | um aluno sem tentativa | |
+| Estender a turma | integração | todos andam, e o fim efetivo da janela também | o aluno sem tentativa começa depois e tem `limiteEm` = `fecha_em` + extensão | |
 | 0 e 121 minutos; prova encerrada | integração | `ENTRADA_INVALIDA`; `ATIVIDADE_ENCERRADA` | 1 e 120 passam | |
 | Aluno de outra turma, de outra escola, inexistente | integração | a mesma resposta, nada gravado | três ids | |
 | Mesma chave em outra aplicação | integração | outra extensão | a chave é por aplicação | |
-| Corrida (d) | integração | uma linha, um limite | a primeira segurada com `WriteBlockTrigger` | |
+| Corrida (d) | integração | uma linha, um limite; a segunda devolve o gravado; chave nova grava outra | a primeira segurada com `WriteBlockTrigger` | |
 | Acompanhamento | integração | as quatro situações, com `limiteEm` com extensão e indisponibilidade | um aluno em cada | |
 | Acompanhamento sem saídas | unidade | o contrato não tem `saidas` | `apps/api/test/contracts.test.ts` | |
-| Auditoria | integração | sem minutos nem percentual por aluno | | |
+| Auditoria | integração | sem minutos nem percentual por aluno | 17 min a um aluno: nem `17` nem `alunoId` no detalhe | |
+| Estender × encerrar | integração | o encerrar segurado; a extensão espera e recebe `ATIVIDADE_ENCERRADA`, sem linha | sem `for share`, grava | |
+| Repository do acompanhamento e da extensão chamado direto: contexto da A com ids da B; ano anterior | integração | vazio | sem passar pela rota | |
 | Professor de B, sem vínculo, outra disciplina; vínculo encerrado em X e aberto em Y; aluno e coordenação | integração | `NAO_ENCONTRADO` ou a matriz | ids da B no contexto da A | |
 | Escola sem ano em curso | integração | `NAO_ENCONTRADO` no `:id` | | |
 | Consulta do acompanhamento | integração | `EXPLAIN` pelo índice | o `.toSQL()` do repository | |
