@@ -1,10 +1,10 @@
 # Tech Spec — Provedor de reserva e avaliação dos modelos
 
 **PRD:** `tasks/prd-reserva-e-avaliacao/prd.md`
-**Status:** aprovada como parte da Tech Spec da F5 (`tasks/prd-camada-ia/techspec.md`, revisão da spec, rodada 6, em
+**Status:** implementada em 23/11/2026 (aprovada como parte da Tech Spec da F5 (`tasks/prd-camada-ia/techspec.md`, revisão da spec, rodada 6, em
 `tasks/prd-camada-ia/revisao-spec.md`); separada no corte de 21/11/2026 e revista contra o código da F5a na revisão da spec
 da F5b (`revisao-spec.md`). Os números das seções são os da F5; a §4, a §6, a §9 e a §10 ficaram na F5a. Revista em 23/11/2026
-(Joaquim): rodar a avaliação por finalista sai da F5b para a F5c (`avaliacao-de-modelos`), com o modelo real por último (§8).
+(Joaquim): rodar a avaliação por finalista sai da F5b para a F5c (`avaliacao-de-modelos`), com o modelo real por último (§8).)
 
 ## 1. Resumo da abordagem
 

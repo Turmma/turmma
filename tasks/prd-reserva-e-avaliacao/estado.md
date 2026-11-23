@@ -1,9 +1,9 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** o `Validador`, no andar, validando a F5b inteira (13 tarefas; a 14.0 saiu, D37 revista em `04e4b68b`: a avaliação vira a F5c, por último). L1, L2 e L3 ociosas; ninguém usa o ambiente de teste 0.
-- **Devo ainda:** na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde); os outros itens da 7.0 já estão no `TODO.md`. As três perguntas da 13.0 (`TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0") vão com a F5c. Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `04e4b68b` (último commit de código: a 9.0, `1d7d54b5`, via `38973915`)
+- **Espero:** o Joaquim, para o pouso da F5b (validada APROVADA em `d8c0c0a8`, 10 de 10 RF; esteira verde em `b896447`, execução 45150297682; censo do e2e só com dívida da `develop`).
+- **Devo ainda:** na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde) e o menor 5 da validação (o hook e a retomada do mesmo subagente). Depois do pouso, a correção da D55 (`achado-d55-recusa-rubrica.md`; menor 4 no `TODO.md`). A `develop` local tem as retros da F4b e da F5a sem push: vão no pouso.
+- **Base:** `spec/reserva-e-avaliacao`, commit de fechamento sobre `d8c0c0a8`
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
