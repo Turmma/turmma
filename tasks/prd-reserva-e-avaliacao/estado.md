@@ -1,9 +1,9 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 e L2 ociosas (nada parte: a 14.0 espera a 9.0); L3 a 9.0 (grande, 1ª tentativa; ESCALADA da Mesa 3 em 23/11 ~00:xx, `test-engineer` reprovou nas rodadas 1 e 2 (ordem `9_task-r2.md`, o bloco de mutação do `.every`), diagnóstico pedido ao `Arquiteto` no checkout da L3, e depois `PEDIDO de retomada` ao Implementador 3 com ele; pedido 22/11 depois do encontro da 7.0, retomada depois da parada, com a carga inteira por refazer; herda da 7.0 o cenário do balde do principal cheio com transbordo). Presa: 14.0 (espera 9.0 e as chaves do Joaquim).
+- **Espero:** o Joaquim, na parada de 23/11 ~01:xx (as chaves da 14.0). L1, L2 e L3 ociosas; a 14.0 parte na L1 com a resposta.
 - **Devo ainda:** antes da partida da 14.0, levar ao Joaquim as três perguntas da 13.0 (`TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0"): qual modelo a entrada de `MODELOS_APROVADOS` e a AIA do `padrao` citam, se o segundo modelo tem os mesmos termos de contrato, e o custo do segundo passe frente ao teto de R$ 250. na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde); os outros itens da 7.0 já estão no `TODO.md`. Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). A última tarefa (a 14.0) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `9daf39a7`, no encontro da 13.0 (esteira rodando, execução 45095130134; veredito no próximo encontro)
+- **Base:** `spec/reserva-e-avaliacao` em `38973915`, no encontro da 9.0 (esteira verde em `7a8fc3de`, com a 8.0 e a 13.0; a de `38973915` rodando, execução 45110286053)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -17,11 +17,17 @@
 | 6.0 | `cd317d91` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `6ba52a09`, verificação da soma passou; sem tela; sem a 6.1 e a 6.2 (feitas na 4.0); três pontos do balde da reserva empurrados para a 7.0 (`6_task.md`, linhas 109 a 111) |
 | 5.0 | `2d07b316` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `8213fd22`, verificação da soma passou; sem tela |
 | 12.0 | `8e0aa1da` | Sonnet | `revisor-geral` reprovou na 1ª e aprovou na 2ª; os outros cinco aprovaram nas duas | encontro feito, verificação da soma passou; sem tela; 3 itens no `TODO.md` ("Da reserva-e-avaliacao, tarefa 12.0"); o resto das recomendações vai para a 13.0 |
+| 9.0 | `1d7d54b5` | Sonnet | `test-engineer` reprovou na 1ª e 2ª (ESCALADA, diagnóstico do `Arquiteto`: faltava o bloco de mutação do `.every`) e aprovou na 3ª; `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `38973915`, verificação da soma passou; sem tela; a carga refeita com a máquina calma depois da parada |
 | 13.0 | `ee14f30a` | Sonnet | os sete revisores aprovaram na 2ª rodada | encontro em `9daf39a7`, verificação da soma passou; sem tela; a parada do Joaquim matou o portão e a rodada, refeitos; decisões em `techspec.md` §8, `cenarios.md` e no `13_task.md` |
 | 8.0 | `e7ecd449` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `598a38e7`, verificação da soma passou; sem tela; o encontro esperou a parada pedida pelo Joaquim (20:50 a 21:4x) |
 | 7.0 | `ef3b0650` | Sonnet | os sete revisores aprovaram na 2ª rodada | encontro em `9e09f039`, verificação da soma passou; sem tela; a reserva não espera pela vaga (uma tentativa só), registrado no `7_task.md` e no `cenarios.md`; itens da camada-ia no `TODO.md` |
 
 ## Esperando o Joaquim
+## 23/11 ~01:xx — F5b, tarefa 14.0, no meu terminal
+Decisão: as chaves de teste dos finalistas para rodar a avaliação (PRD §10, RF14), e por onde elas chegam à tarefa.
+Contexto: `14_task.md` (14.1; a chave só por variável de ambiente, `AVALIACAO_CHAVE_API`, nunca em arquivo do repositório nem no terminal de outro agente); finalistas em `docs/avaliacao-de-modelos.md` §1: Maritaca (Sabiazinho 4 e Sabiá 4, `-br-sp`) como principal; AWS Bedrock `sa-east-1` e Magalu Cloud como reserva a confirmar; Google fora. Gasto aceito: R$ 150 a 250 por finalista.
+Opções: chaves da Maritaca e do Bedrock agora | só da Maritaca agora (a reserva fica para depois, e a F5b não fecha sem ela) | adiar a 14.0.
+Recomendo: Maritaca e Bedrock agora, num arquivo `.env` fora do repositório (`chmod 600`), lido pelo Implementador só por variável de ambiente. As três perguntas da 13.0 (`TODO.md`) seguem a techspec §8: a AIA do `padrao` cita o modelo do `padrao`; o segundo modelo é da mesma Maritaca, com o mesmo DPA; o custo do segundo passe vem ao Joaquim antes de rodar, se passar de R$ 250.
 ## 22/11 12:52 — a regra fixa da D55 recusa rubrica legítima, no meu terminal
 Decisão: abrir um `/corrigir` depois da F5b para a regra fixa da D55 não recusar rubrica de antes da aplicação (13 de 20 pedidos naturais recusados).
 Contexto: `tasks/prd-reserva-e-avaliacao/achado-d55-recusa-rubrica.md` (vai no commit da 10.0); o `TODO.md` já tem "D55 abaixo do alvo" (F7, da X6).
