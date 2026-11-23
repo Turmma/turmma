@@ -6,7 +6,7 @@ O alvo é o sistema inteiro, não um MVP fatiado, porque a venda acontece em reu
 coordenação e em assembleia de pais, e o que convence é o fluxo completo. Um pedaço não
 vende.
 
-**A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 (F5a e F5b) com a X6 parcial, F18, F6, F6c (dividida da F6 em 23/11/2026), F6b, F7 mínima (rubrica), F11 mínima, trio da F12
+**A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 (F5a e F5b) com a X6 parcial, F18, F6, F6d e F6c (divididas da F6 em 23/11/2026), F6b, F7 mínima (rubrica), F11 mínima, trio da F12
 (Auditoria, Conformidade, Denúncias), portal da família (F19) e F9, nesta ordem de construção. O Tutor fica pronto e
 alinhado antes da entrada da escola, mas desligado na escola até a Turmma liberá-lo, por chave no painel da Operação (D84). Ficam fora: o resto de F7, F11 e F12,
 F17, F14, F15 e F16. A avaliação dos modelos com provedor real (F5c) vem por último, antes do portão da primeira escola real (D37
@@ -672,19 +672,31 @@ e o registro da validação (`validacao_do_lote`, D56); resposta salva por item,
 mais nova; retomada após queda; e **Turmas**, com as abas Hoje, Atividades e Alunos e o acerto por habilidade
 (D69, D73).
 
-**Falta:** a **prova online de verdade**: janela e duração no relógio do servidor, tempo adicional escolhido pelo
-professor por aluno, extensão pelo professor, tela de foco, embaralhamento por aluno e a
-saída da aba mostrada só ao professor, com o aluno avisado e sem consequência automática (D70); em Turmas, a ficha do
-aluno com a evolução por habilidade, os alunos que precisam de atenção e o piso da tela projetada (D88); gabarito
-corrigido depois da aprovação e a contestação da questão pelo aluno (D88); e as etapas 2 a 6 das AIA da correção e do
-diagnóstico (D60), num rascunho para o Joaquim ler antes do piloto. A nota oficial e o boletim ficam no F17.
+**Falta:** a **prova online de verdade**: janela e duração no relógio do servidor, com encerramento sozinho no fim e
+o Tutor travado só durante a janela; tempo adicional escolhido pelo professor por aluno; extensão pelo professor; tela
+de foco; embaralhamento por aluno; segunda chamada; e a saída da aba mostrada só ao professor, com o aluno avisado e sem
+consequência automática (D70). A nota oficial e o boletim ficam no F17.
 
-**Pronto quando:** uma queda de rede no meio de uma prova com tempo não perde resposta nem tempo do aluno;
-teste prova que a contagem de saídas da aba não existe fora de avaliação nem somada por aluno; e o professor vê em
-Turmas quem precisa de atenção, pelo indicador da D88, com o motivo e o caminho de contestação.
+**Pronto quando:** uma queda de rede no meio de uma prova com tempo não perde resposta nem tempo do aluno; e teste
+prova que a contagem de saídas da aba não existe fora de avaliação nem somada por aluno.
 
-**Fora desta fase:** a discursiva e a redação são a F6c (dividida em 23/11/2026, no PRD); a prova no papel
-(impressão, folha de resposta e leitura por foto) é a F6b (D83).
+**Fora desta fase:** destaques, gabarito corrigido, contestação, Turmas e as AIAs são a F6d (cortada na Tech Spec em
+23/11/2026); a discursiva e a redação, a F6c (dividida no PRD); a prova no papel (impressão, folha de resposta e
+leitura por foto), a F6b (D83).
+
+## F6d — `correcao-e-atencao` [ ]
+**Depende de:** F6
+
+Cortada da F6 em 23/11/2026, pelo Joaquim, na Tech Spec dela: a F6 inteira dava 22 a 24 tarefas. O PRD já nasce
+aprovado (`tasks/prd-correcao-e-atencao/prd.md`, os RF11 a RF20 da F6). **Falta:** os destaques do lote pela D88, com a
+"questão que quase todos acertaram" no relatório; o gabarito corrigido depois da aprovação, com recorreção e nova
+validação; a contestação da questão pelo aluno; em Turmas, "Precisam de atenção", a ficha do aluno com a evolução por
+habilidade, a evolução da turma em Hoje sem nome e o piso de 3 na tela projetada (D88); e as etapas 2 a 6 das AIAs da
+correção e do diagnóstico (D60), num rascunho para o Joaquim ler antes do piloto.
+
+**Pronto quando:** o professor vê em Turmas quem precisa de atenção, pelo indicador da D88, com o motivo e o caminho de
+contestação; o gabarito corrigido nunca muda o lote aprovado sem nova validação registrada; e a API de Hoje não devolve
+nome de aluno.
 
 ## F6c — `discursiva-e-redacao` [ ]
 **Depende de:** F6 · constrói-se antes da F6b
@@ -1021,7 +1033,7 @@ staging (D31 revista). O provedor de nuvem é escolhido na migração (D42).
 - F5 corre desde o início, independente do domínio; a fatia mínima dela nasceu na A2
 - F3 corre em paralelo com F4 e F5, e **não pode ser a última**
 - F13 pode correr junto de F12; a fila do F11 e o gateway do F5 chegam pela X6
-- F6c (discursiva e redação) corre depois da F6 e antes da F6b (dividida da F6 em 23/11/2026)
+- F6d (correção e atenção) e F6c (discursiva e redação) correm depois da F6, nessa ordem, e antes da F6b (divididas da F6 em 23/11/2026)
 - F6b (prova no papel) corre depois da F6; antes ou depois da F9 se decide com o piloto (D83)
 - F17 (nota oficial) corre depois de F6, F11 e F13, em paralelo com F12 e F14, e antes do F15
 - O teste de carga começa no F0 com um cenário mínimo e cresce a cada funcionalidade do
