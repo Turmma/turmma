@@ -89,10 +89,10 @@ da aba é fato sem consequência (D70). As etapas 2 a 6 das AIAs estão na F6d.
 
 ## 9. Métricas
 
-- Provas com duração por professor por mês; respostas perdidas por queda: zero
+- Provas com duração por mês, por escola, nunca por professor (D64); respostas perdidas por queda: zero
 
 ## 10. Perguntas em aberto
 
-1. Tempo devolvido (RF6): como medir a indisponibilidade, e a queda parcial
-2. O texto do aviso fixo da saída da aba
-3. A tela de foco no celular (D51), com relógio e "sair" sem cobrir a questão
+1. ~~Tempo devolvido (RF6)~~: respondida na Tech Spec, §5 (pulso da API; a queda parcial é a rede da escola, e o professor estende)
+2. O texto do aviso fixo da saída da aba (proposta em `cenarios.md` §4)
+3. ~~A tela de foco no celular~~: respondida na Tech Spec, §9 (faixa de uma linha no topo)
