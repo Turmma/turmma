@@ -1,9 +1,9 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** L1 ociosa (nada parte: a 14.0 espera a 9.0 e a 13.0); L2 a 13.0 (grande, 1ª tentativa, pedido 22/11 ~19:40, retomada depois da parada; a rodada da Mesa 2 foi interrompida; leva as recomendações da 12.0 destinadas a ela); L3 a 9.0 (grande, 1ª tentativa, pedido 22/11 depois do encontro da 7.0, retomada depois da parada, com a carga inteira por refazer; herda da 7.0 o cenário do balde do principal cheio com transbordo). Presa: 14.0 (espera 9.0, 13.0 e as chaves do Joaquim).
-- **Devo ainda:** na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde); os outros itens da 7.0 já estão no `TODO.md`. Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). A última tarefa (a 14.0) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
-- **Base:** `spec/reserva-e-avaliacao` em `598a38e7`, no encontro da 8.0 (esteira rodando, execução 45092460619; veredito no próximo encontro)
+- **Espero:** L1 e L2 ociosas (nada parte: a 14.0 espera a 9.0); L3 a 9.0 (grande, 1ª tentativa, pedido 22/11 depois do encontro da 7.0, retomada depois da parada, com a carga inteira por refazer; herda da 7.0 o cenário do balde do principal cheio com transbordo). Presa: 14.0 (espera 9.0 e as chaves do Joaquim).
+- **Devo ainda:** antes da partida da 14.0, levar ao Joaquim as três perguntas da 13.0 (`TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0"): qual modelo a entrada de `MODELOS_APROVADOS` e a AIA do `padrao` citam, se o segundo modelo tem os mesmos termos de contrato, e o custo do segundo passe frente ao teto de R$ 250. na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde); os outros itens da 7.0 já estão no `TODO.md`. Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). A última tarefa (a 14.0) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
+- **Base:** `spec/reserva-e-avaliacao` em `9daf39a7`, no encontro da 13.0 (esteira rodando, execução 45095130134; veredito no próximo encontro)
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
@@ -17,6 +17,7 @@
 | 6.0 | `cd317d91` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `6ba52a09`, verificação da soma passou; sem tela; sem a 6.1 e a 6.2 (feitas na 4.0); três pontos do balde da reserva empurrados para a 7.0 (`6_task.md`, linhas 109 a 111) |
 | 5.0 | `2d07b316` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros cinco na 1ª | encontro em `8213fd22`, verificação da soma passou; sem tela |
 | 12.0 | `8e0aa1da` | Sonnet | `revisor-geral` reprovou na 1ª e aprovou na 2ª; os outros cinco aprovaram nas duas | encontro feito, verificação da soma passou; sem tela; 3 itens no `TODO.md` ("Da reserva-e-avaliacao, tarefa 12.0"); o resto das recomendações vai para a 13.0 |
+| 13.0 | `ee14f30a` | Sonnet | os sete revisores aprovaram na 2ª rodada | encontro em `9daf39a7`, verificação da soma passou; sem tela; a parada do Joaquim matou o portão e a rodada, refeitos; decisões em `techspec.md` §8, `cenarios.md` e no `13_task.md` |
 | 8.0 | `e7ecd449` | Sonnet | `test-engineer` e `revisor-geral` na 2ª; os outros quatro na 1ª | encontro em `598a38e7`, verificação da soma passou; sem tela; o encontro esperou a parada pedida pelo Joaquim (20:50 a 21:4x) |
 | 7.0 | `ef3b0650` | Sonnet | os sete revisores aprovaram na 2ª rodada | encontro em `9e09f039`, verificação da soma passou; sem tela; a reserva não espera pela vaga (uma tentativa só), registrado no `7_task.md` e no `cenarios.md`; itens da camada-ia no `TODO.md` |
 
@@ -39,6 +40,7 @@ Decisão: quatro perguntas da avaliação dos modelos (D55, Rigor, Cobertura, Lo
 Decisão: as confirmações M1 a M4 da retro (`tasks/prd-camada-ia/retro.md`, térreo, sem commit). Responde-se "aprovo" ou os números recusados, no terminal do `Arquiteto 2`.
 **Respondida às 11:18: "aprovo".** Retro `06b192d5` na `develop`; M3 e M4 por correção (`TODO.md`, "Da retrospectiva da F5a"), a M4 quando houver linha ociosa.
 ## O que falhou
+- 22/11 ~22:xx, tarefa 13.0: o Implementador 2 imprimiu no terminal o `contexto.mensagemDoProfessor` de uma amostra de `saidaQualitativa-retido-1.json` (lote retido). Nada gravado, commitado nem enviado; o risco é contaminar o lote retido. Para a retro: inspecionar lote retido só pelas chaves, nunca pelo conteúdo.
 - 22/11 09:4x, pouso da F5a: o `maestri floor land` não respondeu (timeout de 10 s, duas vezes, `develop` intacta). Pousado com `git merge --ff-only spec/camada-ia` no térreo e push (`56779010`). O `floor delete` dos quatro andares deu timeout ou "malformed floorLifecycleVerdictResult frame", mas apagou; as branches locais `spec/camada-ia` e `--l3` saíram com `git branch -d`. Para a retro da F5a.
 ## O que decidi sem perguntar
 - 22/11 12:19: o Maestri do Windows não lê as pastas do WSL ("not a git repository", "couldn't look through everything"), o mesmo do `land` das 09:4x. Os checkouts das linhas 1 e 2 saíram por `git worktree add`, sem andar no Maestri (o `linhas.ts` só precisa do checkout); os pares reiniciaram com o conserto das pastas velhas vazias (`speccamada-ia--l1` e `--l2`). Depois do pouso, `git worktree remove` em vez de `floor delete`.
