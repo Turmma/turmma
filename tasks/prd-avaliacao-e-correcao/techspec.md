@@ -32,7 +32,7 @@ atividade_aplicada   + abre_em timestamptz?, fecha_em timestamptz?, duracao_min 
                        segunda_chamada_de uuid? → atividade_aplicada (mesma escola, ano, turma, artefato)
 tentativa_atividade  + limite_base_em timestamptz?, ordem jsonb?, saidas_da_aba smallint (0),
                        envio text? (aluno | limite | encerramento)
-saida_da_aba         escola*, ano_letivo*, atividade_aplicada*, aluno*, chave* uuid v4    (sem id nem tempo)
+saida_da_aba         escola*, ano_letivo*, atividade_aplicada*, aluno*, chave* uuid v4    (sem id nem tempo; no arquivo do titular vem agrupada por tentativa, a contagem, com o `id` da tentativa)
                        PK nas cinco; FK → tentativa, on delete cascade
 tempo_adicional      id, escola*, ano_letivo*, atividade_aplicada*, aluno*, percentual* (25|50|100),
                        concedido_por*, concedido_em*        unique (escola, atividade_aplicada, aluno)
@@ -44,7 +44,8 @@ indisponibilidade    id, inicio, fim timestamptz      (sem escola, sem pessoa)
 ```
 
 - Ids uuidv7; checks de janela, duração e embaralhar só em `avaliativa`, `abre_em < fecha_em`. A **API exige janela** na
-  avaliativa nova; a antiga segue como hoje, sem backfill.
+  avaliativa nova; a antiga segue como hoje, sem backfill. **Até a 10.0 a janela é opcional** no `aplicar` e na resposta
+  (a tela de hoje, A3, manda `{artefatoId, turmaId, avaliativa}`); a exigência entra com a tela, na 10.0.
 - O índice das abertas exclui a segunda chamada (o novo antes de derrubar o antigo); outro: uma segunda chamada aberta
   por original. Checks em tabela existente com `NOT VALID` e `VALIDATE`.
 - FKs compostas com escola e ano; aluno `on delete cascade`; autor pelo gatilho `exigir_equipe_da_escola`.
@@ -66,7 +67,7 @@ indisponibilidade    id, inicio, fim timestamptz      (sem escola, sem pessoa)
 | GET | `…/:id/tempo` | aluno | — | `limiteEm`, `agora`, `envio` (releitura de 30 s) |
 | PUT | `…/respostas/:questao` | aluno | como hoje (número original) | `TEMPO_ESGOTADO` além do limite |
 | POST | `…/saidas-da-aba` | aluno | `chave` | 204; `NAO_ENCONTRADO` fora de prova em andamento |
-| GET | `…/:id/correcao` | professor | — | + `saidasDaAba` por aluno, só em avaliativa |
+| GET | `…/:id/correcao` | professor | — | + `saidasDaAba` por aluno, só em avaliativa (opcional no contrato; a 5.0 o preenche) |
 
 `minhas-atividades` traz janela e duração (com o tempo adicional, sem dizer que é adicional); a segunda chamada, só ao
 convocado.
@@ -75,7 +76,10 @@ convocado.
 
 1. **Aplicar.** Alunos do tempo adicional, da extensão e da segunda chamada são da turma. Tempo adicional que não cabe
    na janela (`fecha_em − abre_em < duração × (1 + maior percentual)`) é `ENTRADA_INVALIDA`, também ao mudar a janela e
-   na segunda chamada. Aplicação, `tempo_adicional` e auditoria numa transação.
+   na segunda chamada. `tempoAdicional` exige `duracaoMin`, e `duracaoMin` exige `janela` (a mesma
+   `camposInvalidosDaProva`, do schema compartilhado, no aplicar, no PATCH e na segunda chamada). O corpo do erro
+   `ENTRADA_INVALIDA` leva só o código, sem o nome do campo: o campo é do schema compartilhado, que a tela usa antes de
+   enviar. Aplicação, `tempo_adicional` e auditoria numa transação.
 2. **Alcance primeiro.** Nas rotas do aluno, uma consulta resolve escola, ano em curso, vínculo aberto na turma e
    convocado; fora, `NAO_ENCONTRADO`. Só depois a janela, e depois o limite.
 3. **Começar.** Aplicação `for share`; `insert … on conflict do nothing` com `limite_base_em = min(início + duração ×
@@ -116,11 +120,11 @@ toca a de B. Repository novo, contexto de A com id de B: vazio. Casos: `cenarios
 | Item | Resposta |
 |---|---|
 | Campos novos | os da §3, em `docs/lgpd.md`. O tempo adicional é adaptação, **sensível** (art. 11, D35): só o percentual, preso à prova |
-| Log, métrica, auditoria | só ids e códigos, nunca percentual nem minutos por aluno; auditoria `atividade.aplicada` (quantos com tempo adicional), `.janela_alterada`, `.tempo_estendido`, `.segunda_chamada_aplicada`, `.encerrada_pelo_limite` |
+| Log, métrica, auditoria | só ids e códigos, nunca percentual nem minutos por aluno; auditoria `atividade.aplicada` (`comTempoAdicional`: a contagem, que a resposta da aplicação também leva), `.janela_alterada` (`antes` e `depois` só com a janela, a duração e a contagem, sem `alunoId` nem percentual), `.tempo_estendido`, `.segunda_chamada_aplicada`, `.encerrada_pelo_limite` |
 | Provedor externo | nenhum; nada entra na memória do Tutor |
-| Retenção e titular | `trabalho_do_aluno`; no arquivo pelo `aluno_id`, com autor e `chave` `fora` |
+| Retenção e titular | `trabalho_do_aluno`; no arquivo pelo `aluno_id`, com autor e `chave` `fora`. **Nas duas versões**, também na `coordenacao` (do titular sem conta ativa), por exceção declarada no PRD, §6 (art. 18): `tempo_adicional` com percentual e `concedido_em`, sem `concedido_por`; `saida_da_aba` agrupada por tentativa, a contagem, e `tentativa_atividade.saidas_da_aba`. Um caso na versão `coordenacao` em `apps/api/test/arquivo-do-titular.int.test.ts` prova cada uma |
 | Autorização | professor pelo `canAplicarNaTurma`; aluno pela §5.2; ações novas na matriz, coordenação e rede em `nunca` |
-| DTO | o aluno não lê colega, saídas nem "tempo adicional"; a coordenação e a rede, nada disto |
+| DTO | o aluno não lê colega, saídas nem "tempo adicional"; a coordenação e a rede, nada disto, fora o arquivo do titular sem conta ativa (linha acima) |
 
 A contagem de saídas fica só no lote, fora do `apresentado`: a validação guarda que a coluna foi mostrada (D70, D88).
 

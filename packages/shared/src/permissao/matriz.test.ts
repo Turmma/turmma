@@ -157,9 +157,9 @@ describe('MATRIZ de permissão', () => {
   // célula trocada; estes testes dizem a regra de cada grupo.
   const RECURSOS_DO_MVP = ['material', 'time', 'assistente', 'execucao', 'ferramenta', 'artefato', 'entrega', 'atividade_aplicada', 'minha_atividade', 'correcao', 'desempenho_da_turma', 'tutor', 'sinal', 'uso_do_tutor', 'governanca', 'analista'] as const
 
-  it('MVP: as quarenta e seis rotas têm célula, e a rede não chama nenhuma', () => {
+  it('MVP: as cinquenta e três rotas têm célula, e a rede não chama nenhuma', () => {
     const acoes = RECURSOS_DO_MVP.flatMap((recurso) => RECURSOS[recurso].map((acao) => [recurso, acao] as const))
-    expect(acoes).toHaveLength(46)
+    expect(acoes).toHaveLength(53)
     for (const [recurso, acao] of acoes) expect(alcanceDe('rede', recurso, acao), `${recurso}.${acao}`).toBe('nunca')
   })
 
@@ -222,6 +222,9 @@ describe('MATRIZ de permissão', () => {
       'minha_atividade.responder',
       'minha_atividade.enviar',
       'minha_atividade.ler_diagnostico',
+      'minha_atividade.comecar',
+      'minha_atividade.ler_tempo',
+      'minha_atividade.registrar_saida',
       'tutor.enviar_mensagem',
       'tutor.ler_conversa',
       'tutor.ler_memoria',

@@ -32,6 +32,8 @@ export const MENSAGENS_DE_ERRO: Readonly<Record<ErrorCode, string>> = {
   ENTREGA_JA_DECIDIDA: 'Esta entrega já foi decidida. Atualize a tela para ver como ela ficou.',
   VERSAO_ADAPTADA_NAO_APROVADA: 'A versão adaptada ainda não foi aprovada. Aprove a versão em "Seu time" antes de aplicar à turma.',
   ATIVIDADE_ENCERRADA: 'Esta atividade já foi encerrada ou enviada, e não recebe mais respostas. Se precisar mudar algo, chame o professor.',
+  PROVA_JA_COMECOU: 'Alguém já começou esta prova, então a janela e o tempo adicional não podem mais mudar. Para dar mais tempo, use "Estender".',
+  PROVA_FORA_DA_JANELA: 'Esta prova não está aberta agora. Confira o dia e o horário em que ela abre e fecha.',
   IA_INDISPONIVEL: 'A IA está indisponível agora. Tente de novo em instantes.',
   IA_TEMPO_ESGOTADO: 'A resposta da IA demorou mais que o esperado. Tente de novo em instantes.',
   IA_SAIDA_INVALIDA: 'A IA não conseguiu montar a resposta desta vez. Tente de novo; se continuar, mude um pouco o pedido.',

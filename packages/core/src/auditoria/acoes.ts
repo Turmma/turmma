@@ -781,7 +781,18 @@ export const ACOES_DE_AUDITORIA = {
   'atividade.aplicada': {
     entidade: 'atividade_aplicada',
     antes: null,
-    depois: z.strictObject({ artefatoId: z.uuid(), turmaId: z.uuid(), avaliativa: z.boolean(), versaoAdaptada: z.boolean() }),
+    depois: z.strictObject({ artefatoId: z.uuid(), turmaId: z.uuid(), avaliativa: z.boolean(), versaoAdaptada: z.boolean(), comTempoAdicional: z.number().int().nonnegative() }),
+    finalidade: null,
+  },
+  /**
+   * O professor mudou a janela, a duração ou o tempo adicional de uma prova, antes de alguém começar (avaliacao-e-correcao, 1.0; RF2; Tech Spec, seção 7). `entidadeId` é a atividade aplicada;
+   * `antes` e `depois` levam a janela e a duração e **só a contagem** dos alunos com tempo adicional: nunca o `alunoId` com o percentual nem os minutos por aluno, porque tempo adicional é adaptação,
+   * dado sensível (regra 20, item 3; D35), e a auditoria da escola não pode virar a lista de quem a tem.
+   */
+  'atividade.janela_alterada': {
+    entidade: 'atividade_aplicada',
+    antes: z.strictObject({ janela: z.strictObject({ abreEm: z.iso.datetime(), fechaEm: z.iso.datetime() }).nullable(), duracaoMin: z.number().int().nullable(), comTempoAdicional: z.number().int().nonnegative() }),
+    depois: z.strictObject({ janela: z.strictObject({ abreEm: z.iso.datetime(), fechaEm: z.iso.datetime() }).nullable(), duracaoMin: z.number().int().nullable(), comTempoAdicional: z.number().int().nonnegative() }),
     finalidade: null,
   },
   /**

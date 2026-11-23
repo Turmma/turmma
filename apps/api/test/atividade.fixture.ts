@@ -118,6 +118,7 @@ export function rotasDaAtividade(api: TestApi) {
     aplicar: (sessao: TestSessao, corpo: unknown) => pedir(sessao, 'POST', '/v1/atividades-aplicadas', corpo),
     listar: (sessao: TestSessao, consulta: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas${consulta}`),
     encerrar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/encerrar`, {}),
+    mudarJanela: (sessao: TestSessao, id: string, corpo: unknown) => pedir(sessao, 'PATCH', `/v1/atividades-aplicadas/${id}/janela`, corpo),
     minhas: (sessao: TestSessao, consulta = '') => pedir(sessao, 'GET', `/v1/minhas-atividades${consulta}`),
     prova: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/prova`),
     responder: (sessao: TestSessao, id: string, questao: number | string, alternativa: number) => pedir(sessao, 'PUT', `/v1/atividades-aplicadas/${id}/respostas/${String(questao)}`, { alternativa }),
@@ -132,9 +133,12 @@ export function rotasDaAtividade(api: TestApi) {
 }
 export type RotasDaAtividade = ReturnType<typeof rotasDaAtividade>
 
-/** Aplica a atividade pela rota e devolve o id da aplicação. */
-export async function aplicarAtividade(rotas: RotasDaAtividade, sessao: TestSessao, artefatoId: string, turmaId: string, avaliativa = false): Promise<string> {
-  const resposta = await rotas.aplicar(sessao, { artefatoId, turmaId, avaliativa })
+/**
+ * Aplica a atividade pela rota e devolve o id da aplicação. `prova` leva o que a prova online acrescenta ao corpo (a janela, a duração, o embaralhamento e o
+ * tempo adicional por aluno); sem ele, o corpo é o de antes da F6.
+ */
+export async function aplicarAtividade(rotas: RotasDaAtividade, sessao: TestSessao, artefatoId: string, turmaId: string, avaliativa = false, prova: Record<string, unknown> = {}): Promise<string> {
+  const resposta = await rotas.aplicar(sessao, { artefatoId, turmaId, avaliativa, ...prova })
   if (resposta.status !== 201) throw new Error(`atividade não aplicada: ${String(resposta.status)} ${resposta.corpo.erro?.codigo ?? ''}`)
   return resposta.corpo['id'] as string
 }

@@ -32,6 +32,11 @@ import { CompartilhamentoRepository } from './compartilhamento.repository.js'
  *    consumo de IA, nem a `justificativa` das entregas (regra 70, item 8). Traz a conversa do Tutor, pela exceção
  *    declarada no PRD, seção 6. Também não traz a `introducao_vista_em` do professor (D64); a do aluno vai nas duas. **Nem o
  *    registro da aula** (`aula.conteudo`, F2b): é o texto da professora sobre o que deu, e pode trazer nome de aluno.
+ *    **O tempo adicional do aluno** (`tempo_adicional`, F6) **e a contagem de saídas da aba** (`saida_da_aba`, e
+ *    `tentativa_atividade.saidas_da_aba`) **vão nas duas versões**, por exceção declarada (PRD da avaliacao-e-correcao, §4 e §6, a
+ *    mesma razão da conversa do Tutor): o titular sem conta ativa só recebe o arquivo por esta versão, e o direito de acesso (LGPD,
+ *    art. 18) pede o arquivo completo. O tempo adicional leva o percentual, nunca quem concedeu nem o motivo (a tabela não o tem); a
+ *    saída da aba é a contagem por prova, sem horário, sem o id da linha e sem a chave do cliente (D70).
  */
 
 /** Uma tabela do arquivo: a descrição que o resumo mostra e as leituras, que dependem da versão. */
@@ -302,10 +307,50 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
   },
   tentativa_atividade: {
     descricao: 'As atividades que você começou e enviou',
-    colunas: ['id', 'ano_letivo_id', 'atividade_aplicada_id', 'iniciada_em', 'enviada_em'],
+    colunas: ['id', 'ano_letivo_id', 'atividade_aplicada_id', 'iniciada_em', 'enviada_em', 'limite_base_em', 'ordem', 'saidas_da_aba', 'envio'],
     fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${selectColumns('id', 'ano_letivo_id', 'atividade_aplicada_id', 'iniciada_em', 'enviada_em')} from tentativa_atividade t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'atividade_aplicada_id', 'iniciada_em', 'enviada_em', 'limite_base_em', 'ordem', 'saidas_da_aba', 'envio')} from tentativa_atividade t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+    ],
+  },
+  // A prova online (avaliacao-e-correcao, 1.0): as quatro tabelas do aluno entram pelo `aluno_id`, e só o dele. O autor (quem concedeu) e a `chave` do cliente não entram:
+  // o autor vive na auditoria da escola (critério 2), e o professor que concedeu não traz o adicional no arquivo dele, porque a ligação é o aluno.
+  saida_da_aba: {
+    descricao: 'Quantas vezes você saiu da aba durante cada prova',
+    colunas: ['ano_letivo_id', 'atividade_aplicada_id'],
+    derivadas: ['id', 'saidas'],
+    fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular', chave: 'a chave do cliente, só para a mesma saída não contar duas vezes: nunca entra, e a saída não tem horário (D70)' },
+    // A linha não tem `id` (nem horário): o arquivo leva a contagem por prova, e o `id` é o da tentativa, a que as chaves pertencem.
+    consultas: ({ escolaId, titularId }) => [
+      sql`select t.id, t.ano_letivo_id, t.atividade_aplicada_id, count(*)::int as saidas
+          from tentativa_atividade t
+          join saida_da_aba s on s.escola_id = t.escola_id and s.ano_letivo_id = t.ano_letivo_id and s.atividade_aplicada_id = t.atividade_aplicada_id and s.aluno_id = t.aluno_id
+          where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}
+          group by t.id, t.ano_letivo_id, t.atividade_aplicada_id`,
+    ],
+  },
+  tempo_adicional: {
+    descricao: 'O tempo adicional que o professor deu a você em cada prova',
+    colunas: ['id', 'ano_letivo_id', 'atividade_aplicada_id', 'percentual', 'concedido_em'],
+    fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular', concedido_por: OUTRA_PESSOA },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'atividade_aplicada_id', 'percentual', 'concedido_em')} from tempo_adicional t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+    ],
+  },
+  extensao_de_tempo: {
+    descricao: 'Os minutos a mais que o professor deu a você durante uma prova',
+    colunas: ['id', 'ano_letivo_id', 'atividade_aplicada_id', 'minutos', 'concedida_em'],
+    fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular (a extensão da turma, sem aluno, não é dado dele)', concedida_por: OUTRA_PESSOA, chave: 'a chave do cliente, para o clique duplo não valer duas vezes: nunca entra' },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'atividade_aplicada_id', 'minutos', 'concedida_em')} from extensao_de_tempo t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
+    ],
+  },
+  convocado_da_segunda_chamada: {
+    descricao: 'As provas de segunda chamada para as quais você foi convocado',
+    colunas: ['id', 'ano_letivo_id', 'atividade_aplicada_id'],
+    fora: { escola_id: ESCOPO, aluno_id: 'o próprio titular' },
+    consultas: ({ escolaId, titularId }) => [
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'atividade_aplicada_id')} from convocado_da_segunda_chamada t where t.escola_id = ${escolaId} and t.aluno_id = ${titularId}`,
     ],
   },
   resposta_atividade: {
@@ -367,10 +412,10 @@ export const LEITURAS_DO_ARQUIVO: Readonly<Record<string, LeituraDaTabela>> = {
   },
   atividade_aplicada: {
     descricao: 'As atividades que você aplicou à turma',
-    colunas: ['id', 'ano_letivo_id', 'turma_id', 'artefato_id', 'avaliativa', 'estado', 'aplicada_em', 'encerrada_em'],
+    colunas: ['id', 'ano_letivo_id', 'turma_id', 'artefato_id', 'avaliativa', 'estado', 'aplicada_em', 'encerrada_em', 'abre_em', 'fecha_em', 'duracao_min', 'embaralhar_questoes', 'embaralhar_alternativas', 'segunda_chamada_de'],
     fora: { escola_id: ESCOPO, aplicada_por: 'o próprio titular' },
     consultas: ({ escolaId, titularId }) => [
-      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'artefato_id', 'avaliativa', 'estado', 'aplicada_em', 'encerrada_em')} from atividade_aplicada t where t.escola_id = ${escolaId} and t.aplicada_por = ${titularId}`,
+      sql`select ${selectColumns('id', 'ano_letivo_id', 'turma_id', 'artefato_id', 'avaliativa', 'estado', 'aplicada_em', 'encerrada_em', 'abre_em', 'fecha_em', 'duracao_min', 'embaralhar_questoes', 'embaralhar_alternativas', 'segunda_chamada_de')} from atividade_aplicada t where t.escola_id = ${escolaId} and t.aplicada_por = ${titularId}`,
     ],
   },
   validacao_do_lote: {

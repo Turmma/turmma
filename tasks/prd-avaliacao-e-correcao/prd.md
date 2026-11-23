@@ -31,7 +31,7 @@ Prova online com tempo, ordem por aluno e integridade registrada, sem perder res
 |---|---|---|
 | Professor | aplicar e configurar a prova, estender tempo, reabrir para quem não fez, ver a saída da aba no lote, nas turmas e disciplinas dele | mudar resposta de aluno; registrar motivo de tempo adicional |
 | Aluno | fazer e retomar a prova, sair dela | começar fora do tempo; ver gabarito antes da aprovação; ver colegas |
-| Coordenação | o que já tem: suspender a função | ver saída da aba ou tempo adicional de um aluno |
+| Coordenação | o que já tem: suspender a função; baixar o arquivo do titular sem conta ativa, que leva os dois (§6) | ver saída da aba ou tempo adicional de um aluno, em tela, relatório ou painel |
 
 ## 5. Requisitos funcionais
 
@@ -47,7 +47,7 @@ Prova online com tempo, ordem por aluno e integridade registrada, sem perder res
 | RF6 | Resposta salva no servidor a cada item; depois de uma queda, o aluno volta onde parou, com o tempo do servidor. Indisponibilidade do nosso sistema não conta: quem tinha prova em andamento recebe o tempo de volta | queda de rede: nenhuma resposta perdida; API fora simulada: o limite anda o tempo da queda |
 | RF7 | A prova abre na **tela de foco**: só a prova e o tempo restante, sem a navegação da área e sem o Tutor. Antes de começar, o aluno lê a duração, que sair da aba é mostrado ao professor e como sair; sair é um clique, e o relógio segue | e2e: sem navegação na prova; o aviso vem antes do primeiro item |
 | RF8 | O professor liga "embaralhar questões" e "embaralhar alternativas"; cada aluno tem ordem própria, mantida na retomada; correção, relatório e diagnóstico usam a ordem original | duas ordens, mesma resposta lógica, mesma correção |
-| RF9 | Em prova, cada perda de foco da aba conta na tentativa; o professor vê a contagem ao lado do aluno no lote, com o aviso fixo da D88; não é destaque nem trava a aprovação | não existe fora de prova, somada entre provas, nem para a coordenação |
+| RF9 | Em prova, cada perda de foco da aba conta na tentativa; o professor vê a contagem ao lado do aluno no lote, com o aviso fixo da D88; não é destaque nem trava a aprovação | não existe fora de prova, somada entre provas, nem para a coordenação (exceto o arquivo do titular, §6) |
 | RF10 | O professor reabre a prova para quem não a enviou (segunda chamada), com janela nova; com o lote já aprovado, as novas tentativas formam um complemento com aprovação própria | aluno fora da lista não começa; o lote aprovado não muda |
 
 ## 6. Regras de negócio
@@ -56,6 +56,12 @@ Prova online com tempo, ordem por aluno e integridade registrada, sem perder res
 - O relógio é o do servidor; o cliente só mostra
 - Tempo adicional e extensão são atos do professor, com autor e hora, sem motivo, presos àquela prova
 - A saída da aba fica presa à tentativa, só em prova, só para o professor da turma (D70)
+- Exceção declarada, pelo direito de acesso (LGPD, art. 18): a versão do arquivo do titular sem conta ativa, que a
+  coordenação baixa com finalidade e auditoria para entregar a ele, leva o tempo adicional (só o percentual e a data,
+  sem quem concedeu) e a contagem de saídas da aba (por prova, sem horário, nunca somada entre provas). É o mesmo
+  caminho da conversa do Tutor na F3 (`tasks/prd-lgpd-e-titular/prd.md`, §6): sem ela, esse titular não recebe os dois
+  dados por caminho nenhum. Fora desse arquivo, a coordenação não vê nenhum dos dois. Decidida pelo Joaquim em
+  23/11/2026, na divergência da tarefa 1.0
 - Embaralhar muda só a ordem que o aluno vê
 - Prova aberta trava o Tutor da turma (já existe)
 - Tudo por escola e ano letivo, em turma e disciplina de vínculo confirmado
@@ -77,7 +83,7 @@ Prova online com tempo, ordem por aluno e integridade registrada, sem perder res
 | Dado | Titular | Finalidade | Retenção | Já está em `docs/lgpd.md`? |
 |---|---|---|---|---|
 | Resposta, tentativa e diagnóstico | aluno | correção e diagnóstico | a do mapa | sim |
-| Contagem de saída da aba, por tentativa | aluno | integridade da prova, só o professor vê | a da tentativa | sim |
+| Contagem de saída da aba, por tentativa | aluno | integridade da prova, só o professor vê (e o titular, no arquivo dele, §6) | a da tentativa | sim |
 | Início, limite, tempo adicional e extensão da tentativa, com quem concedeu | aluno; professor como autor | fazer valer o tempo da prova | a da tentativa | **não**: entra |
 | Ordem embaralhada da tentativa | aluno | mostrar a mesma ordem na retomada | a da tentativa | **não**: entra |
 

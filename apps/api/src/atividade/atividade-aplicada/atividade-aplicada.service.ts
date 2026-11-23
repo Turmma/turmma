@@ -1,19 +1,22 @@
 import { DomainException, AuditoriaRecorder, type Database, type DatabaseTransaction } from '@educa/core'
 import {
   ErrorCode,
+  camposInvalidosDaProva,
   conteudoDeAtividadeSchema,
   atividadeAplicadaResponseSchema,
   atividadeEncerradaResponseSchema,
   listaDeAtividadesAplicadasResponseSchema,
   type AtividadesAplicadasQuery,
-  type AplicarAtividadeRequest,
+  type AplicarAtividadeLido,
   type AtividadeAplicadaResponse,
   type AtividadeEncerradaResponse,
   type ListaDeAtividadesAplicadasResponse,
+  type MudarJanelaRequest,
+  type TempoAdicionalDoAluno,
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
 import type { FuncaoSuspensionCheck } from '../../ia/funcao-suspension-check.js'
-import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoTravada } from './atividade-aplicada.repository.js'
+import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoParaMudarAJanela, type AplicacaoTravada } from './atividade-aplicada.repository.js'
 import { acertosDoLote, corrigirTentativa, destaquesDaTentativa, type HistoricoAprovado } from '../correcao/correcao-de-objetiva.js'
 import { CorrecaoRepository, type NovaCorrecao } from '../correcao/correcao.repository.js'
 
@@ -31,6 +34,11 @@ function paraATela(lida: AplicacaoLida): unknown {
     questoes: lida.questoes,
     aplicadaEm: lida.aplicadaEm.toISOString(),
     encerradaEm: lida.encerradaEm?.toISOString() ?? null,
+    janela: lida.abreEm === null || lida.fechaEm === null ? null : { abreEm: lida.abreEm.toISOString(), fechaEm: lida.fechaEm.toISOString() },
+    duracaoMin: lida.duracaoMin,
+    embaralhar: { questoes: lida.embaralharQuestoes, alternativas: lida.embaralharAlternativas },
+    segundaChamadaDe: lida.segundaChamadaDe,
+    comTempoAdicional: lida.comTempoAdicional,
     participacao: { alunos: lida.alunos, iniciaram: lida.iniciaram, enviaram: lida.enviaram },
     entrega: lida.entrega,
   }
@@ -51,6 +59,10 @@ function paraATela(lida: AplicacaoLida): unknown {
  *   Só o lote rejeitado deixa corrigir de novo, num lote novo.
  * - **Função suspensa não corrige** (D60): a atividade encerra, as respostas ficam, e o lote não nasce. Com a função
  *   retomada, encerrar de novo corrige.
+ * - **A prova online** (avaliacao-e-correcao, 1.0): aplicar leva a janela, a duração, o embaralhamento e o tempo adicional por aluno, e
+ *   grava a aplicação, o `tempo_adicional` e a auditoria numa transação. O aluno do tempo adicional é da turma (aluno de outra turma, de
+ *   outra escola ou inexistente respondem o mesmo `ENTRADA_INVALIDA`, sem gravar nada), e o tempo adicional cabe na janela. Mudar a janela
+ *   (`mudarAJanela`) é parcial, com a aplicação travada e o estado relido, e só antes de alguém começar.
  */
 export class AtividadeAplicadaService {
   constructor(
@@ -58,7 +70,7 @@ export class AtividadeAplicadaService {
     private readonly conferencia: FuncaoSuspensionCheck,
   ) {}
 
-  async aplicar(pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
+  async aplicar(pedido: AplicarAtividadeLido): Promise<AtividadeAplicadaResponse> {
     const artefatoId = pedido.artefatoId.toLowerCase()
     const turmaId = pedido.turmaId.toLowerCase()
     const criada = await this.banco.transaction(async (tx) => {
@@ -68,13 +80,78 @@ export class AtividadeAplicadaService {
       if (alvo === undefined || !(await aplicacoes.canAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (alvo.tipo !== 'atividade_objetiva') throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
       if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new DomainException(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
-      const id = await aplicacoes.create({ turmaId, artefatoId, avaliativa: pedido.avaliativa })
-      await registro.save(tx, 'atividade.aplicada', { entidadeId: id, depois: { artefatoId, turmaId, avaliativa: pedido.avaliativa, versaoAdaptada: alvo.versaoAdaptada } })
+      // O aluno do tempo adicional é da turma: o de outra turma, de outra escola e o inexistente respondem igual, e nada se grava.
+      await this.#conferirAlunosDaTurma(aplicacoes, turmaId, pedido.tempoAdicional)
+      const id = await aplicacoes.create({ turmaId, artefatoId, avaliativa: pedido.avaliativa, janela: pedido.janela, duracaoMin: pedido.duracaoMin, embaralhar: pedido.embaralhar })
+      await aplicacoes.saveTempoAdicional(id, pedido.tempoAdicional)
+      // Só a contagem de quem tem tempo adicional: o percentual por aluno é adaptação, dado sensível, e não vai para a auditoria.
+      await registro.save(tx, 'atividade.aplicada', {
+        entidadeId: id,
+        depois: { artefatoId, turmaId, avaliativa: pedido.avaliativa, versaoAdaptada: alvo.versaoAdaptada, comTempoAdicional: pedido.tempoAdicional.length },
+      })
       const lida = await aplicacoes.porId(id)
       if (lida === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return lida
     })
     return atividadeAplicadaResponseSchema.parse(paraATela(criada))
+  }
+
+  /**
+   * `PATCH /v1/atividades-aplicadas/:id/janela` (RF2): muda a janela, a duração e o tempo adicional, **parcial**, antes do primeiro começo. Trava a aplicação (`for update`) e **relê o
+   * estado depois da trava**: o `comecar` em andamento (que a toma em `for share`) termina antes, e a mudança recebe `PROVA_JA_COMECOU`; a outra mudança de janela em andamento termina
+   * antes, e esta confere o conjunto de novo contra o que ela gravou. O que não veio no corpo vale o que está gravado, e o conjunto inteiro passa pela mesma conferência do aplicar.
+   * Depois do começo o professor só estende.
+   */
+  async mudarAJanela(id: string, pedido: MudarJanelaRequest): Promise<AtividadeAplicadaResponse> {
+    const mudada = await this.banco.transaction(async (tx) => {
+      const aplicacoes = new AtividadeAplicadaRepository(tx)
+      const travada = await this.#lockAntesDoComeco(aplicacoes, id)
+      const antesDoTempoAdicional = await aplicacoes.tempoAdicionalDaAplicacao(id)
+      const { janela, duracaoMin, tempoAdicional } = this.#provaDepoisDaMudanca(travada, pedido, antesDoTempoAdicional)
+      if (pedido.tempoAdicional !== undefined) {
+        await this.#conferirAlunosDaTurma(aplicacoes, travada.turmaId, pedido.tempoAdicional)
+        await aplicacoes.trocarTempoAdicional(id, pedido.tempoAdicional)
+      }
+      await aplicacoes.saveJanela(id, { janela, duracaoMin })
+      await registro.save(tx, 'atividade.janela_alterada', {
+        entidadeId: id,
+        antes: { janela: travada.janela ?? null, duracaoMin: travada.duracaoMin ?? null, comTempoAdicional: antesDoTempoAdicional.length },
+        depois: { janela: janela ?? null, duracaoMin: duracaoMin ?? null, comTempoAdicional: tempoAdicional.length },
+      })
+      const depois = await aplicacoes.porId(id)
+      if (depois === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      return depois
+    })
+    return atividadeAplicadaResponseSchema.parse(paraATela(mudada))
+  }
+
+  /**
+   * A prova como ficará: o que não veio no corpo vale o que está gravado (o embaralhamento não muda por aqui), e o conjunto inteiro passa pela conferência única do aplicar.
+   * Não fecha: `ENTRADA_INVALIDA`, sem dizer o campo.
+   */
+  #provaDepoisDaMudanca(travada: AplicacaoParaMudarAJanela, pedido: MudarJanelaRequest, tempoAdicionalAtual: readonly TempoAdicionalDoAluno[]) {
+    const janela = pedido.janela ?? travada.janela
+    const duracaoMin = pedido.duracaoMin ?? travada.duracaoMin
+    const tempoAdicional = pedido.tempoAdicional ?? tempoAdicionalAtual
+    if (camposInvalidosDaProva({ avaliativa: travada.avaliativa, janela, duracaoMin, embaralhar: travada.embaralhar, tempoAdicional }).length > 0) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+    return { janela, duracaoMin, tempoAdicional }
+  }
+
+  /** A aplicação do professor, travada, aberta e **sem tentativa**: lida depois da trava, é o que decide se a janela ainda pode mudar. */
+  async #lockAntesDoComeco(aplicacoes: AtividadeAplicadaRepository, id: string): Promise<AplicacaoParaMudarAJanela> {
+    const travada = await aplicacoes.lockParaMudarAJanela(id)
+    if (travada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+    if (travada.estado !== 'aberta') throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
+    if (await aplicacoes.existeTentativa(id)) throw new DomainException(ErrorCode.PROVA_JA_COMECOU)
+    return travada
+  }
+
+  /** Todo aluno da lista é aluno confirmado da turma da aplicação; senão `ENTRADA_INVALIDA`, o mesmo para o de outra turma, de outra escola e o inexistente. */
+  async #conferirAlunosDaTurma(aplicacoes: AtividadeAplicadaRepository, turmaId: string, lista: readonly TempoAdicionalDoAluno[]): Promise<void> {
+    if (lista.length === 0) return
+    const ids = lista.map((item) => item.alunoId.toLowerCase())
+    const daTurma = await aplicacoes.alunosDaTurmaEntre(turmaId, ids)
+    if (ids.some((alunoId) => !daTurma.has(alunoId))) throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
   }
 
   async list(consulta: AtividadesAplicadasQuery): Promise<ListaDeAtividadesAplicadasResponse> {

@@ -1,6 +1,6 @@
-import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tentativaAtividade, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
-import type { AtividadesAplicadasQuery, EstadoDeAtividadeAplicada, EstadoDeEntrega, TipoDeArtefato } from '@educa/shared'
-import { and, desc, eq, lt, sql, type AnyColumn, type SQL } from 'drizzle-orm'
+import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tempoAdicional, tentativaAtividade, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import type { AtividadesAplicadasQuery, Embaralhar, EstadoDeAtividadeAplicada, EstadoDeEntrega, JanelaDaProva, PercentualDeTempoAdicional, TempoAdicionalDoAluno, TipoDeArtefato } from '@educa/shared'
+import { and, desc, eq, inArray, lt, notInArray, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../../assistente/turma-do-professor.repository.js'
 
@@ -15,6 +15,14 @@ export interface AplicacaoLida {
   readonly questoes: number
   readonly aplicadaEm: Date
   readonly encerradaEm: Date | null
+  readonly abreEm: Date | null
+  readonly fechaEm: Date | null
+  readonly duracaoMin: number | null
+  readonly embaralharQuestoes: boolean
+  readonly embaralharAlternativas: boolean
+  readonly segundaChamadaDe: string | null
+  /** Quantos alunos têm tempo adicional nesta prova: só a contagem, nunca quais nem o percentual. */
+  readonly comTempoAdicional: number
   readonly alunos: number
   readonly iniciaram: number
   readonly enviaram: number
@@ -43,6 +51,23 @@ export interface NovaAplicacao {
   readonly turmaId: string
   readonly artefatoId: string
   readonly avaliativa: boolean
+  readonly janela?: JanelaDaProva | undefined
+  readonly duracaoMin?: number | undefined
+  readonly embaralhar: Embaralhar
+}
+
+/**
+ * A aplicação travada para mudar a janela (`for update`), com o que decide se pode e o que a mudança parcial completa: o estado,
+ * se é avaliativa, a turma (de onde vêm os alunos do tempo adicional) e a janela e a duração de **agora**, lidas depois da trava.
+ */
+export interface AplicacaoParaMudarAJanela {
+  readonly id: string
+  readonly turmaId: string
+  readonly estado: EstadoDeAtividadeAplicada
+  readonly avaliativa: boolean
+  readonly janela: JanelaDaProva | undefined
+  readonly duracaoMin: number | undefined
+  readonly embaralhar: Embaralhar
 }
 
 /** Quantos alunos a turma tem agora: vínculo de aluno `confirmado`, de usuário ativo. Só a contagem. */
@@ -59,6 +84,9 @@ const tentativasDaAplicacao = (condicao: SQL = sql`true`): SQL<number> =>
  */
 const loteMaisNovo = sql<{ id: string; estado: EstadoDeEntrega } | null>`(select jsonb_build_object('id', ${entrega.id}, 'estado', ${entrega.estado}) from ${entrega} where ${entrega.escolaId} = ${atividadeAplicada.escolaId} and ${entrega.anoLetivoId} = ${atividadeAplicada.anoLetivoId} and ${entrega.turmaId} = ${atividadeAplicada.turmaId} and ${entrega.atividadeAplicadaId} = ${atividadeAplicada.id} order by ${entrega.id} desc limit 1)`
 
+/** Quantos alunos da aplicação têm tempo adicional: a contagem, nunca quais. */
+const comTempoAdicionalDaAplicacao = sql<number>`(select count(*)::int from ${tempoAdicional} where ${tempoAdicional.escolaId} = ${atividadeAplicada.escolaId} and ${tempoAdicional.atividadeAplicadaId} = ${atividadeAplicada.id})`
+
 const colunas = {
   id: atividadeAplicada.id,
   artefatoId: atividadeAplicada.artefatoId,
@@ -69,6 +97,13 @@ const colunas = {
   questoes: sql<number>`jsonb_array_length(${artefato.conteudo} -> 'questoes')`,
   aplicadaEm: atividadeAplicada.aplicadaEm,
   encerradaEm: atividadeAplicada.encerradaEm,
+  abreEm: atividadeAplicada.abreEm,
+  fechaEm: atividadeAplicada.fechaEm,
+  duracaoMin: atividadeAplicada.duracaoMin,
+  embaralharQuestoes: atividadeAplicada.embaralharQuestoes,
+  embaralharAlternativas: atividadeAplicada.embaralharAlternativas,
+  segundaChamadaDe: atividadeAplicada.segundaChamadaDe,
+  comTempoAdicional: comTempoAdicionalDaAplicacao,
   alunos: alunosDaTurma(atividadeAplicada),
   iniciaram: tentativasDaAplicacao(),
   enviaram: tentativasDaAplicacao(sql`${tentativaAtividade.enviadaEm} is not null`),
@@ -163,7 +198,19 @@ export class AtividadeAplicadaRepository {
   async create(nova: NovaAplicacao): Promise<string> {
     const [criada] = await this.banco
       .insert(atividadeAplicada)
-      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), turmaId: nova.turmaId, artefatoId: nova.artefatoId, avaliativa: nova.avaliativa, aplicadaPor: requestSessao().usuarioId })
+      .values({
+        escolaId: requireEscolaId(),
+        anoLetivoId: requireAnoEmCurso(),
+        turmaId: nova.turmaId,
+        artefatoId: nova.artefatoId,
+        avaliativa: nova.avaliativa,
+        aplicadaPor: requestSessao().usuarioId,
+        abreEm: nova.janela === undefined ? null : new Date(nova.janela.abreEm),
+        fechaEm: nova.janela === undefined ? null : new Date(nova.janela.fechaEm),
+        duracaoMin: nova.duracaoMin ?? null,
+        embaralharQuestoes: nova.embaralhar.questoes,
+        embaralharAlternativas: nova.embaralhar.alternativas,
+      })
       .returning({ id: atividadeAplicada.id })
     if (criada === undefined) throw new InvariantException('atividade aplicada não criada')
     return criada.id
@@ -189,6 +236,135 @@ export class AtividadeAplicadaRepository {
     await this.banco
       .update(atividadeAplicada)
       .set({ estado: 'encerrada', encerradaEm: sql`now()` })
+      .where(and(eq(atividadeAplicada.escolaId, requireEscolaId()), eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()), eq(atividadeAplicada.id, id), eq(atividadeAplicada.estado, 'aberta')))
+  }
+
+  /**
+   * Dos ids dados, quais são aluno **desta turma** do ano em curso, com vínculo `confirmado` e a conta ativa: é o conjunto a que o tempo adicional, a extensão e a
+   * segunda chamada se aplicam. O aluno de outra turma, de outra escola, o inexistente e o desativado não voltam, e quem chama responde o mesmo `ENTRADA_INVALIDA` para todos
+   * (nenhum confirma o outro). A turma é a da aplicação, lida do banco, nunca a do corpo.
+   */
+  async alunosDaTurmaEntre(turmaId: string, alunoIds: readonly string[]): Promise<ReadonlySet<string>> {
+    if (alunoIds.length === 0) return new Set()
+    const linhas = await this.banco
+      .selectDistinct({ id: vinculo.usuarioId })
+      .from(vinculo)
+      .innerJoin(usuario, and(eq(usuario.escolaId, vinculo.escolaId), eq(usuario.id, vinculo.usuarioId)))
+      .where(
+        and(
+          eq(vinculo.escolaId, requireEscolaId()),
+          eq(vinculo.anoLetivoId, requireAnoEmCurso()),
+          eq(vinculo.turmaId, turmaId),
+          eq(vinculo.papel, 'aluno'),
+          eq(vinculo.estado, 'confirmado'),
+          sql`${usuario.desativadoEm} is null`,
+          inArray(vinculo.usuarioId, [...alunoIds]),
+        ),
+      )
+    return new Set(linhas.map((linha) => linha.id))
+  }
+
+  /**
+   * Grava o tempo adicional da aplicação: uma linha por aluno, com quem concedeu (a pessoa da sessão). Sem motivo: a tabela não tem onde guardá-lo. **Que o aluno é da turma da
+   * aplicação o banco não garante** (só que é da escola): quem chama confere antes, com `alunosDaTurmaEntre`.
+   */
+  async saveTempoAdicional(atividadeAplicadaId: string, concedidos: readonly TempoAdicionalDoAluno[]): Promise<void> {
+    if (concedidos.length === 0) return
+    await this.banco
+      .insert(tempoAdicional)
+      .values(
+        concedidos.map((item) => ({
+          escolaId: requireEscolaId(),
+          anoLetivoId: requireAnoEmCurso(),
+          atividadeAplicadaId,
+          alunoId: item.alunoId.toLowerCase(),
+          percentual: item.percentual,
+          concedidoPor: requestSessao().usuarioId,
+        })),
+      )
+  }
+
+  /** O tempo adicional que a aplicação tem agora, por aluno: lido só para conferir a janela e para trocar a lista. Nenhuma rota o devolve. */
+  async tempoAdicionalDaAplicacao(atividadeAplicadaId: string): Promise<TempoAdicionalDoAluno[]> {
+    const linhas = await this.banco
+      .select({ alunoId: tempoAdicional.alunoId, percentual: tempoAdicional.percentual })
+      .from(tempoAdicional)
+      .where(and(eq(tempoAdicional.escolaId, requireEscolaId()), eq(tempoAdicional.anoLetivoId, requireAnoEmCurso()), eq(tempoAdicional.atividadeAplicadaId, atividadeAplicadaId)))
+    return linhas.map((linha) => ({ alunoId: linha.alunoId, percentual: linha.percentual as PercentualDeTempoAdicional }))
+  }
+
+  /**
+   * Troca a lista do tempo adicional pela dada, na mesma transação da aplicação travada: quem não está nela sai, quem está entra ou muda o percentual. A concessão nova leva
+   * a pessoa da sessão e a hora do banco; a que não mudou fica como estava. **Que cada aluno é da turma da aplicação
+   * é conferência de quem chama** (`alunosDaTurmaEntre`): o banco só garante a escola.
+   */
+  async trocarTempoAdicional(atividadeAplicadaId: string, lista: readonly TempoAdicionalDoAluno[]): Promise<void> {
+    const escolaId = requireEscolaId()
+    const anoLetivoId = requireAnoEmCurso()
+    const alunos = lista.map((item) => item.alunoId.toLowerCase())
+    await this.banco
+      .delete(tempoAdicional)
+      .where(
+        and(
+          eq(tempoAdicional.escolaId, escolaId),
+          eq(tempoAdicional.anoLetivoId, anoLetivoId),
+          eq(tempoAdicional.atividadeAplicadaId, atividadeAplicadaId),
+          alunos.length === 0 ? undefined : notInArray(tempoAdicional.alunoId, alunos),
+        ),
+      )
+    if (lista.length === 0) return
+    await this.banco
+      .insert(tempoAdicional)
+      .values(lista.map((item) => ({ escolaId, anoLetivoId, atividadeAplicadaId, alunoId: item.alunoId.toLowerCase(), percentual: item.percentual, concedidoPor: requestSessao().usuarioId })))
+      .onConflictDoUpdate({
+        target: [tempoAdicional.escolaId, tempoAdicional.atividadeAplicadaId, tempoAdicional.alunoId],
+        set: { percentual: sql`excluded.percentual`, concedidoPor: sql`excluded.concedido_por`, concedidoEm: sql`now()` },
+        setWhere: sql`${tempoAdicional.percentual} <> excluded.percentual`,
+      })
+  }
+
+  /**
+   * A aplicação no alcance do professor, **travada até o fim da transação** (`for update`), com a janela e a duração **de agora**: quem espera a trava lê o que o outro gravou
+   * (a corrida de duas mudanças de janela: a segunda relê e confere o conjunto de novo). Quem começa a prova toma a mesma linha em `for share`, então o `PATCH` espera o começo
+   * terminar e só então olha `existeTentativa`. A de outra escola, de outra turma, de outra disciplina e a inexistente não são achadas.
+   */
+  async lockParaMudarAJanela(id: string): Promise<AplicacaoParaMudarAJanela | undefined> {
+    const [linha] = await this.banco
+      .select({ id: atividadeAplicada.id, turmaId: atividadeAplicada.turmaId, estado: atividadeAplicada.estado, avaliativa: atividadeAplicada.avaliativa, abreEm: atividadeAplicada.abreEm, fechaEm: atividadeAplicada.fechaEm, duracaoMin: atividadeAplicada.duracaoMin, embaralharQuestoes: atividadeAplicada.embaralharQuestoes, embaralharAlternativas: atividadeAplicada.embaralharAlternativas })
+      .from(atividadeAplicada)
+      .where(and(this.#noAlcance(), eq(atividadeAplicada.id, id)))
+      .for('update', { of: atividadeAplicada })
+    if (linha === undefined) return undefined
+    return {
+      id: linha.id,
+      turmaId: linha.turmaId,
+      estado: linha.estado,
+      avaliativa: linha.avaliativa,
+      janela: linha.abreEm === null || linha.fechaEm === null ? undefined : { abreEm: linha.abreEm.toISOString(), fechaEm: linha.fechaEm.toISOString() },
+      duracaoMin: linha.duracaoMin ?? undefined,
+      embaralhar: { questoes: linha.embaralharQuestoes, alternativas: linha.embaralharAlternativas },
+    }
+  }
+
+  /** Alguém já começou? Lido **depois** da trava da aplicação: o começo em andamento já confirmou ou nunca vai conseguir inserir antes de a trava ser solta. */
+  async existeTentativa(atividadeAplicadaId: string): Promise<boolean> {
+    const [linha] = await this.banco
+      .select({ id: tentativaAtividade.id })
+      .from(tentativaAtividade)
+      .where(and(eq(tentativaAtividade.escolaId, requireEscolaId()), eq(tentativaAtividade.anoLetivoId, requireAnoEmCurso()), eq(tentativaAtividade.atividadeAplicadaId, atividadeAplicadaId)))
+      .limit(1)
+    return linha !== undefined
+  }
+
+  /** Grava a janela, a duração e o que a mudança parcial completou. Só a aplicação aberta e do ano em curso. */
+  async saveJanela(id: string, nova: { readonly janela: JanelaDaProva | undefined; readonly duracaoMin: number | undefined }): Promise<void> {
+    await this.banco
+      .update(atividadeAplicada)
+      .set({
+        abreEm: nova.janela === undefined ? null : new Date(nova.janela.abreEm),
+        fechaEm: nova.janela === undefined ? null : new Date(nova.janela.fechaEm),
+        duracaoMin: nova.duracaoMin ?? null,
+      })
       .where(and(eq(atividadeAplicada.escolaId, requireEscolaId()), eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()), eq(atividadeAplicada.id, id), eq(atividadeAplicada.estado, 'aberta')))
   }
 }

@@ -84,6 +84,10 @@ export const ErrorCode = {
   VERSAO_ADAPTADA_NAO_APROVADA: 'VERSAO_ADAPTADA_NAO_APROVADA',
   /** A atividade foi encerrada pelo professor ou já foi enviada pelo aluno (409): a resposta não é mais aceita. */
   ATIVIDADE_ENCERRADA: 'ATIVIDADE_ENCERRADA',
+  /** Prova online (avaliacao-e-correcao, 1.0): alguém já começou, e a janela e o tempo adicional não mudam mais (409). Daí em diante o professor só estende. */
+  PROVA_JA_COMECOU: 'PROVA_JA_COMECOU',
+  /** Prova online: o aluno alcança a prova, mas ela ainda não abriu ou já fechou (409). Só depois do alcance: o não convocado e o de outra turma recebem `NAO_ENCONTRADO`. */
+  PROVA_FORA_DA_JANELA: 'PROVA_FORA_DA_JANELA',
   /**
    * Os erros da camada de IA (MVP; regra 30; regra 80, item 4). São os códigos que `execucao_agente.erro` e
    * `consumo_ia.codigo_de_erro` guardam, e o que a tela recebe em `GET /v1/execucoes/:id`: nunca o erro cru do provedor,

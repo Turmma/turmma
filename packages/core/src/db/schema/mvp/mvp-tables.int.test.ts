@@ -76,6 +76,7 @@ const FKS_COMPOSTAS_DO_MVP = [
   'artefato_origem_da_turma_fk',
   'artefato_turma_do_ano_da_escola_fk',
   'atividade_aplicada_artefato_do_ano_da_escola_fk',
+  'atividade_aplicada_segunda_chamada_da_original_fk',
   'atividade_aplicada_turma_do_ano_da_escola_fk',
   'consumo_ia_aluno_da_escola_fk',
   'consumo_ia_execucao_da_escola_fk',
@@ -1300,6 +1301,8 @@ describe('tabelas do MVP de apresentação: o banco recusa o que o contrato pro�
         { tabela: 'mensagem_tutor', coluna: 'citacoes' },
         // Números, ids de série e disciplina e códigos: `conteudoDoResumoDoAnalistaSchema`.
         { tabela: 'resumo_do_analista', coluna: 'conteudo' },
+        // A ordem que o aluno vê na prova (avaliacao-e-correcao): só posições de questão e de alternativa, números, sorteadas no começo.
+        { tabela: 'tentativa_atividade', coluna: 'ordem' },
         // O que foi aberto e o que foi apresentado, com ids e números: `destaquesAbertosSchema` e `loteApresentadoSchema`.
         { tabela: 'validacao_do_lote', coluna: 'aberto' },
         { tabela: 'validacao_do_lote', coluna: 'apresentado' },

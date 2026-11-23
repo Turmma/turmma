@@ -48,6 +48,11 @@ export const TABELAS_DO_MVP_NA_ORDEM_DE_LIMPEZA = [
   'validacao_do_lote',
   'correcao',
   'resposta_atividade',
+  // A prova online (avaliacao-e-correcao): a saída da aba aponta para a tentativa, e as outras três, para a atividade aplicada.
+  'saida_da_aba',
+  'tempo_adicional',
+  'extensao_de_tempo',
+  'convocado_da_segunda_chamada',
   'tentativa_atividade',
   'sinal_tutor',
   'mensagem_tutor',

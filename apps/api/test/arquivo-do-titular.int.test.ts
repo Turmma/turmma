@@ -278,12 +278,40 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
         [escolaId, anoLetivoId, entrega, aplicada, aluno.id, textos[`correcao.${rotulo}`]],
       )
       if (estado === 'aprovada') await aprovarLote(cenario, entrega, aplicada, professor, sentinela('lote-do-aluno'))
+      if (estado === 'aprovada') {
+        // A prova online (avaliacao-e-correcao, 1.0): a saída da aba, o tempo adicional, a extensão e a convocação, todos por `aluno_id`. A chave (uuid do cliente) e quem concedeu ficam fora do arquivo.
+        textos['saida_da_aba.chave'] = randomUUID()
+        textos['extensao_de_tempo.chave'] = randomUUID()
+        await bancada.pool.query('insert into saida_da_aba (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, chave) values ($1, $2, $3, $4, $5)', [escolaId, anoLetivoId, aplicada, aluno.id, textos['saida_da_aba.chave']])
+        ids['saida_da_aba'] = ids[`tentativa_atividade.${rotulo}`] ?? ''
+        ids['tempo_adicional'] = await inserir(
+          'insert into tempo_adicional (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, percentual, concedido_por) values ($1, $2, $3, $4, 50, $5) returning id',
+          [escolaId, anoLetivoId, aplicada, aluno.id, professor],
+        )
+        ids['extensao_de_tempo'] = await inserir(
+          'insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave) values ($1, $2, $3, $4, 10, $5, $6) returning id',
+          [escolaId, anoLetivoId, aplicada, aluno.id, professor, textos['extensao_de_tempo.chave']],
+        )
+        ids['convocado_da_segunda_chamada'] = await inserir('insert into convocado_da_segunda_chamada (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id) values ($1, $2, $3, $4) returning id', [escolaId, anoLetivoId, aplicada, aluno.id])
+      }
     }
     // Tabelas do arquivo que só têm uma linha por aluno: o primeiro dos três vale.
     ids['tentativa_atividade'] = ids['tentativa_atividade.aprovado'] ?? ''
     ids['resposta_atividade'] = ids['resposta_atividade.aprovado'] ?? ''
     ids['correcao'] = ids['correcao.aprovado'] ?? ''
     return { ids, textos }
+  }
+
+  /**
+   * A prova online no arquivo do aluno (avaliacao-e-correcao, 1.0): quem concedeu e a chave do cliente nunca saem (`fora`), o tempo adicional leva o percentual, e a saída da
+   * aba é só a contagem por prova, sem o id da linha nem horário.
+   */
+  function conferirAProvaOnlineDoAluno(texto: string, tabelas: Record<string, Array<Record<string, unknown>>>, semeado: Semeado): void {
+    expect(texto).not.toContain(semeado.textos['saida_da_aba.chave'])
+    expect(texto).not.toContain(semeado.textos['extensao_de_tempo.chave'])
+    expect(tabelas['tempo_adicional']?.[0]).toMatchObject({ percentual: 50 })
+    expect(Object.keys(tabelas['saida_da_aba']?.[0] ?? {}).sort()).toEqual(['ano_letivo_id', 'atividade_aplicada_id', 'id', 'saidas'])
+    expect(tabelas['saida_da_aba']?.[0]).toMatchObject({ saidas: 1 })
   }
 
   /** Uma linha em cada tabela do arquivo que o **professor** tem, com as colunas proibidas preenchidas com sentinela. */
@@ -510,7 +538,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect(tabelas['mensagem_agente']).toBeUndefined()
       expect((arquivo['resumo'] as Array<{ registros: number }>).every(({ registros }) => registros > 0)).toBe(true)
       expect(Object.keys(arquivo['compartilhamento'] as object)).toEqual(['empresas'])
-      const tabelasDoAluno = ['usuario', 'credencial_matricula', 'conta_externa', 'lista_nome', 'reivindicacao', 'sessao', 'registro_acesso', 'mensagem_tutor', 'sinal_tutor', 'execucao_agente', 'consumo_ia', 'tentativa_atividade', 'resposta_atividade', 'correcao']
+      const tabelasDoAluno = ['usuario', 'credencial_matricula', 'conta_externa', 'lista_nome', 'reivindicacao', 'sessao', 'registro_acesso', 'mensagem_tutor', 'sinal_tutor', 'execucao_agente', 'consumo_ia', 'tentativa_atividade', 'resposta_atividade', 'correcao', 'saida_da_aba', 'tempo_adicional', 'extensao_de_tempo', 'convocado_da_segunda_chamada']
       for (const tabela of tabelasDoAluno) {
         expect(tabelas[tabela]?.map(({ id }) => id), `${tabela} sem a linha do aluno`).toContain(semeado.ids[tabela])
       }
@@ -518,6 +546,7 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       for (const tabela of tabelasDoAluno) expect(texto, `${tabela} do outro aluno entrou`).not.toContain(doOutro.ids[tabela] ?? 'nada')
       for (const id of Object.values(deB.ids)) expect(texto, 'linha de outra escola no arquivo').not.toContain(id)
       for (const valor of [...Object.values(doOutro.textos), ...Object.values(deB.textos), outro.nome, alunoB.nome]) expect(texto, valor).not.toContain(valor)
+      conferirAProvaOnlineDoAluno(texto, tabelas, semeado)
       // O texto da conversa do Tutor e o texto do modelo, nas colunas que levam texto.
       expect(texto).toContain(semeado.textos['mensagem_tutor.texto'])
       expect(texto).toContain(aluno.nome)
@@ -526,6 +555,49 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       // O resumo diz, em linguagem comum, o que o arquivo leva.
       const resumo = arquivo['resumo'] as Array<{ conteudo: string; registros: number }>
       expect(resumo.find(({ conteudo }) => conteudo === 'Sua conversa com o Tutor')).toEqual({ conteudo: 'Sua conversa com o Tutor', registros: 1 })
+    })
+
+    it('o tempo adicional e a extensão ficam no arquivo do aluno, pelo `aluno_id`: o arquivo do professor que os concedeu não os traz, nem a chave', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const professor = await pessoa(cenario, 'professor', 'Professor')
+      const { aplicada } = await atividadeAplicada(cenario, professor.id)
+      const { anoLetivoId } = cenario.escola
+      const adicional = await inserir('insert into tempo_adicional (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, percentual, concedido_por) values ($1, $2, $3, $4, 25, $5) returning id', [cenario.escolaId, anoLetivoId, aplicada, aluno.id, professor.id])
+      const chave = randomUUID()
+      const extensao = await inserir('insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave) values ($1, $2, $3, null, 10, $4, $5) returning id', [cenario.escolaId, anoLetivoId, aplicada, professor.id, chave])
+
+      const doAluno = textoDoObjeto(cenario.escolaId, await pedidoPronto(cenario, aluno), 'completa')
+      expect(doAluno).toContain(adicional)
+      // A extensão da turma (aluno nulo) não é de um aluno: não entra no arquivo de ninguém.
+      expect(doAluno).not.toContain(extensao)
+      const doProfessor = textoDoObjeto(cenario.escolaId, await pedidoPronto(cenario, professor), 'completa')
+      for (const valor of [adicional, extensao, chave]) expect(doProfessor).not.toContain(valor)
+      expect(doAluno).not.toContain(chave)
+      // Quem concedeu (`concedido_por`, `concedida_por`) é o id de outra pessoa: fica na auditoria da escola e não vai no arquivo do aluno.
+      expect(doAluno).not.toContain(professor.id)
+    })
+
+    it('a saída da aba no arquivo é a contagem do aluno por prova: o colega da mesma prova e outra prova do aluno não se somam', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const colega = await pessoa(cenario, 'aluno', 'Colega')
+      const professor = await pessoa(cenario, 'professor', 'Professor')
+      const { anoLetivoId } = cenario.escola
+      const primeira = (await atividadeAplicada(cenario, professor.id)).aplicada
+      const segunda = (await atividadeAplicada(cenario, professor.id)).aplicada
+      const saidas: Array<[string, string, number]> = [[primeira, aluno.id, 2], [segunda, aluno.id, 1], [primeira, colega.id, 3]]
+      for (const [aplicada, alunoId] of [[primeira, aluno.id], [segunda, aluno.id], [primeira, colega.id]]) {
+        await bancada.pool.query('insert into tentativa_atividade (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id) values ($1, $2, $3, $4)', [cenario.escolaId, anoLetivoId, aplicada, alunoId])
+      }
+      for (const [aplicada, alunoId, quantas] of saidas) {
+        for (let i = 0; i < quantas; i++) {
+          await bancada.pool.query('insert into saida_da_aba (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, chave) values ($1, $2, $3, $4, $5)', [cenario.escolaId, anoLetivoId, aplicada, alunoId, randomUUID()])
+        }
+      }
+      const arquivo = documento(cenario.escolaId, await pedidoPronto(cenario, aluno), 'completa')
+      const tabelas = arquivo['tabelas'] as Record<string, Array<{ atividade_aplicada_id: string; saidas: number }>>
+      expect(Object.fromEntries((tabelas['saida_da_aba'] ?? []).map((linha) => [linha.atividade_aplicada_id, linha.saidas]))).toEqual({ [primeira]: 2, [segunda]: 1 })
     })
 
     it('a linha estimada da execução interrompida (sem `aluno_id`, ligada pela execução que o aluno pediu) entra no arquivo dele, com o provedor, e a do colega da turma não', async () => {
@@ -1262,6 +1334,52 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
   })
 
   describe('versão da escola (RF12)', () => {
+    it('o tempo adicional vai na versão da escola (a exceção declarada, art. 18), com o percentual e sem quem concedeu, e a extensão da turma não', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const professor = await pessoa(cenario, 'professor', 'Professor')
+      const { aplicada } = await atividadeAplicada(cenario, professor.id)
+      const { anoLetivoId } = cenario.escola
+      const adicional = await inserir('insert into tempo_adicional (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, percentual, concedido_por) values ($1, $2, $3, $4, 50, $5) returning id', [cenario.escolaId, anoLetivoId, aplicada, aluno.id, professor.id])
+      const daTurma = await inserir('insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave) values ($1, $2, $3, null, 10, $4, $5) returning id', [cenario.escolaId, anoLetivoId, aplicada, professor.id, randomUUID()])
+      await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [aluno.id])
+      const pedido = await pedidoPronto(cenario, aluno)
+      const daEscola = textoDoObjeto(cenario.escolaId, pedido, 'coordenacao')
+      const tabelas = documento(cenario.escolaId, pedido, 'coordenacao')['tabelas'] as Record<string, Array<Record<string, unknown>>>
+      expect(tabelas['tempo_adicional']).toEqual([expect.objectContaining({ id: adicional, percentual: 50 })])
+      expect(daEscola).not.toContain(professor.id)
+      expect(daEscola).not.toContain(daTurma)
+      // A completa traz o mesmo percentual: a versão da escola não é mais curta nele.
+      expect((documento(cenario.escolaId, pedido, 'completa')['tabelas'] as Record<string, Array<Record<string, unknown>>>)['tempo_adicional']).toEqual(tabelas['tempo_adicional'])
+    })
+
+    it('a saída da aba vai na versão da escola (a exceção declarada, art. 18) como a contagem por prova, sem horário nem chave, e a do colega não', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const colega = await pessoa(cenario, 'aluno', 'Colega')
+      const professor = await pessoa(cenario, 'professor', 'Professor')
+      const { aplicada } = await atividadeAplicada(cenario, professor.id)
+      const { anoLetivoId } = cenario.escola
+      const chaves: string[] = []
+      for (const [alunoId, quantas] of [[aluno.id, 2], [colega.id, 3]] as const) {
+        await bancada.pool.query('insert into tentativa_atividade (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, saidas_da_aba) values ($1, $2, $3, $4, $5)', [cenario.escolaId, anoLetivoId, aplicada, alunoId, quantas])
+        for (let i = 0; i < quantas; i++) {
+          const chave = randomUUID()
+          chaves.push(chave)
+          await bancada.pool.query('insert into saida_da_aba (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, chave) values ($1, $2, $3, $4, $5)', [cenario.escolaId, anoLetivoId, aplicada, alunoId, chave])
+        }
+      }
+      await bancada.pool.query('update usuario set desativado_em = now() where id = $1', [aluno.id])
+      const pedido = await pedidoPronto(cenario, aluno)
+      const daEscola = textoDoObjeto(cenario.escolaId, pedido, 'coordenacao')
+      const tabelas = documento(cenario.escolaId, pedido, 'coordenacao')['tabelas'] as Record<string, Array<Record<string, unknown>>>
+      // A contagem é a do aluno (2), por prova; nenhuma chave do cliente nem o id de quem concedeu sai, e a linha de saída não traz horário.
+      expect(tabelas['saida_da_aba']).toEqual([expect.objectContaining({ atividade_aplicada_id: aplicada, saidas: 2 })])
+      expect(Object.keys(tabelas['saida_da_aba']?.[0] ?? {}).sort()).toEqual(['ano_letivo_id', 'atividade_aplicada_id', 'id', 'saidas'])
+      expect(tabelas['tentativa_atividade']).toEqual([expect.objectContaining({ atividade_aplicada_id: aplicada, saidas_da_aba: 2 })])
+      for (const chave of chaves) expect(daEscola).not.toContain(chave)
+    })
+
     it('sem conta ativa, a versão da escola traz o Tutor e não traz a conversa, o tema, o texto do modelo nem a justificativa; a completa traz tudo', async () => {
       const cenario = await novaEscola()
       const professor = await pessoa(cenario, 'professor', 'Professor')

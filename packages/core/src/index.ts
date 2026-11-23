@@ -314,6 +314,7 @@ export {
 export type { AlvoDoExpurgoDaEscola, CategoriaDoExpurgo, EliminacoesEnfileiradas, LoteDoExpurgo, NoiteDoExpurgo, PrazoDoLote } from './retencao/expurgo-da-escola.repository.js'
 export { CronEscolasRepository } from './cron/cron-escolas.repository.js'
 export * from './db/schema/mvp/tables.js'
+export { convocadoDaSegundaChamada, extensaoDeTempo, indisponibilidade, pulsoDaApi, saidaDaAba, tempoAdicional } from './db/schema/prova-online.js'
 export { contaExterna, PROVEDORES_EXTERNOS } from './db/schema/conta-externa.js'
 export type { ProvedorExterno } from './db/schema/conta-externa.js'
 export { provedorEscola } from './db/schema/provedor-escola.js'

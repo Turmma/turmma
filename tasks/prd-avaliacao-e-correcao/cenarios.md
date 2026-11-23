@@ -15,12 +15,13 @@
 |---|---|---|---|
 | RF1 | Aluno começa antes de `abre_em` e depois de `fecha_em`: `PROVA_FORA_DA_JANELA`, sem tentativa | integração, `prova-online.int.test.ts` | tirar a conferência da janela |
 | RF1 | Duração 40 min, começo a 10 min do `fecha_em`: `limiteEm` = `fecha_em` | unidade, `limite-da-tentativa.test.ts`; integração | `limite_base_em` sem o `min` |
-| RF1 | Avaliativa nova sem janela e não avaliativa com janela: `ENTRADA_INVALIDA`; não avaliativa responde sem limite | integração | aceitar avaliativa sem janela |
+| RF1 | Avaliativa nova sem janela (a exigência vale a partir da 10.0, com a tela; até lá a janela é opcional) e não avaliativa com janela: `ENTRADA_INVALIDA`; não avaliativa responde sem limite | integração | aceitar avaliativa sem janela |
 | RF2 | Mudar janela sem tentativa: grava e audita; com uma tentativa iniciada: `PROVA_JA_COMECOU`, nada muda | integração | tirar o `not exists` da tentativa |
 | RF2 | Tempo adicional mudado pela rota `janela`: antes do primeiro começo grava; depois, `PROVA_JA_COMECOU` | integração | aceitar depois do começo |
 | RF3 | +25%, +50% e +100% sobre 40 min: 50, 60 e 80; o colega sem tempo adicional, 40 | integração | aplicar o percentual a todos |
 | RF3 | Aluno de outra turma, de outra escola ou inexistente no tempo adicional, na extensão ou na segunda chamada: `ENTRADA_INVALIDA`, nada gravado (a mesma resposta nos três) | integração | confiar na FK |
-| RF3 | Janela de 50 min, duração 40 e um aluno com +50%: `ENTRADA_INVALIDA` no campo da janela, ao aplicar, ao mudar a janela e na segunda chamada; janela de 60 min passa | integração | tirar a conferência de que cabe |
+| RF3 | Janela de 50 min, duração 40 e um aluno com +50%: `ENTRADA_INVALIDA` (o campo `janela` é o do schema compartilhado, `camposInvalidosDaProva`; o corpo da API leva só o código), ao aplicar, ao mudar a janela e na segunda chamada; janela de 60 min passa | integração | tirar a conferência de que cabe |
+| RF3 | Tempo adicional sem duração, e duração sem janela: `ENTRADA_INVALIDA` (a mesma conferência, `camposInvalidosDaProva`, no aplicar, no PATCH e na segunda chamada: sem duração não há sobre o que somar o percentual, e sem janela não há de onde contá-la) | unidade, `packages/shared`; integração | aceitar tempo adicional sem duração |
 | RF3 | O contrato de aplicar não tem campo de motivo; chave a mais é `ENTRADA_INVALIDA` | unidade, `packages/shared` | schema sem `.strict()` |
 | RF3 | O aluno com +50% lê `duracaoMin = 60` em `prova` e em `minhas-atividades`, e nenhuma resposta dele diz "tempo adicional" nem o percentual | integração; unidade web, `AntesDeComecar.test.tsx` | expor o percentual |
 | RF4 | Estender 10 min só para A: A grava depois do limite antigo; B recebe `TEMPO_ESGOTADO` | integração | somar a extensão de aluno a todos |
@@ -96,7 +97,7 @@
 | Auditorias `atividade.aplicada` (quantos com tempo adicional), `.tempo_estendido`, `.segunda_chamada_aplicada`, `.janela_alterada`: nenhuma leva `alunoId` com percentual nem minutos por aluno | integração | gravar a lista |
 | Expurgo: ano encerrado além do prazo apaga `saida_da_aba`, `tempo_adicional`, `extensao_de_tempo` (a da turma também) e `convocado…`; o ano em curso não perde nada; `indisponibilidade` sai aos 13 meses | integração, `apps/worker/test/expurgo.int.test.ts` | tirar a tabela da lista do expurgo |
 | Eliminar o aluno com saídas, tempo adicional, extensão e convocação: as linhas saem | `apps/api/test/ciclo-de-vida.int.test.ts` | FK sem cascade |
-| Arquivo do titular: as quatro tabelas pelo `aluno_id`, sem `concedido_por` nem `chave`; o adicional de um aluno não aparece no arquivo do professor | `apps/api/test/arquivo-do-titular.int.test.ts` | ligar por `concedido_por` |
+| Arquivo do titular: as quatro tabelas pelo `aluno_id`, sem `concedido_por` nem `chave`; o adicional de um aluno não aparece no arquivo do professor; a versão `coordenacao` (sem conta ativa) leva o percentual do tempo adicional e a contagem de saídas por prova, pela exceção do PRD §6 | `apps/api/test/arquivo-do-titular.int.test.ts` | ligar por `concedido_por` |
 | Alerta do pulso: com a API respondendo e o pulso de 2 min, dispara; com o pulso fresco, não | unidade da regra do alerta | — |
 | Memória do Tutor: tempo adicional, saídas e limite não entram | `apps/api/src/tutor/tutor.int.test.ts` | selecionar as colunas novas |
 | Tutor: prova de amanhã não trava; na janela trava a turma; depois do fim efetivo, não | idem | trava pela aplicação aberta |

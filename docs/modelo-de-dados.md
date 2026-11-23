@@ -647,8 +647,15 @@ Entrega*           → escola*, anoLetivo*, turma*, funcao*, tipo* (versao_adapt
                      atividadeAplicada?, execucao?, estado* (pendente | aprovada | rejeitada), decididaPor?,
                      decididaEm?, justificativa?
 AtividadeAplicada* → escola*, anoLetivo*, turma*, artefato*, avaliativa*, estado* (aberta | encerrada),
-                     aplicadaPor*, aplicadaEm*, encerradaEm?
-TentativaAtividade*→ escola*, anoLetivo*, atividadeAplicada*, aluno*, iniciadaEm*, enviadaEm?
+                     aplicadaPor*, aplicadaEm*, encerradaEm?, abreEm?, fechaEm?, duracaoMin? (5..300),
+                     embaralharQuestoes*, embaralharAlternativas*, segundaChamadaDe? (a original)   — a prova online (F6)
+TentativaAtividade*→ escola*, anoLetivo*, atividadeAplicada*, aluno*, iniciadaEm*, enviadaEm?, limiteBaseEm?, ordem?,
+                     saidasDaAba*, envio? (aluno | limite | encerramento)
+TempoAdicional*    → escola*, anoLetivo*, atividadeAplicada*, aluno*, percentual* (25 | 50 | 100), concedidoPor*, concedidoEm*
+ExtensaoDeTempo*   → escola*, anoLetivo*, atividadeAplicada*, aluno? (nulo é a turma), minutos* (1..120), concedidaPor*,
+                     concedidaEm*, chave* (por aplicação)
+ConvocadoDaSegundaChamada* → escola*, anoLetivo*, atividadeAplicada*, aluno*
+SaidaDaAba*        → escola*, anoLetivo*, atividadeAplicada*, aluno*, chave* (uuid v4)   — sem id e sem horário (D70)
 RespostaAtividade* → escola*, anoLetivo*, atividadeAplicada*, aluno*, questao* (1..20), alternativa* (0..3)
 Correcao*          → escola*, anoLetivo*, entrega* (lote), atividadeAplicada*, aluno*, acertos*, total*, emBranco*,
                      porHabilidade*, destaques*, destaqueAbertoEm?, destaqueAbertoPor?
@@ -678,6 +685,16 @@ O que a fatia tem de diferente do desenho definitivo, e por quê:
 
 **`SecaoDoMaterial`** (`secao_do_material`, classificacao-bncc, 2.0) é a unidade que a classificação pela BNCC lê: **uma por capítulo**, ou, no PDF sem capítulo, **um bloco por 10 páginas** (o último com as que sobram); as páginas antes do primeiro capítulo não têm seção. A extração a grava na transação que tira o material de `processando`, depois dos capítulos e só em quem fez a transição (a reentrega não duplica), e a migration `0061` a dá, em lotes de 1.000 e sem execução, aos materiais que já estavam `pronto` e não excluídos (`planejarSecoes`, em `packages/core/src/material/secoes.ts`, é a conta; a migration a repete em SQL, e o teste confere as duas). Chave `(escola, material, ordem)` e `(escola, id)`; FK composta com a escola para o material e para o capítulo (as duas em cascata: o expurgo de `material_excluido` leva as seções), para a execução da classificação (`execucao_id`, `set null` só na coluna: o expurgo da execução não trava nela) e para a pessoa que corrigiu (`corrigida_por`, `set null` só na coluna). **A marca da correção é `corrigida_em`**: a eliminação da coordenação só anula `corrigida_por`, que é autoria, e a correção continua valendo; `corrigida_por` só existe com `corrigida_em` (check). `falhas_seguidas` conta as noites seguidas de `IA_SAIDA_INVALIDA` (a 4.0 a soma). Índices começando pela escola: `(escola, material, pagina_inicial)` (a seção da página citada, na geração) e o parcial `(escola, execucao_id)`. **`HabilidadeDaSecao`** (`habilidade_da_secao`) liga a seção a até cinco códigos da `HabilidadeBncc`, com a `origem` (`ia` ou `coordenacao`, que vence); chave `(escola, seção, código)`, índice `(escola, código)` (a cobertura). **A edição nova herda a correção:** a seção da edição cujo capítulo tem o mesmo número e o mesmo título (sem acento nem caixa) de uma seção **corrigida** da anterior recebe as habilidades dela e o `corrigida_em`, sem `corrigida_por`, na mesma transação da substituição, com a auditoria `material.classificacao_herdada` (autor `rotina`, só ids e a contagem); a seção de bloco de páginas, a de capítulo sem número e a da anterior só classificada pela IA não herdam. A seção nasce sem execução (`nao_agendada`); quem agenda é a rotina. Só `corrigida_por` é dado de pessoa (`docs/lgpd.md`); `habilidade_da_secao` não tem.
   (check), e a recusa não grava linha (D5, D75).
+- **A prova online (F6, `avaliacao-e-correcao`, migration 0068)** acrescenta à aplicação a janela (`abre_em`, `fecha_em`), a duração e o
+  embaralhamento, e à tentativa o limite calculado no começo, a ordem sorteada, a contagem de saídas da aba e como foi enviada. As tabelas
+  novas do aluno (`TempoAdicional`, `ExtensaoDeTempo`, `ConvocadoDaSegundaChamada`, `SaidaDaAba`) são `trabalho_do_aluno`: saem com o ano
+  encerrado além do prazo e com a eliminação do aluno (`on delete cascade`), e entram no arquivo dele pelo `aluno_id`. O **tempo adicional**
+  é adaptação, dado sensível (D35): só o percentual, **sem motivo** (a tabela não tem onde guardá-lo), preso à prova, e nunca em auditoria
+  por aluno, log nem memória do Tutor; `concedido_por` e `chave` não saem no arquivo. A **`SaidaDaAba` não tem `id` nem horário** (D70): a
+  chave é um uuid v4 da tela, só para a saída reenviada não contar duas vezes, e o check a recusa em v7 (que carrega o instante). A segunda
+  chamada é uma aplicação nova (`segunda_chamada_de`, FK composta que a prende à mesma turma e ao mesmo artefato da original), com índice
+  único próprio para a aberta; a original aberta continua única por turma e artefato. O `PulsoDaApi` e a `Indisponibilidade` são globais
+  (ver o item 1 das regras transversais).
 - **Não existe `Nota`** (D46). `Correcao` é o diagnóstico formativo de objetiva, por aluno e por lote; `AtividadeAplicada`,
   `TentativaAtividade` e `RespostaAtividade` são a `Avaliacao`, a `Aplicacao` e a `Resposta`, finas, só para objetiva online.
 - **A função não é tabela**: é o catálogo `FUNCOES`, em código (`packages/shared/src/time/funcoes.ts`). `Entrega`,

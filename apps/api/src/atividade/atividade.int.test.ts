@@ -74,7 +74,7 @@ describe('atividade aplicada', () => {
 
       expect(await sql('select aplicada_por, estado from atividade_aplicada where id = $1', [criada.id])).toEqual([{ aplicada_por: a.professora.usuarioId, estado: 'aberta' }])
       expect(await sql(`select entidade, autor_usuario_id, depois from auditoria where acao = 'atividade.aplicada' and entidade_id = $1`, [criada.id])).toEqual([
-        { entidade: 'atividade_aplicada', autor_usuario_id: a.professora.usuarioId, depois: { artefatoId, turmaId: a.turma, avaliativa: true, versaoAdaptada: false } },
+        { entidade: 'atividade_aplicada', autor_usuario_id: a.professora.usuarioId, depois: { artefatoId, turmaId: a.turma, avaliativa: true, versaoAdaptada: false, comTempoAdicional: 0 } },
       ])
     })
 

@@ -444,6 +444,40 @@ describe('ciclo de vida da conta: desativação, limpeza da conta global e elimi
     ])
   })
 
+  it('a prova online (avaliacao-e-correcao, 1.0): eliminar o aluno apaga a saída da aba, o tempo adicional, a extensão e a convocação dele; as do colega e a extensão da turma ficam', async () => {
+    const a = await montarEscolaComTurma(api, bancada)
+    const escolaId = a.coordenacao.escolaId
+    const equipe = a.coordenacao.usuarioId
+    const artefato = (await bancada.pool.query<{ id: string }>(
+      `insert into artefato (escola_id, ano_letivo_id, turma_id, disciplina_id, tipo, titulo, conteudo, criado_por) values ($1, $2, $3, $4, 'atividade_objetiva', 'Prova sintética', '{"tipo":"atividade_objetiva","questoes":[]}'::jsonb, $5) returning id`,
+      [escolaId, a.anoLetivoId, a.turma, a.quimica, equipe],
+    )).rows[0]?.id
+    const aplicada = (await bancada.pool.query<{ id: string }>('insert into atividade_aplicada (escola_id, ano_letivo_id, turma_id, artefato_id, avaliativa, aplicada_por) values ($1, $2, $3, $4, true, $5) returning id', [escolaId, a.anoLetivoId, a.turma, artefato, equipe])).rows[0]?.id
+    const alunos = [await alunoComMatricula(escolaId, `RA${randomBytes(4).toString('hex')}`), await alunoComMatricula(escolaId, `RA${randomBytes(4).toString('hex')}`)] as const
+    for (const alunoId of alunos) {
+      await bancada.pool.query("insert into vinculo (escola_id, ano_letivo_id, usuario_id, turma_id, papel, estado, criado_por, decidido_em) values ($1, $2, $3, $4, 'aluno', 'confirmado', $5, now())", [escolaId, a.anoLetivoId, alunoId, a.turma, equipe])
+      const base = [escolaId, a.anoLetivoId, aplicada, alunoId]
+      await bancada.pool.query('insert into tentativa_atividade (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id) values ($1, $2, $3, $4)', base)
+      await bancada.pool.query('insert into saida_da_aba (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, chave) values ($1, $2, $3, $4, $5)', [...base, randomUUID()])
+      await bancada.pool.query('insert into tempo_adicional (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, percentual, concedido_por) values ($1, $2, $3, $4, 25, $5)', [...base, equipe])
+      await bancada.pool.query('insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave) values ($1, $2, $3, $4, 10, $5, $6)', [...base, equipe, randomUUID()])
+      await bancada.pool.query('insert into convocado_da_segunda_chamada (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id) values ($1, $2, $3, $4)', base)
+    }
+    await bancada.pool.query('insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave) values ($1, $2, $3, null, 15, $4, $5)', [escolaId, a.anoLetivoId, aplicada, equipe, randomUUID()])
+    const linhasDe = async (alunoId: string): Promise<number[]> => {
+      const total = async (tabela: string): Promise<number> => Number((await bancada.pool.query<{ total: string }>(`select count(*) as total from ${tabela} where escola_id = $1 and aluno_id = $2`, [escolaId, alunoId])).rows[0]?.total)
+      return [await total('saida_da_aba'), await total('tempo_adicional'), await total('extensao_de_tempo'), await total('convocado_da_segunda_chamada')]
+    }
+    expect(await linhasDe(alunos[0])).toEqual([1, 1, 1, 1])
+
+    await pela(a.coordenacao, () => servico.eliminar(alunos[0]))
+
+    expect(await linhasDe(alunos[0])).toEqual([0, 0, 0, 0])
+    expect(await linhasDe(alunos[1])).toEqual([1, 1, 1, 1])
+    // A extensão da turma (aluno nulo) não é de ninguém: fica.
+    expect(Number((await bancada.pool.query<{ total: string }>('select count(*) as total from extensao_de_tempo where escola_id = $1 and aluno_id is null', [escolaId])).rows[0]?.total)).toBe(1)
+  })
+
   it('na transação de quem chama (F3, tarefa 1.0): eliminar e desativar entram nela; a falha de quem chama depois desfaz as duas, com a conta e a auditoria; sem falha, saem no commit dela', async () => {
     const escolaId = await bancada.escola()
     const paula = await pessoa(escolaId)

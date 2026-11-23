@@ -49,7 +49,8 @@ export const ALVOS_DO_EXPURGO_DA_ESCOLA = {
   execucao_agente: ['execucao_agente'],
   texto_do_modelo: ['consumo_ia_texto'],
   consumo_por_aluno: ['consumo_ia_aluno', 'execucao_agente_do_tutor'],
-  trabalho_do_aluno: ['tentativa_atividade'],
+  // As três da prova online (avaliacao-e-correcao, 1.0) saem antes da tentativa: a `saida_da_aba` sai em cascata com ela, mas o tempo adicional, a extensão (a da turma, sem aluno, inclusive) e o convocado guardam a aplicação, e não a tentativa.
+  trabalho_do_aluno: ['tempo_adicional', 'extensao_de_tempo', 'convocado_da_segunda_chamada', 'tentativa_atividade'],
   reivindicacao_decidida: ['reivindicacao'],
   autoria_de_artefato: ['artefato_autoria'],
   material_excluido: ['material', 'licenca_de_material'],
@@ -135,6 +136,25 @@ const ANO_ENCERRADO_ALEM_DO_PRAZO = (escolaId: string, { agora, meses, fuso }: P
 `
 
 /**
+ * O lote das três tabelas da prova online que guardam a **aplicação** e não a tentativa (avaliacao-e-correcao, 1.0): a linha do ano `encerrado` além do prazo, com a mesma regra
+ * da tentativa (`ANO_ENCERRADO_ALEM_DO_PRAZO`), pelo ano da própria linha. A extensão da turma (`aluno_id` nulo) sai com as demais: o que decide é o ano. Trava só a linha (`of t`), sem `order by`: o
+ * índice não tem data, e a idade é a do ano. O nome da tabela vem de três literais deste arquivo, nunca de fora.
+ */
+function doAnoEncerradoAlemDoPrazo(tabela: 'tempo_adicional' | 'extensao_de_tempo' | 'convocado_da_segunda_chamada', escolaId: string, prazo: PrazoDoLote, limite: number): SQL {
+  const alvo = sql.raw(tabela)
+  return sql`
+    delete from ${alvo}
+    where escola_id = ${escolaId} and id = any(array(
+      select t.id from ${alvo} t
+      join ano_letivo al on al.escola_id = t.escola_id and al.id = t.ano_letivo_id
+      where t.escola_id = ${escolaId} and ${ANO_ENCERRADO_ALEM_DO_PRAZO(escolaId, prazo)}
+      limit ${limite}
+      for update of t skip locked
+    ))
+  `
+}
+
+/**
  * Cada lote segue o desenho do expurgo de acesso: `id = any(array(...))`, com a subconsulta rodando uma vez antes do
  * delete ou do update; `order by` pela data, que desce pelo índice `(escola_id, <data>)` das migrations 0025 e 0026 e para
  * no lote; e `skip locked`, para dois jobs da mesma escola ao mesmo tempo levarem linhas diferentes, sem um esperar o
@@ -164,6 +184,8 @@ const ANO_ENCERRADO_ALEM_DO_PRAZO = (escolaId: string, { agora, meses, fuso }: P
  *   `fim` vencido. O ano é o da tentativa, então o aluno transferido perde em A o que fez em A. Trava só a tentativa
  *   (`of t`). Sem `order by`, pelo mesmo motivo da autoria. O lote tem o tamanho do job: o teste da tarefa mede a cascata
  *   contra o `statement_timeout` de 2 s.
+ * - **`tempo_adicional`, `extensao_de_tempo` e `convocado_da_segunda_chamada`** (`trabalho_do_aluno`; avaliacao-e-correcao, 1.0): a linha do ano `encerrado` além do prazo, pela mesma regra
+ *   (`doAnoEncerradoAlemDoPrazo`), a da extensão da turma (sem aluno) também. Saem **antes** da tentativa, na mesma categoria. A `saida_da_aba` sai em cascata com a tentativa.
  * - **`reivindicacao`**: o pedido que não está `pendente`, pela data da decisão, ou pela da solicitação no `encerrada`, que
  *   a virada do ano fecha sem decisão (`decidida_em` nulo). Qualquer decisor (`professor` ou `coordenacao`) conta, e o
  *   pendente nunca sai. Nenhuma tabela aponta para o pedido.
@@ -262,6 +284,9 @@ const INSTRUCAO_DO_LOTE: Record<Exclude<AlvoDoExpurgoDaEscola, 'thread_agente' |
       for no key update of a skip locked
     ))
   `,
+  tempo_adicional: (escolaId, prazo, limite) => doAnoEncerradoAlemDoPrazo('tempo_adicional', escolaId, prazo, limite),
+  extensao_de_tempo: (escolaId, prazo, limite) => doAnoEncerradoAlemDoPrazo('extensao_de_tempo', escolaId, prazo, limite),
+  convocado_da_segunda_chamada: (escolaId, prazo, limite) => doAnoEncerradoAlemDoPrazo('convocado_da_segunda_chamada', escolaId, prazo, limite),
   tentativa_atividade: (escolaId, prazo, limite) => sql`
     delete from tentativa_atividade
     where escola_id = ${escolaId} and id = any(array(

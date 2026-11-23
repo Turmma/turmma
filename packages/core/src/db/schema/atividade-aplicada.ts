@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, foreignKey, index, pgTable, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import type { EstadoDeAtividadeAplicada } from '@educa/shared'
 import { artefato } from './artefato.js'
 import { escola } from './escola.js'
@@ -28,6 +28,13 @@ import { turma } from './turma.js'
  * - O gatilho de autor (0023) exige que quem aplica seja professor ou coordenação da escola: id de aluno é recusado.
  * - Índice `(escola_id, turma_id, id)`: as atividades da turma, para o professor e para o aluno, paginadas.
  * - Sem dado de pessoa além de quem aplicou.
+ *
+ * **A prova online** (avaliacao-e-correcao, 1.0; Tech Spec, seção 3): a avaliativa ganha janela (`abre_em`, `fecha_em`), duração
+ * (`duracao_min`, 5 a 300) e o embaralhamento, que é só de apresentação. Os checks valem só em `avaliativa`, e a API exige a
+ * janela na avaliativa nova (a antiga segue sem, sem backfill). `segunda_chamada_de` aponta a original, da mesma escola, ano,
+ * turma e artefato: o índice das abertas deixa a segunda chamada de fora (a original e ela convivem), e outro índice garante
+ * uma segunda chamada aberta por original. O índice `(fecha_em)` das provas abertas é o da rotina que encerra a vencida
+ * (não começa por escola: a rotina varre todas, só ids).
  */
 export const atividadeAplicada = pgTable(
   'atividade_aplicada',
@@ -44,11 +51,23 @@ export const atividadeAplicada = pgTable(
     aplicadaPor: uuid().notNull(),
     aplicadaEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
     encerradaEm: timestamp({ withTimezone: true }),
+    abreEm: timestamp({ withTimezone: true }),
+    fechaEm: timestamp({ withTimezone: true }),
+    duracaoMin: smallint(),
+    embaralharQuestoes: boolean().notNull().default(false),
+    embaralharAlternativas: boolean().notNull().default(false),
+    segundaChamadaDe: uuid(),
   },
   (tabela) => [
     unique('atividade_aplicada_escola_id_unico').on(tabela.escolaId, tabela.id),
     unique('atividade_aplicada_escola_ano_id_unico').on(tabela.escolaId, tabela.anoLetivoId, tabela.id),
     unique('atividade_aplicada_escola_ano_turma_id_unico').on(tabela.escolaId, tabela.anoLetivoId, tabela.turmaId, tabela.id),
+    unique('atividade_aplicada_escola_ano_turma_artefato_id_unico').on(tabela.escolaId, tabela.anoLetivoId, tabela.turmaId, tabela.artefatoId, tabela.id),
+    foreignKey({
+      name: 'atividade_aplicada_segunda_chamada_da_original_fk',
+      columns: [tabela.escolaId, tabela.anoLetivoId, tabela.turmaId, tabela.artefatoId, tabela.segundaChamadaDe],
+      foreignColumns: [tabela.escolaId, tabela.anoLetivoId, tabela.turmaId, tabela.artefatoId, tabela.id],
+    }),
     foreignKey({
       name: 'atividade_aplicada_turma_do_ano_da_escola_fk',
       columns: [tabela.escolaId, tabela.anoLetivoId, tabela.turmaId],
@@ -59,9 +78,15 @@ export const atividadeAplicada = pgTable(
       columns: [tabela.escolaId, tabela.anoLetivoId, tabela.artefatoId],
       foreignColumns: [artefato.escolaId, artefato.anoLetivoId, artefato.id],
     }),
-    uniqueIndex('atividade_aplicada_aberta_unica').on(tabela.escolaId, tabela.turmaId, tabela.artefatoId).where(sql`${tabela.estado} = 'aberta'`),
+    uniqueIndex('atividade_aplicada_aberta_unica').on(tabela.escolaId, tabela.turmaId, tabela.artefatoId).where(sql`${tabela.estado} = 'aberta' and ${tabela.segundaChamadaDe} is null`),
+    uniqueIndex('atividade_aplicada_segunda_chamada_aberta_unica').on(tabela.escolaId, tabela.segundaChamadaDe).where(sql`${tabela.estado} = 'aberta' and ${tabela.segundaChamadaDe} is not null`),
+    index('atividade_aplicada_prova_aberta_idx').on(tabela.fechaEm).where(sql`${tabela.avaliativa} and ${tabela.estado} = 'aberta' and ${tabela.fechaEm} is not null`),
     index('atividade_aplicada_turma_idx').on(tabela.escolaId, tabela.turmaId, tabela.id),
     check('atividade_aplicada_estado_valido', sql`${tabela.estado} in ('aberta', 'encerrada')`),
+    check('atividade_aplicada_janela_inteira', sql`(${tabela.abreEm} is null) = (${tabela.fechaEm} is null)`),
+    check('atividade_aplicada_janela_ordenada', sql`${tabela.abreEm} is null or ${tabela.abreEm} < ${tabela.fechaEm}`),
+    check('atividade_aplicada_duracao_valida', sql`${tabela.duracaoMin} is null or (${tabela.duracaoMin} between 5 and 300 and ${tabela.abreEm} is not null)`),
+    check('atividade_aplicada_prova_so_na_avaliativa', sql`${tabela.avaliativa} or (${tabela.abreEm} is null and ${tabela.duracaoMin} is null and not ${tabela.embaralharQuestoes} and not ${tabela.embaralharAlternativas} and ${tabela.segundaChamadaDe} is null)`),
     check('atividade_aplicada_encerrada_tem_data', sql`(${tabela.estado} = 'encerrada') = (${tabela.encerradaEm} is not null)`),
   ],
 )

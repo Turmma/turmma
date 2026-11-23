@@ -5,13 +5,13 @@
 
 ## Lista
 
-- [ ] **1.0 — Migration da prova online; aplicar com janela, duração, embaralhar e tempo adicional; mudar a janela**
-  - [ ] 1.1 Migration `0068_prova_online` e schema Drizzle (techspec §3)
-  - [ ] 1.2 Contratos de todas as rotas da §4 e a matriz de permissão
-  - [ ] 1.3 Classificação, expurgo e as exceções do `architecture.test.ts`
-  - [ ] 1.4 Aplicar com janela, duração, embaralhar e tempo adicional
-  - [ ] 1.5 PATCH parcial da janela
-  - [ ] 1.6 Testes: RF1 a RF3 do professor, corridas (b) e (k), isolamento, schema, expurgo, titular
+- [x] **1.0 — Migration da prova online; aplicar com janela, duração, embaralhar e tempo adicional; mudar a janela**
+  - [x] 1.1 Migration `0068_prova_online` e schema Drizzle (techspec §3)
+  - [x] 1.2 Contratos de todas as rotas da §4 e a matriz de permissão
+  - [x] 1.3 Classificação, expurgo e as exceções do `architecture.test.ts`
+  - [x] 1.4 Aplicar com janela, duração, embaralhar e tempo adicional
+  - [x] 1.5 PATCH parcial da janela
+  - [x] 1.6 Testes: RF1 a RF3 do professor, corridas (b) e (k), isolamento, schema, expurgo, titular
 
 - [ ] **2.0 — Pulso da API, indisponibilidade, `limiteDaTentativa` e o 503 das rotas de prova**
   - [ ] 2.1 `limiteDaTentativa` pura, com a lacuna aberta

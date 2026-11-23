@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ALTERNATIVAS_POR_QUESTAO, adaptacaoAplicadaSchema, citacaoSchema, habilidadeSchema, type ConteudoDeAtividade } from '../assistente/conteudo.js'
 import { MAXIMO_DE_QUESTOES_POR_ATIVIDADE } from '../assistente/conversa.js'
 import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
-import { ESTADOS_DE_ATIVIDADE_APLICADA } from './atividade-aplicada.js'
+import { duracaoDaProvaSchema, ENVIOS_DA_TENTATIVA, ESTADOS_DE_ATIVIDADE_APLICADA, janelaDaProvaSchema } from './atividade-aplicada.js'
 
 /**
  * O lado do aluno na atividade (MVP, A3): `GET /v1/minhas-atividades`, a prova, as respostas, o envio e o diagnóstico.
@@ -191,3 +191,53 @@ export const meuDiagnosticoResponseSchema = z.strictObject({
   aprovadoEm: z.iso.datetime(),
 })
 export type MeuDiagnosticoResponse = z.infer<typeof meuDiagnosticoResponseSchema>
+
+/**
+ * O tempo da prova, como o aluno o lê (`GET …/tempo` e dentro de `comecar` e `prova`): o `limiteEm` **dele** (com o tempo adicional, as
+ * extensões e a queda do sistema já somados, sem dizer que há tempo adicional), o `agora` do servidor, que a tela usa para corrigir o desvio do
+ * relógio do computador, e `envio`, que diz como a tentativa foi enviada (`aluno`, `limite` ou `encerramento`) ou nulo se ainda está em
+ * andamento. `limiteEm` é nulo na prova sem duração nem janela. A tela relê a cada 30 s.
+ */
+export const tempoDaProvaSchema = z.strictObject({
+  limiteEm: z.iso.datetime().nullable(),
+  agora: z.iso.datetime(),
+  envio: z.enum(ENVIOS_DA_TENTATIVA).nullable(),
+})
+export type TempoDaProva = z.infer<typeof tempoDaProvaSchema>
+
+/**
+ * `GET …/prova` antes de começar: **só a janela e a duração**, nenhuma questão, e nada se grava (U05-15). A duração é a do aluno: quem tem tempo
+ * adicional lê a maior, sem saber que é adicional.
+ */
+export const provaAntesDeComecarResponseSchema = z.strictObject({
+  comecou: z.literal(false),
+  atividadeAplicadaId: z.uuid(),
+  titulo: z.string().min(1),
+  janela: janelaDaProvaSchema.nullable(),
+  duracaoMin: duracaoDaProvaSchema.nullable(),
+})
+export type ProvaAntesDeComecarResponse = z.infer<typeof provaAntesDeComecarResponseSchema>
+
+/**
+ * `POST …/comecar` e `GET …/prova` depois de começar: a prova na ordem do aluno (cada questão leva o **número original**; o embaralhamento
+ * é só de apresentação) e o tempo. `comecar` é o que cria a tentativa; repetido, devolve a mesma.
+ */
+export const provaEmAndamentoResponseSchema = provaResponseSchema.extend({ comecou: z.literal(true), tempo: tempoDaProvaSchema }).strict()
+export type ProvaEmAndamentoResponse = z.infer<typeof provaEmAndamentoResponseSchema>
+export const comecarResponseSchema = provaEmAndamentoResponseSchema
+export type ComecarResponse = ProvaEmAndamentoResponse
+
+/** `GET …/prova` da prova online: antes de começar, só a janela e a duração; depois, as questões e o tempo. */
+export const provaOnlineResponseSchema = z.discriminatedUnion('comecou', [provaAntesDeComecarResponseSchema, provaEmAndamentoResponseSchema])
+export type ProvaOnlineResponse = z.infer<typeof provaOnlineResponseSchema>
+
+/** Resposta de `GET …/tempo`. */
+export const tempoResponseSchema = tempoDaProvaSchema
+export type TempoResponse = TempoDaProva
+
+/**
+ * Corpo de `POST …/saidas-da-aba` (D70): a `chave` é um **uuid v4** gerado pela tela, só para a mesma saída reenviada não contar duas vezes. O v7
+ * é recusado: ele carrega o instante da saída, e a saída não tem horário. A resposta é 204.
+ */
+export const registrarSaidaDaAbaRequestSchema = z.strictObject({ chave: z.uuid({ version: 'v4' }) })
+export type RegistrarSaidaDaAbaRequest = z.infer<typeof registrarSaidaDaAbaRequestSchema>

@@ -104,6 +104,12 @@ export const correcaoDoAlunoSchema = z.strictObject({
   acertos: z.number().int().nonnegative(),
   total: z.number().int().min(1),
   emBranco: z.number().int().nonnegative(),
+  /**
+   * Quantas vezes a aba da prova perdeu o foco **nesta prova** (D70; avaliacao-e-correcao). **Só em avaliativa**: na atividade sem prova o campo não vem.
+   * É fato mostrado ao professor da turma, no lote, com o aviso fixo da D88: não é destaque, não trava a aprovação, e nunca é somado por aluno entre provas.
+   * Não entra no registro da validação, que guarda só que a coluna foi mostrada.
+   */
+  saidasDaAba: z.number().int().nonnegative().optional(),
 })
 
 /** Um destaque na lista: a correção do aluno, os motivos e, se já foi aberto, quando. */

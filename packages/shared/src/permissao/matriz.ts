@@ -152,13 +152,18 @@ export const RECURSOS = {
    * (D56). Só o professor da turma decide: a coordenação não aprova no lugar dele.
    */
   entrega: ['listar', 'decidir', 'aprovar_lote'],
-  /** A atividade aplicada (MVP, A3), do professor da turma: `aplicar`, `listar` e `encerrar` são as três rotas de `/v1/atividades-aplicadas`. */
-  atividade_aplicada: ['aplicar', 'listar', 'encerrar'],
+  /**
+   * A atividade aplicada (MVP, A3), do professor da turma: `aplicar`, `listar` e `encerrar` são as três rotas de `/v1/atividades-aplicadas`.
+   * Na prova online (avaliacao-e-correcao): `janela` é `PATCH …/:id/janela`; `estender`, `POST …/:id/extensoes`; `acompanhar`, `GET …/:id/acompanhamento`;
+   * `segunda_chamada`, `POST …/:id/segunda-chamada`. Coordenação, rede e aluno nunca as alcançam: tempo adicional é adaptação, dado sensível (D35).
+   */
+  atividade_aplicada: ['aplicar', 'listar', 'encerrar', 'janela', 'estender', 'acompanhar', 'segunda_chamada'],
   /**
    * O lado do aluno na atividade (MVP, A3), só dele: `listar` é `GET /v1/minhas-atividades`; `ler_prova`, `responder`,
-   * `enviar` e `ler_diagnostico` são `GET …/prova`, `PUT …/respostas/:questao`, `POST …/enviar` e `GET …/meu-diagnostico`.
+   * `enviar` e `ler_diagnostico` são `GET …/prova`, `PUT …/respostas/:questao`, `POST …/enviar` e `GET …/meu-diagnostico`. Na prova online
+   * (avaliacao-e-correcao): `comecar` é `POST …/comecar`; `ler_tempo`, `GET …/tempo`; `registrar_saida`, `POST …/saidas-da-aba`.
    */
-  minha_atividade: ['listar', 'ler_prova', 'responder', 'enviar', 'ler_diagnostico'],
+  minha_atividade: ['listar', 'ler_prova', 'responder', 'enviar', 'ler_diagnostico', 'comecar', 'ler_tempo', 'registrar_saida'],
   /** A correção do lote (MVP, A3; D33, D56), do professor da turma: `ler` é `GET …/correcao`; `abrir_destaque`, o `POST …/destaques/:alunoId/abrir`. */
   correcao: ['ler', 'abrir_destaque'],
   /**
@@ -267,8 +272,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     ferramenta: { gerar: 'nunca' },
     artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca', trocar_habilidade: 'nunca' },
     entrega: { listar: 'nunca', decidir: 'nunca', aprovar_lote: 'nunca' },
-    atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca' },
-    minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca' },
+    atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca', janela: 'nunca', estender: 'nunca', acompanhar: 'nunca', segunda_chamada: 'nunca' },
+    minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca', comecar: 'nunca', ler_tempo: 'nunca', registrar_saida: 'nunca' },
     correcao: { ler: 'nunca', abrir_destaque: 'nunca' },
     desempenho_da_turma: { ler: 'nunca' },
     tutor: { enviar_mensagem: 'nunca', ler_conversa: 'nunca', ler_memoria: 'nunca' },
@@ -316,8 +321,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     ferramenta: { gerar: 'nunca' },
     artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca', trocar_habilidade: 'nunca' },
     entrega: { listar: 'nunca', decidir: 'nunca', aprovar_lote: 'nunca' },
-    atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca' },
-    minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca' },
+    atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca', janela: 'nunca', estender: 'nunca', acompanhar: 'nunca', segunda_chamada: 'nunca' },
+    minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca', comecar: 'nunca', ler_tempo: 'nunca', registrar_saida: 'nunca' },
     correcao: { ler: 'nunca', abrir_destaque: 'nunca' },
     desempenho_da_turma: { ler: 'nominal_auditado' },
     tutor: { enviar_mensagem: 'nunca', ler_conversa: 'nunca', ler_memoria: 'nunca' },
@@ -365,8 +370,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     ferramenta: { gerar: 'turma_vinculada' },
     artefato: { listar: 'turma_vinculada', ler: 'turma_vinculada', renomear: 'turma_vinculada', exportar: 'turma_vinculada', adaptar: 'turma_vinculada', trocar_habilidade: 'turma_vinculada' },
     entrega: { listar: 'turma_vinculada', decidir: 'turma_vinculada', aprovar_lote: 'turma_vinculada' },
-    atividade_aplicada: { aplicar: 'turma_vinculada', listar: 'turma_vinculada', encerrar: 'turma_vinculada' },
-    minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca' },
+    atividade_aplicada: { aplicar: 'turma_vinculada', listar: 'turma_vinculada', encerrar: 'turma_vinculada', janela: 'turma_vinculada', estender: 'turma_vinculada', acompanhar: 'turma_vinculada', segunda_chamada: 'turma_vinculada' },
+    minha_atividade: { listar: 'nunca', ler_prova: 'nunca', responder: 'nunca', enviar: 'nunca', ler_diagnostico: 'nunca', comecar: 'nunca', ler_tempo: 'nunca', registrar_saida: 'nunca' },
     correcao: { ler: 'turma_vinculada', abrir_destaque: 'turma_vinculada' },
     desempenho_da_turma: { ler: 'turma_vinculada' },
     tutor: { enviar_mensagem: 'nunca', ler_conversa: 'nunca', ler_memoria: 'nunca' },
@@ -414,8 +419,8 @@ export const MATRIZ: { readonly [P in Papel]: CelulasDoPapel } = {
     ferramenta: { gerar: 'nunca' },
     artefato: { listar: 'nunca', ler: 'nunca', renomear: 'nunca', exportar: 'nunca', adaptar: 'nunca', trocar_habilidade: 'nunca' },
     entrega: { listar: 'nunca', decidir: 'nunca', aprovar_lote: 'nunca' },
-    atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca' },
-    minha_atividade: { listar: 'proprio', ler_prova: 'proprio', responder: 'proprio', enviar: 'proprio', ler_diagnostico: 'proprio' },
+    atividade_aplicada: { aplicar: 'nunca', listar: 'nunca', encerrar: 'nunca', janela: 'nunca', estender: 'nunca', acompanhar: 'nunca', segunda_chamada: 'nunca' },
+    minha_atividade: { listar: 'proprio', ler_prova: 'proprio', responder: 'proprio', enviar: 'proprio', ler_diagnostico: 'proprio', comecar: 'proprio', ler_tempo: 'proprio', registrar_saida: 'proprio' },
     correcao: { ler: 'nunca', abrir_destaque: 'nunca' },
     desempenho_da_turma: { ler: 'nunca' },
     tutor: { enviar_mensagem: 'proprio', ler_conversa: 'proprio', ler_memoria: 'proprio' },

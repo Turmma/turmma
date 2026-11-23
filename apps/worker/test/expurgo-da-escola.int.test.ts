@@ -627,6 +627,44 @@ describe('retencao.expurgar-escola e sistema.expurgar-dado-pessoal', () => {
     })
   })
 
+  describe('a prova online (avaliacao-e-correcao, 1.0)', () => {
+    /** As quatro tabelas da prova que são do aluno, no ano e na atividade dados: a saída da aba, o tempo adicional, a extensão do aluno e a da turma (aluno nulo), e a convocação. */
+    async function provaOnlineDe(escola: Escola, ano: { anoId: string; turmaId: string; disciplinaId: string }): Promise<{ tentativaId: string; contagens: () => Promise<Record<string, number>> }> {
+      const trabalho = await trabalhoDoAluno(escola, ano, escola.alunoId)
+      const professorId = await professorNovo(escola)
+      const base = [escola.escolaId, ano.anoId, trabalho.atividadeAplicadaId]
+      await bancada.pool.query('insert into saida_da_aba (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, chave) values ($1, $2, $3, $4, $5)', [...base, escola.alunoId, randomUUID()])
+      await bancada.pool.query('insert into tempo_adicional (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, percentual, concedido_por) values ($1, $2, $3, $4, 50, $5)', [...base, escola.alunoId, professorId])
+      await bancada.pool.query('insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave) values ($1, $2, $3, $4, 10, $5, $6)', [...base, escola.alunoId, professorId, randomUUID()])
+      await bancada.pool.query('insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave) values ($1, $2, $3, null, 15, $4, $5)', [...base, professorId, randomUUID()])
+      await bancada.pool.query('insert into convocado_da_segunda_chamada (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id) values ($1, $2, $3, $4)', [...base, escola.alunoId])
+      const contagens = async (): Promise<Record<string, number>> => {
+        const resultado: Record<string, number> = {}
+        for (const tabela of ['saida_da_aba', 'tempo_adicional', 'extensao_de_tempo', 'convocado_da_segunda_chamada']) {
+          resultado[tabela] = Number((await bancada.pool.query<{ total: string }>(`select count(*) as total from ${tabela} where atividade_aplicada_id = $1`, [trabalho.atividadeAplicadaId])).rows[0]?.total)
+        }
+        return resultado
+      }
+      return { tentativaId: trabalho.tentativaId, contagens }
+    }
+
+    it('o ano vencido apaga a saída da aba, o tempo adicional, as extensões (a da turma também) e a convocação; o ano ainda dentro do prazo não perde nada, nem o de outra escola', async () => {
+      const a = await escolaNova()
+      const b = await escolaNova()
+      const meses = CATEGORIAS_DE_RETENCAO.trabalho_do_aluno.padrao
+      const vencido = await provaOnlineDe(a, await anoQueTerminou(a, QUARTA_1H, `${String(meses)} months 1 day`))
+      const dentro = await provaOnlineDe(a, await anoQueTerminou(a, QUARTA_1H, `${String(meses)} months - 1 day`))
+      const deB = await provaOnlineDe(b, await anoQueTerminou(b, QUARTA_1H, `${String(meses)} months 1 day`))
+      const cheio = { saida_da_aba: 1, tempo_adicional: 1, extensao_de_tempo: 2, convocado_da_segunda_chamada: 1 }
+      expect(await vencido.contagens()).toEqual(cheio)
+
+      await rodar(a.escolaId, expurgo(relogioEm(QUARTA_1H)))
+      expect(await vencido.contagens()).toEqual({ saida_da_aba: 0, tempo_adicional: 0, extensao_de_tempo: 0, convocado_da_segunda_chamada: 0 })
+      expect(await dentro.contagens()).toEqual(cheio)
+      expect(await deB.contagens()).toEqual(cheio)
+    })
+  })
+
   describe('ajuste da escola', () => {
     it('encurtar o prazo em A tira a linha de A e mantém a de B, com a mesma idade; aumentar depois não devolve nada', async () => {
       const a = await escolaNova()

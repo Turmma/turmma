@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, pgTable, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
+import { check, foreignKey, index, jsonb, pgTable, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
+import type { EnvioDaTentativa } from '@educa/shared'
 import { atividadeAplicada } from './atividade-aplicada.js'
 import { escola } from './escola.js'
 import { usuario } from './usuario.js'
@@ -17,7 +18,11 @@ import { usuario } from './usuario.js'
  * - O aluno por FK composta com a escola, `on delete cascade`: a eliminação do aluno apaga de fato a tentativa e, por
  *   ela, as respostas e a correção dele (regra 20, item 15). O que fica no registro da validação é só o id.
  * - O relógio é o do servidor (`now()`): a tela não manda hora (regra 80, item 6).
- * - Sem `saidas_da_aba` (D70): a prova online com relógio não é desta fatia.
+ * - **A prova online** (avaliacao-e-correcao, 1.0; Tech Spec, seção 3): `limite_base_em` é o limite calculado no começo (início mais duração,
+ *   com o tempo adicional, e nunca depois do `fecha_em`); `ordem` é o embaralhamento do aluno, sorteado uma vez e mantido na
+ *   retomada; `saidas_da_aba` é a contagem **por tentativa** da saída da aba, só em prova (D70; as chaves já contadas estão em
+ *   `saida_da_aba`); `envio` diz como foi enviada (`aluno`, `limite` ou `encerramento`). A tentativa anterior à coluna fica
+ *   sem `limite_base_em` e sem `envio`.
  */
 export const tentativaAtividade = pgTable(
   'tentativa_atividade',
@@ -31,6 +36,10 @@ export const tentativaAtividade = pgTable(
     alunoId: uuid().notNull(),
     iniciadaEm: timestamp({ withTimezone: true }).notNull().defaultNow(),
     enviadaEm: timestamp({ withTimezone: true }),
+    limiteBaseEm: timestamp({ withTimezone: true }),
+    ordem: jsonb(),
+    saidasDaAba: smallint().notNull().default(0),
+    envio: text().$type<EnvioDaTentativa>(),
   },
   (tabela) => [
     unique('tentativa_atividade_uma_por_aluno').on(tabela.escolaId, tabela.anoLetivoId, tabela.atividadeAplicadaId, tabela.alunoId),
@@ -44,5 +53,7 @@ export const tentativaAtividade = pgTable(
     // chave única começa pelo ano e pela aplicação, e não serve a quem só tem o aluno (F3, tarefa 5.0).
     index('tentativa_atividade_aluno_idx').on(tabela.escolaId, tabela.alunoId),
     check('tentativa_atividade_envio_depois_do_inicio', sql`${tabela.enviadaEm} is null or ${tabela.enviadaEm} >= ${tabela.iniciadaEm}`),
+    check('tentativa_atividade_envio_valido', sql`${tabela.envio} is null or (${tabela.envio} in ('aluno', 'limite', 'encerramento') and ${tabela.enviadaEm} is not null)`),
+    check('tentativa_atividade_saidas_nao_negativas', sql`${tabela.saidasDaAba} >= 0`),
   ],
 )

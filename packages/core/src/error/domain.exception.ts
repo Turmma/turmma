@@ -35,6 +35,8 @@ export const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   ENTREGA_JA_DECIDIDA: 409,
   VERSAO_ADAPTADA_NAO_APROVADA: 409,
   ATIVIDADE_ENCERRADA: 409,
+  PROVA_JA_COMECOU: 409,
+  PROVA_FORA_DA_JANELA: 409,
   // Camada de IA (regra 80, item 4). Na rota que responde 202 estes códigos chegam pela execução, e não pelo status.
   IA_INDISPONIVEL: 503,
   IA_TEMPO_ESGOTADO: 503,

@@ -2,9 +2,11 @@ import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   atividadesAplicadasQuerySchema,
   aplicarAtividadeRequestSchema,
+  mudarJanelaRequestSchema,
   emptyOrMissingBodyRequestSchema,
   type AtividadesAplicadasQuery,
-  type AplicarAtividadeRequest,
+  type AplicarAtividadeLido,
+  type MudarJanelaRequest,
   type EmptyBodyRequest,
   type AtividadeAplicadaResponse,
   type AtividadeEncerradaResponse,
@@ -12,12 +14,12 @@ import {
   type DestaqueAbertoResponse,
   type ListaDeAtividadesAplicadasResponse,
 } from '@educa/shared'
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common'
 import { AtividadeAplicadaService } from './atividade-aplicada.service.js'
 import { CorrecaoService } from '../correcao/correcao.service.js'
 
 /**
- * `/v1/atividades-aplicadas`, o lado da professora (MVP, A3): aplicar, listar, encerrar, ler a correção do lote e abrir
+ * `/v1/atividades-aplicadas`, o lado da professora (MVP, A3): aplicar, listar, encerrar, mudar a janela da prova (antes de alguém começar), ler a correção do lote e abrir
  * destaque. Todas as células são `turma_vinculada`, só do professor: coordenação e aluno são recusados pela guarda. O
  * corpo e a consulta passam pelo contrato estrito (escola, ano ou pessoa no corpo é `ENTRADA_INVALIDA`), e o id fora do
  * formato responde como o inexistente. A correção nomeia alunos e tem o gabarito: toda leitura sai com `no-store`. A
@@ -32,7 +34,7 @@ export class AtividadeAplicadaController {
 
   @Post()
   @RequirePermissao('atividade_aplicada', 'aplicar')
-  aplicar(@Body(new ZodValidationPipe(aplicarAtividadeRequestSchema)) pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
+  aplicar(@Body(new ZodValidationPipe(aplicarAtividadeRequestSchema)) pedido: AplicarAtividadeLido): Promise<AtividadeAplicadaResponse> {
     return this.atividades.aplicar(pedido)
   }
 
@@ -48,6 +50,13 @@ export class AtividadeAplicadaController {
   @HttpCode(HttpStatus.OK)
   encerrar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEncerradaResponse> {
     return this.atividades.encerrar(atividadeAplicadaId)
+  }
+
+  @Patch(':id/janela')
+  @RequirePermissao('atividade_aplicada', 'janela')
+  @Header('Cache-Control', 'no-store')
+  mudarAJanela(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(mudarJanelaRequestSchema)) pedido: MudarJanelaRequest): Promise<AtividadeAplicadaResponse> {
+    return this.atividades.mudarAJanela(atividadeAplicadaId, pedido)
   }
 
   @Get(':id/correcao')

@@ -55,6 +55,15 @@ export const CLASSIFICACAO_DAS_TABELAS: Readonly<Record<string, ClassificacaoDaT
   // Saem em cascata com a tentativa.
   resposta_atividade: categoria(['trabalho_do_aluno'], 'aluno_id'),
   correcao: categoria(['trabalho_do_aluno'], 'aluno_id', 'destaque_aberto_por'),
+  // A prova online (avaliacao-e-correcao, 1.0): saem com o ano encerrado além do prazo, e com o aluno eliminado (`on delete cascade`). A `saida_da_aba` leva a tentativa
+  // pela FK, e entra pelo `aluno_id`. O arquivo do titular traz o aluno, sem o autor (`concedido_por`, `concedida_por`) e sem a `chave` (D85). A extensão da turma (sem aluno) sai com a aplicação.
+  saida_da_aba: categoria(['trabalho_do_aluno'], 'aluno_id'),
+  tempo_adicional: categoria(['trabalho_do_aluno'], 'aluno_id'),
+  extensao_de_tempo: categoria(['trabalho_do_aluno'], 'aluno_id'),
+  convocado_da_segunda_chamada: categoria(['trabalho_do_aluno'], 'aluno_id'),
+  // Fato global do nosso sistema, sem escola e sem pessoa: a queda da API e o pulso que a mede. A indisponibilidade sai aos 13 meses (2.0).
+  pulso_da_api: SEM_PESSOA,
+  indisponibilidade: SEM_PESSOA,
   reivindicacao: categoria(['reivindicacao_decidida'], 'lista_nome_id', 'decidida_por'),
   artefato: categoria(['autoria_de_artefato'], 'criado_por'),
   material: categoria(['material_excluido'], 'enviado_por', 'excluido_por'),
@@ -195,6 +204,8 @@ export const COLUNAS_FORA_DO_ARQUIVO: readonly string[] = [
   'execucao_agente.chave_envio',
   'pedido_titular.chave_envio',
   'arquivo_titular.chave_objeto',
+  'saida_da_aba.chave',
+  'extensao_de_tempo.chave',
   'operador.senha_hash',
   'operador.mfa_segredo_cifrado',
   'operador.mfa_chave_versao',
