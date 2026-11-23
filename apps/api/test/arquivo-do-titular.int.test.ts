@@ -551,6 +551,28 @@ describe('arquivo do titular (F3, tarefa 13.0): do pedido ao download', () => {
       expect(textoDoObjeto(cenario.escolaId, pedidoId, 'completa')).not.toContain(daEstimadaDoColega)
     })
 
+    it('as duas linhas estimadas da execução interrompida (o principal e a reserva, a coluna da Operação falsa) entram no arquivo do aluno, cada uma com o seu `provedor`, e o contador não sai (F5b, 8.0)', async () => {
+      const cenario = await novaEscola()
+      const aluno = await pessoa(cenario, 'aluno', 'Aluno')
+      const semeado = await semearAluno(cenario, aluno)
+      const execucaoId = String(semeado.ids['execucao_agente'])
+      // As linhas que a interrompida grava com o destino do principal e o da reserva (`registrarEstimada`): `falhou`, `EXECUCAO_INTERROMPIDA`, os tetos, o custo de cada preço, o aluno nulo.
+      const estimada = (provedor: string, custoMicros: number) =>
+        inserir(
+          `insert into consumo_ia (escola_id, aluno_id, execucao_id, tarefa, funcao, perfil, origem, modelo, prompt_versao, tokens_de_entrada, tokens_de_saida, custo_micros, duracao_ms, envio_externo, provedor, pelo_provedor_de_reserva, tentativas, estado, codigo_de_erro)
+           values ($1, null, $2, 'turno_do_tutor', 'tutor_com_o_aluno', 'rapido', 'openai_compat', 'modelo-sintetico', 'v1', 24300, 700, $4, 20000, true, $3, false, 1, 'falhou', 'EXECUCAO_INTERROMPIDA') returning id`,
+          [cenario.escolaId, execucaoId, provedor, custoMicros],
+        )
+      const doPrincipal = await estimada(`principal-${MARCA}`, 35_230)
+      const daReserva = await estimada(`reserva-${MARCA}`, 54_200)
+      const pedidoId = await pedidoPronto(cenario, aluno)
+      const tabelas = documento(cenario.escolaId, pedidoId, 'completa')['tabelas'] as Record<string, Array<Record<string, unknown>>>
+      const linhas = tabelas['consumo_ia'] ?? []
+      expect(linhas.find((linha) => linha['id'] === doPrincipal)?.['provedor']).toBe(`principal-${MARCA}`)
+      expect(linhas.find((linha) => linha['id'] === daReserva)?.['provedor']).toBe(`reserva-${MARCA}`)
+      for (const linha of linhas) expect(Object.keys(linha)).not.toContain('pelo_provedor_de_reserva')
+    })
+
     /** Uma chamada concluída do Tutor com envio externo, ligada ao aluno e à execução dele: a linha que o gateway grava, com o destino da chamada (`provedor` e `pelo_provedor_de_reserva`). */
     const chamadaDoTutor = (escolaId: string, alunoId: string, execucaoId: string, provedor: string, peloProvedorDeReserva: boolean) =>
       inserir(

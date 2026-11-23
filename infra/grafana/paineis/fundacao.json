@@ -2497,8 +2497,8 @@
     {
       "id": 53,
       "type": "timeseries",
-      "title": "IA: uso do teto de tokens, por modelo",
-      "description": "Quanto do contratado (`LLM_TOKENS_POR_MINUTO`) o balde geral do modelo consumiu no minuto, de 0 a 0,8 (reengenharia-continuacao, tarefa 10.0): 0,8 é o balde cheio, onde a espera e o degrau começam; o aviso é aos 0,7. Sem escola, execução nem usuário no rótulo. Ver \"Tokens acima de 80% do contratado\" no runbook.",
+      "title": "IA: uso do teto de tokens, por provedor e modelo",
+      "description": "Quanto do contratado (`LLM_TOKENS_POR_MINUTO`) o balde geral do `provedor:modelo` (o principal e a reserva, cada um com o seu contratado) consumiu no minuto, de 0 a 0,8 (reengenharia-continuacao, tarefa 10.0; reserva-e-avaliacao, tarefa 7.0): 0,8 é o balde cheio, onde a espera e o degrau começam; o aviso é aos 0,7. Sem escola, execução nem usuário no rótulo. Ver \"Tokens acima de 80% do contratado\" no runbook.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2538,8 +2538,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (modelo) (ia_tokens_uso_do_teto)",
-          "legendFormat": "{{modelo}}",
+          "expr": "max by (provedor, modelo) (ia_tokens_uso_do_teto)",
+          "legendFormat": "{{provedor}}:{{modelo}}",
           "range": true
         }
       ]

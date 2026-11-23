@@ -18,6 +18,7 @@ import {
   type Database,
   type DatabasePool,
   type DestinoDoAdaptador,
+  type DestinosConfigurados,
   type JobExecution,
   type GenerationRequest,
   type GenerationResult,
@@ -29,6 +30,7 @@ import {
   type ModeloAprovado,
   type Perfil,
   type SuspensaoDeFuncao,
+  type TabelaDePrecos,
 } from '@educa/core'
 import { NestFactory, ModulesContainer } from '@nestjs/core'
 import type { INestApplicationContext } from '@nestjs/common'
@@ -106,6 +108,13 @@ export interface FilaDeIaOptions {
   readonly medidor?: Meter
   /** Para onde o adaptador configurado manda o conteúdo, que a linha estimada da execução interrompida leva (6.0). O padrão é o da configuração de teste: o falso, sem envio externo. */
   readonly destino?: DestinoDoAdaptador
+  /**
+   * O destino da reserva e as aprovações que o processador e a varredura da bancada leem para a linha estimada da interrompida (F5b, 8.0): o `DESTINO_DA_RESERVA` do `main-worker` e `MODELOS_APROVADOS`. Sem `reserva`, só o principal.
+   * Sem `aprovados`, vale a constante do produto (a do falso, que não aprova o provedor de teste).
+   */
+  readonly destinosDaInterrompida?: { readonly reserva: DestinoDoAdaptador; readonly aprovados?: readonly ModeloAprovado[] }
+  /** A tabela de preços da porta, que a linha estimada de cada destino lê (8.0). Sem ela vale a do produto. */
+  readonly precos?: TabelaDePrecos
   /** Sobe a API, o despachante e o worker sem ligar o consumo: o job espera no outbox. Quem liga é `ligar()`. */
   readonly semConsumir?: true
   /** O relógio da situação da licença de material, o mesmo que a API recebeu em `montagem.relogioDasLicencas`. */
@@ -195,6 +204,8 @@ export class FilaDeIa {
   #adaptadores: AdaptadoresDaBancada | undefined
   /** Para onde o adaptador configurado manda o conteúdo: o do processador e o da varredura da bancada. */
   readonly destino: DestinoDoAdaptador
+  /** O principal e a reserva da bancada: o que o processador e a varredura leem para dizer a quantos destinos a interrompida deixa linha. */
+  readonly destinos: DestinosConfigurados
   readonly #despachante: OutboxRelayRuntime
   /** A busca de trechos do worker: o teste a espia aqui para ver o que a execução leu, e não a da API. */
   readonly trechos: TrechoSearch
@@ -219,6 +230,8 @@ export class FilaDeIa {
     this.banco = createDatabase(this.pool)
     const suspensao: SuspensaoDeFuncao = new SuspensaoRepository(this.banco)
     this.destino = opcoes.destino ?? destinoDoAdaptador(testConfig(sobreposicao).ia)
+    const daReserva = opcoes.destinosDaInterrompida
+    this.destinos = daReserva === undefined ? { principal: this.destino } : { principal: this.destino, reserva: daReserva.reserva, ...(daReserva.aprovados === undefined ? {} : { aprovados: daReserva.aprovados }) }
     this.#portas = {
       registro: new ConsumoRepository(this.banco),
       // O mês do teto de segurança do lote é o do relógio da bancada (`fixarHorario`): o teste da virada do mês põe o job às 00h10 de 1º/12 sem esperar.
@@ -356,7 +369,8 @@ export class FilaDeIa {
       ia: this.provedor,
       comandos: new RegistroDaBancada(() => this.registro),
       suspensao: new SuspensaoRepository(this.banco),
-      destino: this.destino,
+      destinos: this.destinos,
+      ...(this.#opcoes.precos === undefined ? {} : { precos: this.#opcoes.precos }),
       logger: this.#logger,
       medidor: this.#medidor,
       janelaDaEscola: { daEscola: () => Promise.resolve(this.#janela ?? JANELA_SEM_AULA) },
@@ -376,7 +390,7 @@ export class FilaDeIa {
 
   /** A varredura do `main-worker`, com o banco e o destino da bancada. Não liga o relógio: o teste chama `varrer()`. */
   varredura(): VarreduraDeExecucoes {
-    return new VarreduraDeExecucoes(this.banco, this.#logger, this.destino, this.#medidor)
+    return new VarreduraDeExecucoes(this.banco, this.#logger, this.destinos, this.#medidor, ...(this.#opcoes.precos === undefined ? [] : [this.#opcoes.precos]))
   }
 
   /** Liga o despachante e o consumo das três filas. */

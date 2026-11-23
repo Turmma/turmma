@@ -34,9 +34,9 @@ export type LLMErrorCode = (typeof LLM_ERROR_CODES)[number]
 /**
  * Por que a chamada terminou `IA_INDISPONIVEL`, para quem decide se tenta de novo (a execução do lote, que adia em vez de falhar):
  * - `soberania`: a D62 recusou o envio (provedor não conferido). É definitivo: esperar não muda a conferência, e a execução termina `falhou`;
- * - `sem_vaga`: o balde de tokens da fila estava cheio e a espera da vaga acabou, **antes** de a chamada sair; `tenteDeNovoEmSegundos` diz quando o balde libera;
+ * - `sem_vaga`: o balde de tokens da fila estava cheio e a espera da vaga acabou (no principal e no menor, e, quando há reserva elegível, também no balde dela), **antes** de a chamada sair; `tenteDeNovoEmSegundos` diz quando o balde libera;
  * - `disjuntor`: o disjuntor do modelo estava aberto e a chamada nem saiu;
- * - `limite`: o provedor respondeu 429 e continuou respondendo depois da única repetição. O pedido **chegou** ao provedor: é falta de vaga dele, e o gateway desce o degrau do modelo menor, como no balde cheio;
+ * - `limite`: o provedor respondeu 429 e continuou respondendo depois da única repetição. O pedido **chegou** ao provedor: é falta de vaga dele, e o gateway desce o degrau do modelo menor e, sem ele, vai à reserva elegível (no balde dela), como no balde cheio;
  * - `rejeitada`: o provedor respondeu outro 4xx (401, 403…). O pedido ou a configuração está errada e esperar não muda: não há degrau, e a chamada termina;
  * - ausente: o provedor falhou (5xx, conexão) e **a chamada pode ter saído**.
  * Só `sem_vaga` e `disjuntor` garantem que nada foi enviado: `limite` e `rejeitada` ficam **fora** de `semEnvio`, e a linha de consumo deles leva a estimativa (D14) e o provedor.

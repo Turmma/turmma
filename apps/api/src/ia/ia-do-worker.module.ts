@@ -23,6 +23,8 @@ export const SOBERANIA_DA_RESERVA = Symbol('SOBERANIA_DA_RESERVA')
 
 /** Para onde o adaptador configurado manda o conteúdo (X6, 6.0): a linha estimada da execução interrompida leva o envio e o modelo dele. */
 export const DESTINO_DO_ADAPTADOR = Symbol('DESTINO_DO_ADAPTADOR')
+/** Para onde o provedor de reserva configurado manda o conteúdo (F5b, 8.0): o destino que a linha estimada da execução interrompida leva quando a tarefa tem aprovação para ele. `null` sem reserva. */
+export const DESTINO_DA_RESERVA = Symbol('DESTINO_DA_RESERVA')
 
 export interface IaDoWorkerOptions {
   /** A configuração de IA que o `loadWorkerConfig` leu e validou (`IA_ADAPTADOR`, `LLM_*`, `IA_REPLICAS`). */
@@ -113,8 +115,15 @@ export class IaDoWorkerModule implements OnApplicationShutdown {
         },
         { provide: RegistroDeComandos, useFactory: () => new RegistroDeComandos() },
         { provide: DESTINO_DO_ADAPTADOR, useFactory: (): DestinoDoAdaptador => destinoDoAdaptador(config) },
+        {
+          provide: DESTINO_DA_RESERVA,
+          useFactory: (): DestinoDoAdaptador | null => {
+            const reserva = adaptadorDaReserva(config)
+            return reserva === undefined ? null : { origem: reserva.origem, envio: reserva.envio, identidade: reserva.identidade, modeloDoPerfil: (perfil) => reserva.modeloDoPerfil(perfil) }
+          },
+        },
       ],
-      exports: [LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, RegistroDeComandos, DESTINO_DO_ADAPTADOR, SoberaniaNaSubida, SOBERANIA_DA_RESERVA, LIMITE_DE_TOKENS_DA_RESERVA],
+      exports: [LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, ORCAMENTO_DE_IA, RegistroDeComandos, DESTINO_DO_ADAPTADOR, DESTINO_DA_RESERVA, SoberaniaNaSubida, SOBERANIA_DA_RESERVA, LIMITE_DE_TOKENS_DA_RESERVA],
     }
   }
 

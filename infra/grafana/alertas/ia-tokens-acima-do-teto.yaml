@@ -2,9 +2,9 @@
 # runbook: docs/runbook.md#tokens-acima-de-80-do-contratado e #tokens-acima-de-70-do-contratado).
 # Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
 #
-# `ia.tokens.uso_do_teto{modelo}` é a fração do **contratado** (`LLM_TOKENS_POR_MINUTO`) que o balde geral do modelo já consumiu neste minuto, de 0 a 0,8: o balde
-# geral tem 80 % do contratado (a folga da regra 80, item 4), e por isso 0,8 é o balde cheio, onde a espera e o degrau começam. A regra toma o maior valor entre as réplicas
-# e exige 5 min seguidos, para o pico de um minuto (a manhã de segunda) não acender sozinho: o que alerta é ficar lá. O aviso aos 70 % dá o tempo de agir antes do balde
+# `ia.tokens.uso_do_teto{provedor,modelo}` é a fração do **contratado** (`LLM_TOKENS_POR_MINUTO`, ou `LLM_RESERVA_TOKENS_POR_MINUTO` na reserva) que o balde geral do `provedor:modelo` já consumiu neste minuto, de 0 a 0,8: o balde
+# geral tem 80 % do contratado (a folga da regra 80, item 4), e por isso 0,8 é o balde cheio, onde a espera e o degrau começam. A regra toma o maior valor entre as réplicas, por `provedor` **e** `modelo` (o principal e a reserva podem ter o mesmo modelo, e o `provedor` as separa; a reserva do mesmo provedor
+# tem outro modelo, e o `modelo` as separa), e exige 5 min seguidos, para o pico de um minuto (a manhã de segunda) não acender sozinho: o que alerta é ficar lá. O aviso aos 70 % dá o tempo de agir antes do balde
 # cheio. A série não leva escola, execução nem usuário. Sem chamada, a gauge volta a 0 um minuto depois da última reserva.
 apiVersion: 1
 
@@ -24,7 +24,7 @@ groups:
         labels:
           area: ia
         annotations:
-          summary: 'O modelo {{ $labels.modelo }} usa 70 % ou mais do contratado de tokens por minuto há 5 min'
+          summary: 'O modelo {{ $labels.provedor }}:{{ $labels.modelo }} usa 70 % ou mais do contratado de tokens por minuto há 5 min'
           description: Ainda há folga, mas o balde de 80 % se enche em seguida. Aviso para agir antes do degrau. Siga o runbook.
           runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#tokens-acima-de-70-do-contratado
         data:
@@ -38,7 +38,7 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: 'max by (modelo) (ia_tokens_uso_do_teto) >= 0.7'
+              expr: 'max by (provedor, modelo) (ia_tokens_uso_do_teto) >= 0.7'
               instant: true
               range: false
               intervalMs: 10000
@@ -70,8 +70,8 @@ groups:
         labels:
           area: ia
         annotations:
-          summary: 'O modelo {{ $labels.modelo }} está com o balde de tokens por minuto cheio (80 % do contratado) há 5 min'
-          description: Quem pede ao modelo espera até 8 s pela vaga, depois vai ao modelo menor ou termina Tentar de novo. É saturação, e não defeito. Siga o runbook.
+          summary: 'O modelo {{ $labels.provedor }}:{{ $labels.modelo }} está com o balde de tokens por minuto cheio (80 % do contratado) há 5 min'
+          description: Quem pede ao modelo espera até 8 s pela vaga, depois vai ao modelo menor, depois à reserva (no balde dela, sem nova espera) ou termina Tentar de novo. É saturação, e não defeito. Siga o runbook.
           runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#tokens-acima-de-80-do-contratado
         data:
           - refId: A
@@ -84,7 +84,7 @@ groups:
               datasource:
                 type: prometheus
                 uid: prometheus
-              expr: 'max by (modelo) (ia_tokens_uso_do_teto) >= 0.8'
+              expr: 'max by (provedor, modelo) (ia_tokens_uso_do_teto) >= 0.8'
               instant: true
               range: false
               intervalMs: 10000

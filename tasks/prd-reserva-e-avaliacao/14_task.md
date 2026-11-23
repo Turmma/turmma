@@ -18,6 +18,7 @@ principal e a reserva escolhidos entram na D37 revista; os preços reais vão pa
 - `cenarios.md` §1: as duas linhas RF16 e a de RF4 sobre a guarda de `MODELOS_APROVADOS`
 - `docs/avaliacao-de-modelos.md` §4, §5; `docs/infra.md` 5.4; `docs/aia/README.md`; `docs/conformidade-mec.md` §7
 - Skill `registrar-decisao`, para a D37 revista
+- Código (da 8.0): a varredura e o `ExecucaoProcessor` leem a tabela de preços como parâmetro (`precos`, `PRECO_DOS_MODELOS` por padrão), e o `CicloDoWorkerDeIa` (`apps/api/src/worker.module.ts`) não a passa: quando a 14.3 der ao gateway uma tabela por porta, a mesma tabela precisa chegar a eles, ou a linha estimada da interrompida grava custo zero onde o gateway grava custo
 
 ## Subtarefas
 

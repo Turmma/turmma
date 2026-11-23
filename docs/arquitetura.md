@@ -151,7 +151,7 @@ aborta e não grava (o job volta); só o prazo vira `IA_TEMPO_ESGOTADO`. **A ree
 execução `rodando` a encerra com `EXECUCAO_INTERROMPIDA`, sem modelo e sem troca (`update … where estado = 'rodando'`, e quem encerra é quem grava a linha), e a
 varredura do `main-worker`, a cada 60 s e em lotes de 200, encerra a `rodando` iniciada há mais de 300 s (2 × o `prazoMs` do job) e a `pendente` sem job vivo
 (`not exists` em `job_registro`, da mesma escola, pelo `job_registro_pendentes_idx`; sem ler o Redis). Toda `rodando` encerrada deixa, **na mesma transação**, uma linha
-estimada em `consumo_ia` (os dois tetos da tarefa, o envio do adaptador configurado, `aluno_id` nulo): o custo e o destino a mais, nunca a menos (D14).
+estimada em `consumo_ia` **por destino possível** (o principal e, se a tarefa tem aprovação para o provedor da reserva configurada, a reserva), cada uma com os dois tetos da tarefa ao preço do modelo do destino, o envio dele e `aluno_id` nulo: o custo e o destino a mais, nunca a menos (D14).
 
 No F3, o expurgo noturno (`retencao.expurgar-escola`, um job por escola, à 1h) e a eliminação do titular (`titular.eliminar`,
 que o expurgo enfileira quando o prazo de 7 dias vence) são lote não urgente; a montagem do arquivo do titular

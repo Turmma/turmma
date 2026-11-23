@@ -84,6 +84,8 @@ const respostaValida = (): string => JSON.stringify(atividadeDeEstequiometria())
 const PRINCIPAL_DO_PADRAO = 'falso:principal-padrao'
 const PRINCIPAL_DO_RAPIDO = 'falso:principal-rapido'
 const MENOR_DO_PADRAO = 'falso:menor-padrao'
+const RESERVA_DO_PADRAO = 'falso-reserva:reserva-padrao'
+const RESERVA_DO_RAPIDO = 'falso-reserva:reserva-rapido'
 
 type Roteiro = readonly { duracaoMs: number; texto: string; queda?: true }[]
 const RESERVA = 'falso-reserva'
@@ -97,12 +99,14 @@ function montar(roteiro: Roteiro, roteiroDaReserva?: Roteiro) {
   const reserva = roteiroDaReserva === undefined ? undefined : new LentoAdapter(inicio, roteiroDaReserva, RESERVA, 'reserva')
   const consumo = new InMemoryConsumo()
   const limite = new LimiteNoRelogio(inicio)
+  const limiteDaReserva = new LimiteNoRelogio(inicio)
   const gateway = new LLMGateway({
     adaptador: new ResilientAdapter(adaptador, POLITICA),
     registro: consumo,
     orcamento: SEMPRE,
     suspensao: new InMemorySuspensoes(),
     limiteDeTokens: limite,
+    limiteDeTokensDaReserva: limiteDaReserva,
     modelosMenores: MENORES,
     ...(reserva === undefined ? {} : { reserva: { adaptador: new ResilientAdapter(reserva, POLITICA), ambiente: 'local' as const, aprovados: APROVADAS_DA_RESERVA }, soberaniaDaReserva: { conferida: true as const } }),
   })
@@ -116,15 +120,15 @@ function montar(roteiro: Roteiro, roteiroDaReserva?: Roteiro) {
         : gateway.generate({ ...base, tarefa: gerarAtividadeObjetiva, entrada: entradaDeAtividade(), fila: 'ferramenta' }),
     )
   }
-  return { adaptador, reserva, consumo, limite, pedir, inicio }
+  return { adaptador, reserva, consumo, limite, limiteDaReserva, pedir, inicio }
 }
 
 /** Acompanha a promessa: em que instante (relógio falso, desde o começo) ela terminou, e como. */
 function acompanhar(promessa: Promise<unknown>, inicio: number) {
-  const estado: { fimEm?: number; codigo?: string; ok?: boolean } = {}
+  const estado: { fimEm?: number; codigo?: string; motivo?: string; ok?: boolean } = {}
   promessa.then(
     () => Object.assign(estado, { fimEm: Date.now() - inicio, ok: true }),
-    (erro: unknown) => Object.assign(estado, { fimEm: Date.now() - inicio, ok: false, ...(erro instanceof LLMError ? { codigo: erro.codigoDeIa } : {}) }),
+    (erro: unknown) => Object.assign(estado, { fimEm: Date.now() - inicio, ok: false, ...(erro instanceof LLMError ? { codigo: erro.codigoDeIa, ...(erro.motivo === undefined ? {} : { motivo: erro.motivo }) } : {}) }),
   )
   return estado
 }
@@ -214,9 +218,10 @@ describe('o prazo único cobre a espera pela vaga de tokens (49.0)', () => {
     for (const caso of casos) {
       it(`${caso.perfil}: a quarta chamada pendurada termina aos ${caso.prazoMs.toLocaleString('pt-BR')} ms com IA_TEMPO_ESGOTADO, a execução falhou, e a reserva só tem o que sobrou do prazo`, async () => {
         vi.useFakeTimers()
-        const { limite, pedir, inicio, adaptador, reserva, consumo } = montar(caso.principal, caso.reserva)
-        // Só o balde do principal abre: a reserva ainda não reserva vaga no dele (a 7.0 a põe no balde dela).
+        const { limite, limiteDaReserva, pedir, inicio, adaptador, reserva, consumo } = montar(caso.principal, caso.reserva)
+        // Os dois baldes abrem, cada um o seu: a reserva reserva vaga no `provedor:modelo` dela (7.0), e o prazo é o da execução, com a reserva pendurada na quarta.
         limite.abreEm(caso.perfil === 'padrao' ? PRINCIPAL_DO_PADRAO : PRINCIPAL_DO_RAPIDO, 0)
+        limiteDaReserva.abreEm(caso.perfil === 'padrao' ? RESERVA_DO_PADRAO : RESERVA_DO_RAPIDO, 0)
         const estado = acompanhar(pedir(caso.tarefa), inicio)
         await vi.advanceTimersByTimeAsync(caso.prazoMs - 1)
         expect(estado.fimEm).toBeUndefined()
@@ -234,6 +239,23 @@ describe('o prazo único cobre a espera pela vaga de tokens (49.0)', () => {
         expect(ultima?.tokensDeEntrada).toBeGreaterThan(caso.tokensMinimosDeEntrada())
       })
     }
+  })
+
+  it('a reserva com o balde dela fechado: a queda do principal aos 20 s termina `sem_vaga` na hora, sem a espera de 8 s, sem chamar a reserva e dentro dos 140 s', async () => {
+    vi.useFakeTimers()
+    const { limite, limiteDaReserva, pedir, inicio, adaptador, reserva, consumo } = montar([{ duracaoMs: 10_000, texto: 'não é json' }, { duracaoMs: 10_000, texto: '', queda: true as const }], [{ duracaoMs: 1_000, texto: respostaValida() }])
+    // O balde do principal está aberto e o da reserva, que nunca abre: só ele decide o fim.
+    limite.abreEm(PRINCIPAL_DO_PADRAO, 0)
+    const estado = acompanhar(pedir('ferramenta'), inicio)
+    await vi.advanceTimersByTimeAsync(19_999)
+    expect(estado.fimEm).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(estado).toMatchObject({ fimEm: 20_000, ok: false, codigo: 'IA_INDISPONIVEL', motivo: 'sem_vaga' })
+    expect(adaptador.chamadasDe).toHaveLength(2)
+    expect(reserva?.chamadasDe).toEqual([])
+    expect(limiteDaReserva.reservas).toEqual([{ modelo: RESERVA_DO_PADRAO, em: 20_000, concedida: false }])
+    // As duas linhas são do principal (a inválida e a queda que saiu): a reserva não deixa linha, porque nada saiu para ela.
+    expect(consumo.registros.map((linha) => linha.peloProvedorDeReserva)).toEqual([false, false])
   })
 
   it('sem o prazo apertado, a espera acaba sozinha aos 8 s: o degrau de IA_INDISPONIVEL cabe dentro dos 140 s, sem erro cru', async () => {
