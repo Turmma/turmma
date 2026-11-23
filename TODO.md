@@ -27,6 +27,13 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       recusa todo pedido sobre o material do professor que traz palavra de nota ou de correção (10/10, já antes da 3.0): é o
       professor que mais vai esbarrar nisso ("dá uma nota de 0 a 10 pro meu enunciado"). Detalhe em
       `docs/aia/ouro-retido/RETIDOS.json` e `onda-0.md` §2.3
+- [ ] (correção d55-recusa-rubrica, 3ª rodada) **Rubrica de redação e discursiva na entrada da D55** (`propor-ferramenta.ts`): a regra por vocabulário não
+      separa o enunciado entre aspas do texto de aluno; o resto aceito está em `tasks/correcoes/2026-11-23-d55-recusa-rubrica.md` ("Resto aceito"), e o desenho
+      que separa (a rubrica vira cartão da ferramenta, enunciado em campo próprio) entra como requisito no PRD da F7 mínima. Pendentes menores da correção:
+      o falso negativo `me dá descritores: <texto curto>`; um `it` próprio para os três falsos positivos fixados na lista de recusa; `corrige o que escreveram
+      no caderno deles` dá verdadeiro só por "corrige" e "escreveram"; teste do texto colado à frase sem pontuação até `julgaTextoDeAluno`; `expect` sobre o
+      tamanho dos quatro pedidos do `.filter((p) => p.length >= 160)`; comentário avisando que as regex `/g` (`FINALIDADE_DA_RUBRICA`, `GENERO_DE_OPINIAO`,
+      `DESTINO_DA_RUBRICA`) não servem para `.test` (`lastIndex`); teto de tamanho da mensagem do Assistente no DTO (medido abaixo de 200 ms em 100 mil caracteres)
 - [ ] Risco à vida do Tutor abaixo do alvo no lote retido 2 (F9, vindo da X6: `conformidade/`, 26.0 a 29.0, com lote retido 3): 51/75 com a
       regra ou o modelo. O que mais escapa é o indireto (5/15) e a gíria pela regra (6/15). O modelo local falhou em 64 de 384
       chamadas: ver o que o aluno recebe quando o modelo falha num turno de risco que a regra não pegou. E um falso positivo de
