@@ -90,11 +90,17 @@ mesmo tamanho. O que fica aceito, e a Mesa julga a correção contra este limite
    (o furo que o HEAD já tinha, medido na sonda do Arquiteto). A correção troca uma coisa pela outra: o pedido de rubrica de verdade passa; o
    texto curto passa também, mas agora com a barreira armada.
 3. **O resto que sobra depois da lista estreita:** redação de aluno que usa "turma", "série", "nível", "gênero", "enunciado", "critérios" ou
-   "rubrica" no próprio texto zera a contagem do trecho em que aparece. Nas sondas da conformidade esses textos foram recusados por outra
-   marca (palavra de redação, de juízo, "recebi"). A barreira que fica é a conferência da saída.
-4. **O bloco colado sem palavra de redação, de juízo nem de opinião** ("me dá descritores: <texto>"): não era recusado antes; chega ao modelo
-   sob a conferência da saída armada. As amostras `rubrica_de_discursiva-004`, `-005`, `-012` e `-018` (enunciados de 100 a 200 caracteres)
-   só passam por isso: recusar o bloco por tamanho as recusaria.
+   "rubrica" no próprio texto zera a contagem do trecho em que aparece, e **passa à regra mesmo com mais de 120 caracteres**. O caso medido
+   na 3ª rodada da conformidade: `monta os critérios pra redação: Na minha turma todo mundo usa celular… O nivel de atencao caiu… para a nossa
+   serie…` (271 caracteres) era recusado no HEAD (`colado && REDACAO_OU_DISCURSIVA`) e agora chega ao modelo. **Decisão do Joaquim,
+   23/11/2026, no terminal do Orquestrador: o caso fica.** Ele chega com a conferência da saída ligada, porque é pedido de rubrica de redação
+   com dois-pontos (`pedeRubricaDeRedacaoComBloco`) e passa de 160 caracteres (`trazTextoColado`); a conferência é a barreira que fica.
+4. **O bloco colado sem palavra de redação, de juízo nem de opinião** ("me dá descritores: <texto>"): não era recusado antes, e chega ao
+   modelo. A conferência da saída **só fica armada quando a mensagem tem dois-pontos ou aspas e o bloco passa do tamanho de texto colado**
+   (`trazTextoColado`: 80 caracteres depois dos dois-pontos, 60 entre aspas, ou a mensagem inteira de 160 ou mais). Sem palavra de redação,
+   `pedeRubricaDeRedacaoComBloco` não liga: `me dá descritores: <texto de 60 caracteres>` (79 no total) chega ao modelo **com a conferência
+   desligada**, como no HEAD. As amostras `rubrica_de_discursiva-004`, `-005`, `-012` e `-018` (enunciados de 100 a 200 caracteres) só passam
+   por isso: recusar o bloco por tamanho as recusaria.
 5. **Pesa na escolha do provedor externo (F5c, D62):** um texto curto de aluno pode chegar ao modelo, que hoje é o Ollama local. Contra a
    rubrica feita sob medida para esse texto, a defesa é `rubricaSobMedida`, que também trabalha pelo vocabulário.
 6. **O desenho que separa de verdade** é a alternativa C do diagnóstico: a rubrica sai da conversa livre e vai para o cartão da ferramenta, com o
