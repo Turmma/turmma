@@ -1,5 +1,8 @@
 # Tarefa 14.0 — Principal e reserva saem da avaliação executada, com preço e aprovação no código
 
+> **Fora da F5b desde 23/11/2026 (Joaquim):** o modelo real fica por último. Este documento é o ponto de partida da F5c
+> (`avaliacao-de-modelos`, `ROADMAP.md`), que o refaz contra o código de então; não é tarefa pendente desta spec.
+
 **Funcionalidade:** reserva-e-avaliacao · **Depende de:** 8.0, 9.0, 13.0, e as chaves de teste dos finalistas (Joaquim)
 **Subagentes obrigatórios:** `tenancy-guardian`, `privacy-guardian`, `conformidade-reviewer`, `infra-guardian`, `llm-integrator`, `pedagogia-reviewer`
 **Porte:** grande

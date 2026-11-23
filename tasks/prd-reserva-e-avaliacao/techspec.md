@@ -3,7 +3,8 @@
 **PRD:** `tasks/prd-reserva-e-avaliacao/prd.md`
 **Status:** aprovada como parte da Tech Spec da F5 (`tasks/prd-camada-ia/techspec.md`, revisão da spec, rodada 6, em
 `tasks/prd-camada-ia/revisao-spec.md`); separada no corte de 21/11/2026 e revista contra o código da F5a na revisão da spec
-da F5b (`revisao-spec.md`). Os números das seções são os da F5; a §4, a §6, a §9 e a §10 ficaram na F5a.
+da F5b (`revisao-spec.md`). Os números das seções são os da F5; a §4, a §6, a §9 e a §10 ficaram na F5a. Revista em 23/11/2026
+(Joaquim): rodar a avaliação por finalista sai da F5b para a F5c (`avaliacao-de-modelos`), com o modelo real por último (§8).
 
 ## 1. Resumo da abordagem
 
@@ -14,7 +15,8 @@ cada chamada, §5). A aprovação de modelo também fica no código (`MODELOS_AP
 modelo aprovados.
 
 A avaliação roda à mão (`tools/ia/`); `pedagogia-reviewer` e `conformidade-reviewer` julgam, e o Joaquim confirma as
-reprovadas, as duvidosas e 10% das aprovadas (20/11/2026).
+reprovadas, as duvidosas e 10% das aprovadas (20/11/2026). A F5b entrega a ferramenta, as amostras, as medidas e a guarda do RF16,
+provadas com o modelo falso; rodá-la por finalista é da F5c (Joaquim, 23/11/2026).
 
 ## 2. Módulos afetados
 
@@ -168,6 +170,12 @@ uma corrida `--so=sala` separada não serve, porque o token de acesso vale 10 mi
 
 ## 8. Uso de IA
 
+**O que fica para a F5c (Joaquim, 23/11/2026).** A F5b não roda a avaliação com provedor real: sem chave, sem gasto e sem entrada
+de provedor real em `MODELOS_APROVADOS` (só a do `falso-reserva`). Em produção a reserva não atende nada até lá, porque nenhuma tarefa
+tem aprovação real. A F5c (`ROADMAP.md`) roda a ferramenta por finalista, julga e confirma, grava `PRECO_DOS_MODELOS` e
+`MODELOS_APROVADOS` reais, revê a D37, `docs/infra.md` 5.4, `infra/carga.env` e as AIAs, e responde antes de rodar as três perguntas
+da 13.0 (`TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0"). O documento da tarefa que fazia isso está em `para-a-f5c/14_task.md`.
+
 Nenhuma tarefa nova. A avaliação (`tools/ia/avaliar-modelos.ts`) roda a tabela e as regras de `avaliacao.md`: cada linha pela
 tarefa real, no gateway real com um `OpenAICompatAdapter` de `AVALIACAO_*` (chave fora do repositório), os preços do finalista e
 `soberania: { conferida: true }`, que só vale porque as amostras são sintéticas. O formato do arquivo e a tabela das linhas de `avaliacao.md` virada em dado
@@ -203,7 +211,7 @@ finalista não eliminado (linha ausente quebra como a reprovada; a `propor_ferra
 só vale com o perfil de `classificar_secoes` trocado no código (divergências da 13.0, Arquiteto: flag `--treinamento-vedado`, `AVALIACAO_MODELO_PADRAO`, `classificacao.json` na pasta, `barrada` gravada na rodada).
 
 Custo: cerca de 2.100 chamadas (as linhas de três execuções e os lotes retidos), de R$ 150 a R$ 250 por finalista
-(o real no relatório). As 2.100 **não** incluem o segundo passe da classificação no `padrao`: ele repete o lote da classificação nas três execuções, em um modelo em geral maior, e só acontece quando o `rapido` não atinge os critérios; o custo dele soma-se à faixa (o 14.0 diz ao Joaquim o acréscimo antes de rodar, se o teto de R$ 250 não couber). O preço por token da rodada é um só (`--preco-entrada` e `--preco-saida`), então com `AVALIACAO_MODELO_PADRAO` o custo do relatório é aproximado para as chamadas do `padrao`. Sem chamada nova por usuário. A reserva custa a diferença de preço nas
+(o real no relatório). As 2.100 **não** incluem o segundo passe da classificação no `padrao`: ele repete o lote da classificação nas três execuções, em um modelo em geral maior, e só acontece quando o `rapido` não atinge os critérios; o custo dele soma-se à faixa (a F5c diz ao Joaquim o acréscimo antes de rodar, se o teto de R$ 250 não couber). O preço por token da rodada é um só (`--preco-entrada` e `--preco-saida`), então com `AVALIACAO_MODELO_PADRAO` o custo do relatório é aproximado para as chamadas do `padrao`. Sem chamada nova por usuário. A reserva custa a diferença de preço nas
 chamadas desviadas durante a queda; a execução que cai nos dois chega a quatro chamadas, e a interrompida com reserva grava duas
 estimadas, que contam no orçamento da escola (D14). O relatório traz o custo por professor e por aluno por mês.
 

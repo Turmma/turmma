@@ -9,7 +9,11 @@ dois adaptadores, o `TokenLimiter` da reserva e as regras de `avaliacao.md`. Com
 25 cenários, e elas viraram quatorze: a 9.0 do rascunho virou a 1.0 e a 2.0; a 10.0, da 3.0 à 7.0; a 11.0, a 8.0 e a 9.0; a 12.0,
 da 10.0 à 13.0; a 13.0, a 14.0.
 
-**Corte possível (aviso, acima de 12 tarefas):** a reserva (1.0 a 9.0) pousa sozinha: em produção ela não atende nada enquanto
+**A 14.0 saiu em 23/11/2026 (Joaquim):** rodar a avaliação com as chaves dos finalistas, gravar preços e aprovações reais, a D37
+revista e as AIAs vão para a F5c (`avaliacao-de-modelos`, `ROADMAP.md`), com o modelo real por último. O documento dela está em
+`para-a-f5c/14_task.md`. A F5b fecha com 13 tarefas.
+
+**Corte possível (aviso, acima de 12 tarefas; superado pela saída da 14.0):** a reserva (1.0 a 9.0) pousa sozinha: em produção ela não atende nada enquanto
 `MODELOS_APROVADOS` não tiver entrada real, que só a 14.0 grava. A avaliação (10.0 a 14.0) pousaria depois, como outra spec. A
 recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 já parte com a 1.0), e a F5b só fecha com a avaliação
 (D37, `abertura.md`).
@@ -101,15 +105,6 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 13.4 A guarda do RF16
   - [x] 13.5 Testes
 
-- [ ] **14.0 — Principal e reserva saem da avaliação executada, com preço e aprovação no código**
-  - [ ] 14.1 Rodar por finalista, com as chaves do Joaquim (os lotes retidos, pelo Arquiteto)
-  - [ ] 14.2 Julgar e confirmar
-  - [ ] 14.3 Preços e aprovações reais
-  - [ ] 14.4 A D37 revista e o contratado de tokens por minuto
-  - [ ] 14.5 As AIAs
-  - [ ] 14.6 Sem finalista no Brasil para o Tutor: parar
-  - [ ] 14.7 Testes
-
 ## Dependências e paralelismo
 
 | Tarefa | Depende de | Pode correr em paralelo com |
@@ -127,7 +122,6 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
 | 11.0 | 1.0, 10.0 | 2.0 a 9.0 |
 | 12.0 | 11.0 | 2.0 a 9.0 |
 | 13.0 | 12.0 | 2.0 a 9.0 |
-| 14.0 | 8.0, 9.0, 13.0, as chaves do Joaquim | — |
 
 Em fila pelo mesmo arquivo: `llm-gateway.ts` (1.0, 3.0, 4.0, 6.0, 7.0); `consumo.ts` e `consumo.repository.ts` (4.0, 5.0, 8.0);
 `fila-de-ia.fixture.ts` (2.0, 5.0); `tools/ia/avaliar-modelos.ts` (11.0 a 13.0). A 13.0 altera `modelos-aprovados.ts`, que só a
@@ -147,7 +141,6 @@ Toda tarefa que altera `apps/`, `packages/` ou `tools/guardas/` pede os quatro g
 | 11.0 | `tenancy-guardian`, `privacy-guardian`, `conformidade-reviewer`, `infra-guardian`, `llm-integrator`, `pedagogia-reviewer` |
 | 12.0 | `privacy-guardian`, `conformidade-reviewer`, `llm-integrator`, `pedagogia-reviewer` |
 | 13.0 | `tenancy-guardian`, `privacy-guardian`, `conformidade-reviewer`, `infra-guardian`, `llm-integrator` |
-| 14.0 | `tenancy-guardian`, `privacy-guardian`, `conformidade-reviewer`, `infra-guardian`, `llm-integrator`, `pedagogia-reviewer` |
 
 ## Critério de pronto da funcionalidade
 
@@ -158,8 +151,9 @@ Do `ROADMAP.md` (F5b) e do rascunho:
   de vaga terminam tipadas, nunca em erro cru.
 - **Custo (RF6).** Modelo da reserva sem preço não sobe fora do `local`; a interrompida grava uma linha por destino, com custo.
 - **Carga.** A fase `reserva` rodada, com o registro em `docs/runbook.md` ("Quando a carga vale como registro").
-- **Avaliação (RF13 a RF16).** Executada por finalista, com o relatório, o `resultado.json` e as três contagens; principal e
-  reserva na D37 revista; preços e aprovações no código, conferidos pela guarda do RF16; as AIAs revistas.
+- **Avaliação (RF13 a RF16).** Pronta para rodar: as amostras e os critérios, a ferramenta com o relatório, o `resultado.json` e as
+  três contagens, as medidas e a guarda do RF16, provados com o modelo falso. Executá-la por finalista, com principal e reserva na
+  D37 revista, preços e aprovações reais e as AIAs revistas, é da F5c (Joaquim, 23/11/2026).
 - **Pendências do `TODO.md` que são desta spec:** a linha 99 de `docs/lgpd.md` com `pelo_provedor_de_reserva` e o teste de que
   `provedor` guarda o id da reserva (5.0); o 429 e a conexão recusada com a estimativa pelo `ResilientAdapter` (3.0);
   `docs/mvp-contratos.md:213` (5.0). A tarefa que fecha uma pendência a marca como feita no próprio commit.

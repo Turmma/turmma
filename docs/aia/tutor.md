@@ -230,7 +230,7 @@ falso positivo dele manda o 188 e dá o sinal ao professor do mesmo jeito que o 
 não a taxa: o modelo diz `risco_a_vida`, o aluno recebe o 188 e o professor recebe o sinal. A taxa se mede com
 `tools/ia/medir-risco-a-vida.ts <lote>` e o modelo local, três execuções valendo a pior, sobre o lote retido 2: **a medida é do
 Arquiteto** (`onda-0.md` §2.2a), e a ferramenta não roda no portão. A medida vale para o modelo local do ensaio; **até a D37
-escolher o provedor, ela não vale para o de produção**, e se repete com ele antes de a F5 ficar pronta (`TODO.md`). A ferramenta
+escolher o provedor, ela não vale para o de produção**, e se repete com ele na F5c, antes do portão da primeira escola real (`TODO.md`). A ferramenta
 recusa o modelo que não é local (regra 30, item 3; regra 20, item 13): só mede com o provedor contratado quem passa
 `--provedor-contratado`, e o lote é sintético. Com o adaptador falso ela também recusa, porque ele nunca classifica
 `risco_a_vida`. A ameaça a
@@ -243,7 +243,7 @@ a regra sozinha não dava. Nessa medida o modelo local falhou em 64 de 384 chama
 que isso quer dizer para a escola: **o Tutor não é um detector de risco**. A frase de risco que ele não reconhece recebe a resposta
 comum, sem o 188 e sem o sinal, e por isso a supervisão do professor (D8) e o canal humano da escola continuam sendo a proteção.
 O refinamento vai para a X6 (`conformidade/`, 26.0 a 29.0), medido num lote retido novo, e a medida se repete com o provedor
-da D37 antes de a F5 ficar pronta.
+da D37 na F5c, antes do portão da primeira escola real.
 
 **N14. Não tem memória que o aluno não possa ver.**
 Fundamento: D66 ("o aluno vê e contesta").
@@ -367,7 +367,7 @@ Tutor.
 ### 1.8 O que está em aberto
 
 1. **Provedor de modelo principal e reserva** (D37), com a D62 como critério. Depende do Joaquim,
-   antes de a F5 ficar pronta. O contrato do provedor (menor de idade, treinamento vedado,
+   na F5c, antes do portão da primeira escola real. O contrato do provedor (menor de idade, treinamento vedado,
    processamento no Brasil) está em `docs/regulacao.md`, seção 11, item 9.
 2. **Art. 24 do ECA Digital:** se conta de aluno de até 16 anos precisa estar vinculada à de um
    responsável. Depende de advogado, e **bloqueia o PRD do F9** (`docs/regulacao.md`, seção 2.2).

@@ -9,7 +9,8 @@ vende.
 **A fatia do piloto (D84, 03/11/2026).** F2, F4 (com a F4b), F5 (F5a e F5b) com a X6 parcial, F18, F6, F6b, F7 mínima (rubrica), F11 mínima, trio da F12
 (Auditoria, Conformidade, Denúncias), portal da família (F19) e F9, nesta ordem de construção. O Tutor fica pronto e
 alinhado antes da entrada da escola, mas desligado na escola até a Turmma liberá-lo, por chave no painel da Operação (D84). Ficam fora: o resto de F7, F11 e F12,
-F17, F14, F15 e F16.
+F17, F14, F15 e F16. A avaliação dos modelos com provedor real (F5c) vem por último, antes do portão da primeira escola real (D37
+revista em 23/11/2026).
 
 **Piloto por fatias (D1 revista).** Uma escola piloto gratuita entra no 1º semestre de 2027
 usando o que já estiver pronto, antes do F16. O portão da primeira escola real (abaixo) vale
@@ -640,10 +641,10 @@ espera; a Operação vê o uso de IA de cada escola; e a coordenação vê a por
 
 **Pronto quando (a F5 inteira, com a F5b):** com o limite estourado, o pedido interativo espera e degrada em vez de falhar (com a X6);
 teste prova que prompt com texto de aluno não sai para provedor fora do Brasil; a escola tem teto e custo em
-reais; e a avaliação de modelos foi executada, com principal e reserva registrados (D37, D62).
+reais; e a avaliação de modelos foi executada, com principal e reserva registrados (D37, D62), o que desde 23/11/2026 é da F5c.
 
 ## F5b — `reserva-e-avaliacao` [~]
-**Depende de:** F5a; as chaves de teste dos finalistas, que são do Joaquim (`tasks/prd-reserva-e-avaliacao/prd.md` §10)
+**Depende de:** F5a
 
 Saiu da F5 no corte de 21/11/2026 (Joaquim), com o PRD aprovado e a Tech Spec aprovada lá (`tasks/prd-reserva-e-avaliacao/`,
 com os números de RF e de seção da F5, e o roteiro da abertura em `abertura.md`): o provedor de reserva (D29), aprovado por
@@ -652,9 +653,13 @@ em cada chamada; o custo da execução interrompida, uma linha por destino; a fa
 modelos executada, com o principal e a reserva registrados na D37 revista e as AIAs revistas. As tarefas que a F5 escreveu
 para isso (a 9.0 à 13.0) estão em `rascunho-das-tarefas/`.
 
+**A avaliação executada saiu em 23/11/2026 (Joaquim, D37 revista):** a 14.0, que rodava a avaliação com as chaves dos
+finalistas e gravava principal, reserva, preços e aprovações reais, foi para a **F5c**. A F5b fecha com a avaliação pronta
+para rodar.
+
 **Pronto quando:** teste prova que prompt com texto de aluno não sai para provedor fora do Brasil, também na reserva; com o
-principal fora, a reserva aprovada atende; e a avaliação de modelos foi executada, com principal e reserva registrados
-(D37, D62).
+principal fora, a reserva aprovada atende; e a avaliação de modelos está pronta para rodar (as amostras, a ferramenta, as
+medidas e a guarda que liga cada aprovação ao relatório e à AIA), provada com o modelo falso.
 
 ## F6 — `avaliacao-e-correcao` [ ]
 **Depende de:** F4, F4b (o diagnóstico por habilidade passa a ser BNCC), F5a, F5b
@@ -939,13 +944,39 @@ rollback ensaiados vêm do F18.
 pronto para entregar a uma escola, e o teste de carga de `docs/infra.md` seção 10 passa no ambiente que
 substitui o staging.
 
+## F5c — `avaliacao-de-modelos` [ ]
+**Depende de:** F5b; as chaves de teste dos finalistas, que são do Joaquim. **Vem por último**, depois das specs da fatia do
+piloto (D84) e antes do portão da primeira escola real
+
+Decisão de 23/11/2026 (Joaquim, D37 revista): ele quer fazer o máximo de specs antes de ligar um modelo real e testar tudo de
+uma vez. Aqui a avaliação de `docs/avaliacao-de-modelos.md` roda por finalista com a ferramenta da F5b
+(`tools/ia/avaliar-modelos.ts`, as amostras e as medidas), com o crédito de teste (R$ 150 a 250 por finalista, aceito em
+22/11/2026); os subagentes julgam e o Joaquim confirma; `PRECO_DOS_MODELOS` e `MODELOS_APROVADOS` recebem os valores reais,
+conferidos pela guarda do RF16; o principal e a reserva entram na D37 revista, o contratado de tokens por minuto em
+`docs/infra.md` 5.4 e em `infra/carga.env`; e as AIAs dizem principal, reserva e modelo menor. Quanto do resto se testa com o
+modelo real fecha-se no PRD. Ponto de partida: `tasks/prd-reserva-e-avaliacao/para-a-f5c/14_task.md` e os itens do `TODO.md`
+que tinham a 14.0 como destino.
+
+**Antes de rodar, três perguntas ao Joaquim** (da 13.0 da F5b; `TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0"):
+1. Com `AVALIACAO_MODELO_PADRAO`, qual modelo a entrada de `MODELOS_APROVADOS` e a AIA das tarefas do `padrao` citam
+2. Se o segundo modelo segue os mesmos termos de contrato do primeiro (treinamento vedado, uso por menor, processamento no
+   Brasil), com a referência do contrato gravada antes da primeira rodada
+3. O custo do segundo passe da classificação no `padrao` frente ao teto de R$ 250 por finalista
+
+Seguem também as duas perguntas do PRD da F5b, §10: sem finalista no Brasil que passe no Tutor, a D62 volta à mesa; e
+finalista que não chega ao alvo do risco à vida não liga o Tutor como principal.
+
+**Pronto quando:** a avaliação rodou por finalista, com relatório, `resultado.json` e as três contagens; o principal e a
+reserva estão na D37 revista, com preços e contratado; `MODELOS_APROVADOS` tem as entradas reais, conferidas pela guarda do
+RF16; e as AIAs dizem principal, reserva e modelo menor de cada função.
+
 ## Portão da primeira escola real
 
 Independente de onde o roadmap estiver, **nenhum dado real de escola entra em produção**
 antes de cumprir a lista de `docs/infra.md` seção 11: teste de carga, restauração de backup
 executada, alertas com runbook, deploy e rollback ensaiados, contrato com provedor de
 modelo com limite compatível com o pico, que permita serviço usado por menor, vede treinamento
-e garanta **processamento no Brasil para conversa de aluno** (D62), e os itens de LGPD do F3 e
+e garanta **processamento no Brasil para conversa de aluno** (D62), a **avaliação dos modelos executada** (F5c, D37), e os itens de LGPD do F3 e
 do `TODO.md`. Somam-se: **RIPD**, **AIA das funcionalidades de alto risco** que o piloto usar,
 **aviso de privacidade em linguagem de faixa etária**, **canal de notificação** funcionando, e
 o **parecer sobre o art. 24 do ECA Digital** — se a leitura ampla prevalecer, aluno de até 16

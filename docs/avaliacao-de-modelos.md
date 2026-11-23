@@ -101,5 +101,5 @@ seções 8 e 9). Valem como eliminatórios, independentemente da nota das amostr
 
 ## 5. Quando
 
-Antes de a F5 ser marcada como pronta, e sempre antes da primeira escola real (portão de
+Na F5c, depois das specs da fatia do piloto (D37 revista em 23/11/2026), e sempre antes da primeira escola real (portão de
 `docs/infra.md` seção 11). Repetir quando um finalista lançar modelo novo ou mudar preço.

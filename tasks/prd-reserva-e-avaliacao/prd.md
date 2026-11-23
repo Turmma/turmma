@@ -2,11 +2,13 @@
 
 **Status:** aprovado (Joaquim, 20/11/2026), como parte do PRD da F5 (`tasks/prd-camada-ia/prd.md`); separado dele no corte de
 21/11/2026, por escolha do Joaquim, sem mudar requisito. Os números dos RF são os da F5. Revisto na revisão da spec da F5b
-(Joaquim, 22/11/2026): RF13, RF14 e `avaliacao.md`
+(Joaquim, 22/11/2026): RF13, RF14 e `avaliacao.md`. Revisto em 23/11/2026 (Joaquim): rodar a avaliação por finalista, com as chaves e o
+gasto, sai da F5b e vira a F5c (`avaliacao-de-modelos`, `ROADMAP.md`), com o modelo real por último; a F5b entrega a ferramenta, as amostras,
+as medidas e a guarda do RF16 (D37 revista). RF14, RF15, RF16 e §10 dizem o que fica aqui e o que vai
 **Funcionalidade do roadmap:** F5b — `reserva-e-avaliacao`
 **Depende de:** F5a (`camada-ia`: o custo por chamada, a linha por chamada com o provedor que atendeu, a coluna
-`consumo_ia.pelo_provedor_de_reserva`, o orçamento e o teto do lote); X6 (49.0 e 50.0); as chaves de teste dos finalistas,
-que são do Joaquim (§10)
+`consumo_ia.pelo_provedor_de_reserva`, o orçamento e o teto do lote); X6 (49.0 e 50.0). As chaves de teste dos finalistas
+são da F5c (§10)
 
 ## 1. Problema
 
@@ -15,8 +17,8 @@ há provedor, preço nem contrato.
 
 ## 2. Objetivo
 
-Toda chamada cai na reserva quando o principal cai, sem texto de aluno sair do Brasil; e o principal e a reserva saem de uma
-avaliação executada.
+Toda chamada cai na reserva quando o principal cai, sem texto de aluno sair do Brasil; e a avaliação que escolhe o principal e a
+reserva fica pronta para rodar, com amostras, medidas e guardas. Rodá-la é a F5c (23/11/2026).
 
 ## 3. Fora de escopo
 
@@ -49,9 +51,9 @@ telas da Operação e da coordenação.
 | # | Requisito | Como se prova |
 |---|---|---|
 | RF13 | Amostras sintéticas fixas e versionadas cobrem a tabela de `avaliacao.md`, nesta pasta (Joaquim, 22/11/2026; revê a seção 3 de `docs/avaliacao-de-modelos.md`): cada linha ligada a uma tarefa real, com o seu limiar e o número de execuções; reúnem os lotes retidos que já existem, o da classificação (F4b), os do risco à vida (D36) e os dois da D55. Tarefa abaixo do limiar não recebe entrada em `MODELOS_APROVADOS`; abaixo de uma linha eliminatória, o modelo sai da avaliação | Amostras no repositório, com o sha256 de cada lote no relatório; nenhuma tarefa de `TAREFAS_DE_IA` sem linha |
-| RF14 | Roda à mão, uma vez por finalista, com crédito de teste, fora da esteira (regra 30); a chave fica fora do repositório, as saídas brutas dentro, **salvo as dos lotes retidos e as da D55**, das quais o repositório guarda só o id, o resultado e o agregado (na D55, também a forma do pedido) (o sha256 delas fica fora); a parte dos lotes retidos lê `docs/aia/ouro-retido/` sem copiar, e quem a roda é o Arquiteto (Joaquim, 22/11/2026) | Guarda de segredo verde; nenhum teste automatizado chama a ferramenta; nenhuma saída de lote retido no repositório |
-| RF15 | Antes do crédito, os eliminatórios contratuais (seção 3.1) são conferidos na fonte e os finalistas, revistos: na pesquisa de 20/11/2026 o Google deve sair (termos do Google Cloud, 20(d), vedam serviço provável de ser acessado por menor; nenhum Gemini atual processa no Brasil), e AWS Bedrock em São Paulo e Magalu Cloud entram a confirmar como reserva. O relatório dá a taxa por amostra contra o limiar, os eliminatórios, latência, tokens, custo e tokens por minuto oferecidos | Seção 1 revista com fonte e data; um relatório por finalista conferido |
-| RF16 | Principal e reserva registrados na D37 revista, com os preços e o contratado de tokens por minuto (`docs/infra.md` 5.4). As AIAs das funções com modelo dizem principal, reserva e modelo menor | D37 cita o relatório; `conformidade-reviewer` aprova as AIAs |
+| RF14 | Roda à mão, uma vez por finalista, com crédito de teste, fora da esteira (regra 30); a chave fica fora do repositório, as saídas brutas dentro, **salvo as dos lotes retidos e as da D55**, das quais o repositório guarda só o id, o resultado e o agregado (na D55, também a forma do pedido) (o sha256 delas fica fora); a parte dos lotes retidos lê `docs/aia/ouro-retido/` sem copiar, e quem a roda é o Arquiteto (Joaquim, 22/11/2026). A F5b entrega a ferramenta assim; rodar por finalista é da F5c (Joaquim, 23/11/2026) | Guarda de segredo verde; nenhum teste automatizado chama a ferramenta; nenhuma saída de lote retido no repositório |
+| RF15 | Antes do crédito, os eliminatórios contratuais (seção 3.1) são conferidos na fonte e os finalistas, revistos: na pesquisa de 20/11/2026 o Google deve sair (termos do Google Cloud, 20(d), vedam serviço provável de ser acessado por menor; nenhum Gemini atual processa no Brasil), e AWS Bedrock em São Paulo e Magalu Cloud entram a confirmar como reserva. O relatório dá a taxa por amostra contra o limiar, os eliminatórios, latência, tokens, custo e tokens por minuto oferecidos | Seção 1 revista com fonte e data; o relatório da ferramenta traz esses campos, provado com o modelo falso. O relatório de cada finalista, conferido, é da F5c |
+| RF16 | Toda entrada de `MODELOS_APROVADOS` se liga ao relatório que a aprovou e, na função de alto risco, à AIA que cita o `provedorId:modelo`. Registrar principal e reserva na D37 revista, com os preços e o contratado de tokens por minuto (`docs/infra.md` 5.4), e as AIAs com principal, reserva e modelo menor, é da F5c (Joaquim, 23/11/2026) | A guarda do RF16 (`cenarios.md` §1) recusa a entrada sem relatório, com linha reprovada ou fora da AIA |
 
 ## 6. Regras de negócio
 
@@ -88,11 +90,13 @@ reserva.
 
 - Chamadas atendidas pela reserva, e as indisponíveis com o principal fora
 - Zero chamada com texto de aluno em provedor sem contrato no Brasil, conferido na lista de compartilhamento
-- A avaliação executada, com amostras e eliminatórios respondidos
+- A avaliação pronta para rodar, com amostras e eliminatórios respondidos (a execução, na F5c)
 
 ## 10. Perguntas em aberto
 
-- **(Joaquim)** As chaves de teste dos finalistas para rodar a avaliação (RF14); sem elas a F5b não fecha (D37)
+- ~~**(Joaquim)** As chaves de teste dos finalistas para rodar a avaliação (RF14)~~ **Respondida em 23/11/2026:** a avaliação
+  executada sai da F5b e vira a F5c, depois das specs da fatia do piloto e antes do portão da primeira escola real; as chaves
+  chegam lá. As duas perguntas abaixo seguem para a F5c
 - **(Joaquim, depois da avaliação)** Sem finalista no Brasil que passe no Tutor, a D62 volta à mesa, como ela prevê. Sem segundo
   provedor no Brasil, a reserva é outro modelo da Maritaca: cobre a queda do modelo, não a do provedor
 - **(Joaquim, depois da avaliação)** Os lotes retidos do risco à vida estão fora do alvo com o modelo local; finalista que não

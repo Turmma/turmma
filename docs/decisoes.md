@@ -446,9 +446,15 @@ estado emocional. Só recusar o assunto deixaria um aluno em risco sem ninguém 
 
 **D37 — O provedor de modelo sai de uma avaliação com amostras sintéticas.**
 Finalistas: Maritaca (Sabiazinho 4 e Sabiá 4, variante processada no Brasil) e Google
-(Gemini Flash-Lite e Flash). Principal e reserva são escolhidos pelo resultado, antes de a
-F5 ficar pronta. Benchmark genérico não mede o que importa aqui: recusar a resposta em
+(Gemini Flash-Lite e Flash). Principal e reserva são escolhidos pelo resultado, na F5c (ver a
+revisão). Benchmark genérico não mede o que importa aqui: recusar a resposta em
 português de Ensino Médio e citar a página certa. Critérios em `docs/avaliacao-de-modelos.md`.
+Revista em 23/11/2026: rodar a avaliação por finalista sai da F5b e vira a F5c (`avaliacao-de-modelos`), que vem por
+último. Ela fica depois das specs da fatia do piloto (D84) e antes do portão da primeira escola real. A rodada usa as chaves
+de teste dos finalistas e o gasto já aceito, de R$ 150 a 250 por finalista. A F5b entrega a avaliação pronta para rodar: as
+amostras, a ferramenta, as medidas e a guarda do RF16, provadas com o modelo falso. Até a F5c, `MODELOS_APROVADOS` não tem
+entrada de provedor real, e a reserva não atende nada em produção. Motivo: o Joaquim quer fazer o máximo de specs antes de
+ligar um modelo real, e testar tudo de uma vez.
 
 **D38 — O tutor tem pacote mensal por turma, com freio diário por aluno.**
 Pacote de 300 trocas por aluno por mês, somado na turma: o aluno que precisa mais na véspera

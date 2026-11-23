@@ -16,7 +16,7 @@ Todas têm dono e momento. Nenhuma trava o F0.
 | As **oito ferramentas que a D67 não lista** — planejamento do período, projeto, plano de recuperação, mapa mental, roteiro de experimento, avaliação diagnóstica, proposta de redação e importar prova (P22). A regra e as categorias já estão na D74. O planejamento e o projeto dependem da grade e da semana do F2; o plano de recuperação, do F6 | Gabriel propõe; Joaquim decide e estima | por `descobrir`, uma a uma, antes do F7 |
 | **Prova no papel (F6b, D83):** o prazo de retenção da imagem de conferência; se a leitura da foto roda no navegador do professor ou no servidor; e se a F6b vem antes ou depois da F9 no piloto | Joaquim | antes do PRD da F6b |
 | **Provedor da VPS de produção** (região Brasil, snapshot e backup fora da VPS, borda; D82, D28, D62) | Joaquim | antes do PRD do F18 |
-| Provedor de modelo principal e reserva | Joaquim | avaliação de `docs/avaliacao-de-modelos.md`, antes de a F5 ficar pronta (D37) |
+| Provedor de modelo principal e reserva | Joaquim | avaliação de `docs/avaliacao-de-modelos.md`, na F5c, antes do portão da primeira escola real (D37 revista em 23/11/2026) |
 | Registro no INPI e do domínio `turmma.com` (o nome já está fechado, D54) | Gabriel | antes do material de venda e do piloto |
 | Se o art. 24 do ECA Digital exige conta de responsável vinculada para aluno de até 16 anos — e, se exigir, se o portal da família sai da fase posterior | Joaquim e Gabriel, com advogado | **antes do PRD do F9**; o vínculo já nasce no modelo de dados do F1 (`docs/regulacao.md` 2.2) |
 | Como os arts. 17 e 18 do ECA Digital (supervisão parental) se modulam pelo art. 39 no nosso caso | advogado | junto com o parecer do ECA Digital |
