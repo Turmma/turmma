@@ -12,6 +12,9 @@ import type { Perfil } from './perfis.js'
  * instante do prazo do perfil, e nada se soma a ele. Os 56 s e os 136 s acima são a conta das duas tentativas, sem reserva; com a
  * reserva, o pior caso é o próprio prazo, de 60 s e de 140 s.
  *
+ * **A vaga de tokens da reserva (7.0) não soma tempo.** A reserva reserva no balde `provedor:modelo` dela **sem esperar** (o principal já esperou os 8 s, dentro deste mesmo prazo): o balde da reserva
+ * cheio termina `IA_INDISPONIVEL` (`sem_vaga`) na hora, antes do prazo, e a espera pela vaga nunca vai além dos 8 s do principal.
+ *
  * O job `ia.executar` tem `prazoMs` de 150 s, e o prazo de cada perfil fica **abaixo** dele, menos a folga de gravar a falha: a
  * execução termina marcada (`falhou IA_TEMPO_ESGOTADO`) antes de o executor de jobs cortar a tentativa.
  */

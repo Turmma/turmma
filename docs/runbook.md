@@ -1597,12 +1597,12 @@ de que há suboperador novo (seção "Como avisar as escolas"): suboperador que 
 
 ## Tokens acima de 70% do contratado
 
-**Dispara quando:** o modelo já consome 70 % ou mais do contratado de tokens por minuto, por 5 min seguidos (`max by (modelo) (ia_tokens_uso_do_teto) >= 0.7`, por 5 min; regra `infra/grafana/alertas/ia-tokens-acima-do-teto.yaml`; reengenharia-continuacao, tarefa 10.0).
+**Dispara quando:** o modelo já consome 70 % ou mais do contratado de tokens por minuto, por 5 min seguidos (`max by (provedor, modelo) (ia_tokens_uso_do_teto) >= 0.7`, por 5 min; regra `infra/grafana/alertas/ia-tokens-acima-do-teto.yaml`; reengenharia-continuacao, tarefa 10.0).
 É o **aviso**: o balde geral tem 80 % do contratado (`LLM_TOKENS_POR_MINUTO`), e este alerta sobe com 12,5 % de folga ainda. No pico da manhã de segunda esperam-se uns 68 %, e por isso são 5 min seguidos, e não o pico de um minuto.
 
 **Impacto:** nenhum ainda. Quem pede ao modelo é atendido na hora; a espera pela vaga e o modelo menor só começam com o balde cheio.
 
-**Primeiro olhar:** o painel "IA: uso do teto de tokens, por modelo" (`ia_tokens_uso_do_teto`) e o consumo do dia por função (`ops:uso`, sem dado de aluno): se é o Tutor de várias turmas ao mesmo tempo (normal às 10h), a ferramenta de uma escola, ou o Analista.
+**Primeiro olhar:** o painel "IA: uso do teto de tokens, por provedor e modelo" (`ia_tokens_uso_do_teto`) e o consumo do dia por função (`ops:uso`, sem dado de aluno): se é o Tutor de várias turmas ao mesmo tempo (normal às 10h), a ferramenta de uma escola, ou o Analista.
 
 **Causas prováveis:**
 1. A manhã de segunda, com muitas turmas no Tutor ao mesmo tempo → é o esperado perto do limite do desenho (`docs/infra.md`, "Tokens por minuto"): acompanhe se passa para o alerta de 80 %; se for toda semana, o contratado sobe.
@@ -1615,17 +1615,18 @@ de que há suboperador novo (seção "Como avisar as escolas"): suboperador que 
 
 ## Tokens acima de 80% do contratado
 
-**Dispara quando:** o balde geral do modelo está cheio por 5 min seguidos (`max by (modelo) (ia_tokens_uso_do_teto) >= 0.8`, por 5 min; o `0,8` é o `PARTE_DO_BALDE_GERAL` do `TokenLimiter`, que o teste de alertas confere; regra
+**Dispara quando:** o balde geral do modelo está cheio por 5 min seguidos (`max by (provedor, modelo) (ia_tokens_uso_do_teto) >= 0.8`, por 5 min; o `0,8` é o `PARTE_DO_BALDE_GERAL` do `TokenLimiter`, que o teste de alertas confere; regra
 `infra/grafana/alertas/ia-tokens-acima-do-teto.yaml`; reengenharia-continuacao, tarefa 10.0). **É saturação de capacidade, e não defeito do código, mas isso não é "nada a fazer":** o gateway está fazendo o que a regra 80, item 4, pede (o limite abaixo do contratado, com a espera e o menor), e o alerta diz que isso virou rotina, com aluno vendo "Tentar de novo" em sala agora. Quem está de plantão olha o impacto abaixo e a ação em "Se nada disso resolver".
 
-**Impacto:** a chamada sem vaga espera até 8 s ("Pensando" para o aluno, no prazo único da execução: 60 s no Tutor, 140 s na ferramenta); passados os 8 s vai ao modelo menor do perfil, se houver e se a tarefa puder (**o turno do Tutor nunca**), e termina `IA_INDISPONIVEL` se também lá não
-houver vaga: "Tentar de novo" na tela, nunca erro cru. A `ferramenta` (teto de 15 %) e a `normal` (10 %) esperam antes do Tutor, que só olha o balde geral. Cada degrau tem a sua métrica (`ia_degradacao_total{degrau}`: `espera`, `modelo_menor`, `indisponivel`).
+**Impacto:** a chamada sem vaga espera até 8 s ("Pensando" para o aluno, no prazo único da execução: 60 s no Tutor, 140 s na ferramenta); passados os 8 s vai ao modelo menor do perfil, se houver e se a tarefa puder (**o turno do Tutor nunca**); sem menor, ou sem vaga nele, vai ao **provedor de reserva**, se ele é elegível
+para a tarefa, no balde `provedor:modelo` dele, **sem nova espera**; e termina `IA_INDISPONIVEL` se também ali não houver vaga: "Tentar de novo" na tela, nunca erro cru. O alerta é **por `provedor` e `modelo`**: o do
+balde da reserva cheio diz que o transbordo também acabou, e é o que se olha primeiro. A `ferramenta` (teto de 15 %) e a `normal` (10 %) esperam antes do Tutor, que só olha o balde geral. Cada degrau tem a sua métrica (`ia_degradacao_total{degrau}`: `espera`, `modelo_menor`, `provedor_de_reserva`, `indisponivel`). **Um pedido pode contar dois degraus:** o que foi à reserva e a achou sem vaga conta `provedor_de_reserva` e `indisponivel`, e os dois são o mesmo pedido, não dois; não os some. E o `sem_vaga` pode vir **depois de uma chamada à reserva já feita**: se a reserva responde inválido e o balde dela recusa a repetição, a saída da primeira chamada é descartada e a execução termina `sem_vaga`.
 
 **O balde é um só para todas as escolas, de propósito** (`docs/infra.md`, "Tokens por minuto"): uma escola com muita carga pode esgotá-lo e fazer o Tutor de outra terminar `IA_INDISPONIVEL` depois de 8 s. Não vaza dado, mas é interferência entre escolas, e as vagas por escola (RF2) não a impedem, porque são outra barreira. Avaliar uma parte por escola está no `TODO.md`, para quando o piloto tiver mais de uma escola com carga real.
 
 **O painel superestima, e é seguro:** a reserva é a estimativa da chamada, e o uso real só a acerta quando a resposta chega. Chamada que falha não chama o `acertar`, e a estimativa fica no balde até o fim do minuto; as repetições internas do `ResilientAdapter` (o recuo e a nova tentativa do mesmo pedido) gastam tokens sem reserva nova. Por isso, com o provedor instável, o uso do teto pode passar do que o provedor de fato cobrou.
 
-**Primeiro olhar:** os painéis "IA: uso do teto de tokens, por modelo" e "IA: degraus da degradação" dizem quanto do minuto está ocupado e em que degrau os pedidos estão caindo; o aumento de `ia_degradacao_total{degrau="indisponivel"}` é o que o aluno e a professora já sentem. Com o `ia_espera_estourada_total` junto
+**Primeiro olhar:** os painéis "IA: uso do teto de tokens, por provedor e modelo" e "IA: degraus da degradação" dizem quanto do minuto está ocupado e em que degrau os pedidos estão caindo; o aumento de `ia_degradacao_total{degrau="indisponivel"}` é o que o aluno e a professora já sentem. Com o `ia_espera_estourada_total` junto
 (alertas "Pergunta do Tutor cortada na espera"), a saturação é da fila e do provedor, e não de uma escola.
 
 **Causas prováveis:**

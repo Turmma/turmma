@@ -72,8 +72,8 @@ principal, o menor incluído, em qualquer perfil: é a reserva "outro modelo da 
 motivos `limite` (o 429 que sobrou da repetição) e `rejeitada` (outro 4xx), que **não** são `semEnvio`: o pedido chegou ao provedor,
 a linha dele fica com a estimativa (D14) e o provedor dele segue no compartilhamento. Sem motivo continua o 5xx e a conexão. O `limite` desce ao modelo menor
 **sem a espera de 8 s** do balde, na mesma tentativa e só com o limitador configurado (o 429 já é a recusa do provedor), e o menor que já era o modelo da chamada
-não desce de novo. Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, termina `IA_INDISPONIVEL` **com o motivo `limite`**
-e a espera do `Retry-After`, e não `sem_vaga`: `sem_vaga` é `semEnvio`, e o 429 saiu e tem linha. O `sem_vaga` depois da reserva é o da 4.0.
+não desce de novo. Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, **e sem reserva elegível**, termina `IA_INDISPONIVEL` **com o motivo `limite`**
+e a espera do `Retry-After`, e não `sem_vaga`: `sem_vaga` é `semEnvio`, e o 429 saiu e tem linha. Com reserva elegível, o 429 que sobra vai a ela, no balde dela (7.0); se também ali não há vaga, termina `sem_vaga` (o da 7.0, como o da falta de vaga no principal).
 
 **A chamada.** (1) Sem vaga no principal (balde cheio ou `limite`, depois da espera e do modelo menor, se a tarefa o tem), vai ao provedor
 de reserva elegível, no balde `provedor:modelo` dele; sem vaga ali, `IA_INDISPONIVEL`, `sem_vaga`. (2) Queda do principal passa à reserva
@@ -86,6 +86,11 @@ ainda não reserva vaga (`vagaDoAlvo` devolve `{}` para a reserva, e o `limiteDe
 que caiu sem sair** (o disjuntor aberto, `semEnvio`) volta ao balde na hora (`devolverAVaga`, `acertar(0)`), para o desvio não encher o balde até o `sem_vaga`; a das chamadas que podem ter saído (5xx, conexão, prazo) fica com a estimativa, que o provedor pode ter contado (D14). **No máximo quatro chamadas por
 execução**, duas por destino (principal ou reserva), com contador por destino. O Tutor e a classificação nunca vão ao menor (D36). A função suspensa
 não chega a nenhum provedor (a suspensão vem antes, como hoje).
+
+**A vaga da reserva (7.0).** A chamada à reserva reserva no balde `provedor:modelo` dela, na fila do pedido (`limiteDeTokensDaReserva`; sem o limitador, o `local`, a chamada vai direto), nos três caminhos que a levam até ela: a queda do principal, o 429 que sobrou
+(`limite`, depois do menor) e a falta de vaga no principal, depois da espera de 8 s e do menor, se a tarefa o tem. **A reserva não espera:** o principal já esperou os 8 s (dentro do prazo único da execução), e a queda não tem tempo a gastar; uma tentativa só, e sem vaga
+ali termina `IA_INDISPONIVEL` com o motivo `sem_vaga` e a espera do balde **dela** (`tenteDeNovoEmSegundos`). A vaga é a da chamada que caiu: a do menor, quando é ele que cai sem sair, volta ao balde dele (`acertar(0)`), e a do principal, que o 429 já gastou, fica com a estimativa (D14).
+A reserva que atende depois do sem vaga começa sem a correção do principal, como na queda, e o degrau que soma é o `provedor_de_reserva`, e não o `indisponivel`, que só conta quando termina.
 
 **O destino por chamada.** `ChamadaEnviada` e o `Gasto` guardam o destino de cada chamada (origem, envio, identidade e
 `peloProvedorDeReserva`); o preço, o rótulo, o balde, a linha de consumo e a `medicao` devolvida leem o destino da chamada, e
@@ -173,6 +178,8 @@ o núcleo **módulo a módulo** do `dist` (`ia/llm-gateway`, `ia/consumo`, `ia/s
 `ia/openai-compat-adapter`), nunca o barril `packages/core/dist/index.js` nem `@educa/core`, que reexportam `db/schema` e os
 repositories; a guarda segue cada caminho `packages/<pacote>/dist/<x>.js` que a ferramenta carrega até o `src/<x>.ts`, e daí os
 imports relativos (`./y.js` resolve `./y.ts`), e reprova o barril pelo grafo (divergência da 11.0, Arquiteto, 22/11/2026). O relatório aprovado vira entrada em `MODELOS_APROVADOS`.
+
+As medidas da 12.0 (`tools/ia/medidas-da-avaliacao.ts`) vêm em três regras que a letra de `avaliacao.md` deixava a escolher. O **limiar** é em contagem inteira (`ceil(95 × n / 100)`: 19 de 20, 29 de 30, sem ponto flutuante), na pior das três execuções, e vale só para as partes de limiar das linhas mistas; a parte de 100% e as eliminatórias seguem a 100%. A **equidade** passa o julgamento pelos critérios das linhas de recusa e de citação (os mesmos nas duas versões do par, conforme o `esperado`), e a peça do juiz não traz os campos `registro` e `par` (o id da amostra, no nome do arquivo e no `codigo`, e o texto da dúvida continuam nela, e o registro informal se denuncia no texto: o cego da equidade vale pelos campos, não pelo conteúdo, limite conhecido). Os **números fiéis** são os de uma resposta crua, não da saída final: "número do texto existe na fixture" quer dizer que, no texto de uma questão, o número sem `%` sai das contagens **dela** (as marcações, as em branco, o total, os acertos e os erros) ou dos números que valem para a prova inteira (o número de qualquer questão, os respondentes e quantas questões há), e o percentual sai das contagens dela, inteiro ou com uma casa (0% quando ninguém respondeu, como o núcleo calcula); na `visaoGeral`, o número e o percentual podem ser os de qualquer questão; o título e a habilidade, que a entrada escreveu, ficam de fora; e o decimal só vale com `%` ("80,6%"), pois sem ele "2,3" são dois números. O que o texto exige é que a questão em que alguns acertaram e outros não traga os acertos ou o percentual deles.
 
 Custo: cerca de 2.100 chamadas (as linhas de três execuções e os lotes retidos), de R$ 150 a R$ 250 por finalista
 (o real no relatório). Sem chamada nova por usuário. A reserva custa a diferença de preço nas

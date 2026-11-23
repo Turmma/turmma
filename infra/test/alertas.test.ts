@@ -291,17 +291,42 @@ describe('regras de alerta provisionadas', () => {
     const aos80 = regraPorUid(REGRAS_PROVISIONADAS.iaTokensAcimaDe80).regra
     expect(PARTE_DO_BALDE_GERAL).toBe(0.8)
     expect(aos80.for).toBe('5m')
-    expect(expressao(aos80)).toBe(`max by (modelo) (ia_tokens_uso_do_teto) >= ${PARTE_DO_BALDE_GERAL}`)
+    expect(expressao(aos80)).toBe(`max by (provedor, modelo) (ia_tokens_uso_do_teto) >= ${PARTE_DO_BALDE_GERAL}`)
     expect(limiar(aos80)).toEqual({ type: 'gt', params: [0] })
     const aos70 = regraPorUid(REGRAS_PROVISIONADAS.iaTokensAcimaDe70).regra
     expect(aos70.for).toBe('5m')
-    expect(expressao(aos70)).toBe('max by (modelo) (ia_tokens_uso_do_teto) >= 0.7')
+    expect(expressao(aos70)).toBe('max by (provedor, modelo) (ia_tokens_uso_do_teto) >= 0.7')
     expect(limiar(aos70)).toEqual({ type: 'gt', params: [0] })
     // O aviso vem antes do alerta: 70 % está abaixo do balde cheio.
     expect(0.7).toBeLessThan(PARTE_DO_BALDE_GERAL)
     expect(NOMES_NO_PROMETHEUS.usoDoTetoDeTokens).toEqual(['ia_tokens_uso_do_teto'])
     // Nenhuma das três leva escola, execução, usuário nem aluno na consulta.
     for (const regra of [provedorFora, aos70, aos80]) expect(expressao(regra)).not.toMatch(/escola|usuario|execucao|aluno/)
+  })
+
+  it('reserva-e-avaliacao, tarefa 7.0: o alerta de tokens agrupa por `provedor` e `modelo`, e a reserva falsa com o mesmo modelo do principal falso (ou a reserva do mesmo provedor, com outro modelo) tem o seu alerta', () => {
+    for (const uid of [REGRAS_PROVISIONADAS.iaTokensAcimaDe70, REGRAS_PROVISIONADAS.iaTokensAcimaDe80]) {
+      const regra = regraPorUid(uid).regra
+      // Os rótulos pelos quais a agregação agrupa: o teste os lê da regra e agrupa as séries como o Prometheus agruparia.
+      const agrupaPor = /^max by \(([^)]*)\)/.exec(expressao(regra))?.[1]?.split(',').map((rotulo) => rotulo.trim()) ?? []
+      expect(agrupaPor).toEqual(['provedor', 'modelo'])
+      // Os dois falsos têm o mesmo modelo, e só o `provedor` os distingue; a reserva "outro modelo da Maritaca" tem o mesmo `provedor` do principal, e só o `modelo` a distingue. Cada série é a de um balde, no teto (0,8).
+      const series = [
+        { provedor: 'falso', modelo: 'falso-deterministico', valor: 0.8 },
+        { provedor: 'falso-reserva', modelo: 'falso-deterministico', valor: 0.8 },
+        { provedor: 'maritaca', modelo: 'sabia-4', valor: 0.8 },
+        { provedor: 'maritaca', modelo: 'sabiazinho-4', valor: 0.8 },
+      ]
+      const grupos = new Map<string, number>()
+      for (const serie of series) {
+        const chave = agrupaPor.map((rotulo) => `${rotulo}=${String(serie[rotulo as keyof typeof serie])}`).join(',')
+        grupos.set(chave, Math.max(grupos.get(chave) ?? 0, serie.valor))
+      }
+      expect(grupos.size, regra.title).toBe(4)
+      // O texto diz de qual balde é, pelos dois rótulos que a expressão preserva.
+      expect(regra.annotations?.summary, regra.title).toContain('{{ $labels.provedor }}')
+      expect(regra.annotations?.summary, regra.title).toContain('{{ $labels.modelo }}')
+    }
   })
 
   it('reserva-e-avaliacao, tarefa 4.0: com os dois provedores fora, o "Provedor de IA fora" dispara uma vez para cada `provedor`, mesmo com o mesmo modelo e perfil nos dois', () => {

@@ -56,11 +56,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 6.4 O prazo com quatro chamadas
   - [x] 6.5 Testes
 
-- [ ] **7.0 — Sem vaga no principal, a chamada vai ao menor e depois à reserva, no balde dela**
-  - [ ] 7.1 O ramo sem vaga
-  - [ ] 7.2 O uso do teto por `provedor:modelo`
-  - [ ] 7.3 O alerta dos tokens; `docs/infra.md` 5.4
-  - [ ] 7.4 Testes
+- [x] **7.0 — Sem vaga no principal, a chamada vai ao menor e depois à reserva, no balde dela**
+  - [x] 7.1 O ramo sem vaga
+  - [x] 7.2 O uso do teto por `provedor:modelo`
+  - [x] 7.3 O alerta dos tokens; `docs/infra.md` 5.4
+  - [x] 7.4 Testes
 
 - [x] **8.0 — A execução interrompida grava a estimada de cada destino, com custo**
   - [x] 8.1 `destinosDaInterrompida`
@@ -87,12 +87,12 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 11.3 O julgamento cego, `resultado.json` e `relatorio.md`
   - [x] 11.4 Testes
 
-- [ ] **12.0 — As medidas da avaliação: limiar em contagem, equidade por pares, números fiéis e a D36 das amostras**
-  - [ ] 12.1 Limiar em contagem e gabarito
-  - [ ] 12.2 A equidade
-  - [ ] 12.3 Os números fiéis
-  - [ ] 12.4 A D36
-  - [ ] 12.5 Testes
+- [x] **12.0 — As medidas da avaliação: limiar em contagem, equidade por pares, números fiéis e a D36 das amostras**
+  - [x] 12.1 Limiar em contagem e gabarito
+  - [x] 12.2 A equidade
+  - [x] 12.3 Os números fiéis
+  - [x] 12.4 A D36
+  - [x] 12.5 Testes
 
 - [ ] **13.0 — Os lotes retidos e a classificação medidos por `medida-do-ouro.ts`, e a guarda que liga aprovação, relatório e AIA**
   - [ ] 13.1 `medida-do-ouro.ts`

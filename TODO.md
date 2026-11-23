@@ -197,6 +197,19 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       o da ferramenta noutra; o outro já `concluido`), depois de o teste abortar o prazo de cada uma com `prazos[n].abortar()`. Investigar se o job fica `ativo` porque o
       aborto chega antes de o modelo pendurado registrar o sinal, ou se o processador deixa o job `ativo` quando o aborto cai logo depois de começar; o intermitente vira
       ruído na esteira da spec se cair lá (dono: Implementador; vira `/corrigir` se aparecer na esteira)
+- [ ] (reserva-e-avaliacao, 7.0, privacy-guardian, 1ª, 22/11/2026) **`ia.geracao.sem_vaga` não leva `escolaId` nem `execucaoId`.** `descer` não recebe o pedido, e mudar a assinatura
+      é mais do que a 7.0 pedia. Não é falta de privacidade: o `desviarParaAReserva` já os leva, e a linha de consumo liga o fim à execução (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, infra-guardian, 1ª, 22/11/2026) **`tenteDeNovoEmSegundos` do `sem_vaga` poderia ser o menor dos dois `msAteLiberar` (o do principal e o da reserva).**
+      Hoje é o do balde onde a chamada parou, e o lote pode adiar mais do que precisa; muda o valor devolvido (comportamento), então fica para a carga (9.0) provar se o adiamento
+      excessivo aparece (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, privacy-guardian, 2ª, 22/11/2026) **`docs/runbook.md`, "Tokens acima de 80% do contratado": uma frase dizendo que a saída inválida da primeira chamada à reserva, descartada quando o `sem_vaga` encerra, já saiu para o provedor e aparece no compartilhamento pela linha `falhou` da reserva.**
+      O envio já está registrado na linha de consumo, e a pergunta "para onde foi" é respondida por ela; falta só o texto do runbook (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, conformidade-reviewer, infra-guardian, revisor-geral e test-engineer, 2ª, 22/11/2026) **`llm-gateway.test.ts`: o título "a D62 da reserva vale nos três caminhos" promete três e o corpo cobre dois.**
+      A queda está provada no caso da 4.0; trocar o título para "nos caminhos de falta de vaga e de 429" (e a linha do documento e o bloco de mutação que o citam) (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, llm-integrator, revisor-geral e test-engineer, 2ª, 22/11/2026) **`llm-gateway.ts`: o comentário "A vaga do principal que caiu sem sair volta ao balde" (em `chamarComDegrau`) devia dizer "do destino".**
+      Vale também para a reserva; trocar junto as linhas de contexto dos blocos de mutação do `7_task.md` que o citam (sem mudar comportamento) (dono: Implementador, camada-ia)
+- [ ] (reserva-e-avaliacao, 7.0, test-engineer, 2ª, 22/11/2026) **Caso da repetição da reserva sem vaga também na fila `lote`**, para provar que a linha da primeira chamada à reserva fica gravada quando o `sem_vaga` adia o job (`gasto.chamadas.length > 0`, `llm-gateway.ts`).
+      Entra na camada-ia ou na carga (9.0), que roda a fila `lote` (dono: Implementador)
 - [ ] (correção `2026-11-21-limpeza-do-painel-com-job-registro`, revisor-geral e infra-guardian, 1ª) **Os outros removedores de escola do e2e não apagam o que o
       worker grava nela.** Dez arquivos de `e2e/support/` (cada um com o seu `comBanco`) apagam a escola sem apagar `job_registro` nem `expurgo_execucao`, as duas
       tabelas com FK para `escola` que a correção fechou só no `painel.ts`: o mesmo `afterEach` pode cair neles. Levantar a lista, mover a limpeza para um
@@ -4469,3 +4482,9 @@ Copiadas das "Recomendações sem aplicar" de `tasks/prd-camada-ia/7_task.md` no
 - [ ] (reserva-e-avaliacao, 11.0, revisor-geral, 3ª) **O `import type` não entra no grafo da guarda: dizer na `techspec.md` §8 e no `cenarios.md` §1 (RF14)**: hoje só está no docblock da guarda e em `.processo/ordens/11_task-divergencia-guarda.md`; texto de spec, sem efeito em comportamento. Dono: Arquiteto
 - [ ] (reserva-e-avaliacao, 11.0, test-engineer, 3ª) **Falta o bloco de mutação do trecho opcional `(?:\s+as\s+\w+)?` de `semImportDeTipo`**: a fixture `import-de-tipo` (`import type * as Tudo`) já cobre; declarar o bloco. Dono: Arquiteto, junto da próxima mudança da guarda
 - [ ] (reserva-e-avaliacao, 11.0, test-engineer, 3ª) **Docblock da guarda: `import { type X } from '…'` entra no grafo de propósito** (erra para o lado seguro, porque a forma pode manter o import na execução). Dono: Arquiteto
+
+## Da reserva-e-avaliacao, tarefa 12.0 (as medidas da avaliação), fora dela
+
+- [ ] (reserva-e-avaliacao, 12.0, revisor-geral, 1ª, 22/11/2026) **`saidaDaTarefa` (`tools/ia/avaliar-modelos.ts`) não passa pela limpeza de marcação (`semMarcacao`) que o gateway aplica antes do `JSON.parse`**: a medida da máquina devia ler a resposta crua como o gateway a lê, e hoje a resposta em bloco de código não tem medida (a forma errada fica com o juiz). Muda o que a máquina mede, e a leitura da limpeza do gateway passa pela guarda do ponto de entrada da 11.0. Dono: Arquiteto, na 13.0
+- [ ] (reserva-e-avaliacao, 12.0, revisor-geral, 1ª, 22/11/2026) **`piorDoLimiar` repete o agrupamento por execução de `piorExecucao`** (`tools/ia/avaliar-modelos.ts`): extrair o agrupamento. Refatoração sem mudança de comportamento, sobre funções que têm blocos de mutação provados na 12.0. Dono: Arquiteto
+- [ ] (reserva-e-avaliacao, 12.0, test-engineer, 2ª, 22/11/2026) **Falta um caso próprio e o bloco de mutação do `...daProva` na lista de contagens da `visaoGeral`** (`conferirNumerosDoRelatorio`, `tools/ia/medidas-da-avaliacao.ts`): hoje o mutante é pego por acaso, pelo 1 de "Ninguém acertou a 1."; o `--faltando` não o acusa. Dono: Arquiteto, junto da próxima mudança do comparador

@@ -46,8 +46,8 @@ export interface LLMGatewayDependencies {
    */
   readonly limiteDeTokens?: LimiteDeTokens
   /**
-   * O limitador **da reserva** (F5b, 2.0): o `TokenLimiter` dela, com o contratado dela (`LLM_RESERVA_TOKENS_POR_MINUTO`) e os mesmos baldes por fila. Entregue ao gateway; quem o lê é o ramo sem vaga (7.0).
-   * Sem ele (reserva sem contratado, só no `local`, ou sem reserva) a reserva não tem balde.
+   * O limitador **da reserva** (F5b, 2.0): o `TokenLimiter` dela, com o contratado dela (`LLM_RESERVA_TOKENS_POR_MINUTO`) e os mesmos baldes por fila. Toda chamada à reserva reserva nele, no balde `provedor:modelo` dela,
+   * depois da queda do principal e depois do sem vaga dele (7.0); sem vaga ali, `IA_INDISPONIVEL`/`sem_vaga`. Sem ele (reserva sem contratado, só no `local`, ou sem reserva) a reserva não tem balde e a chamada vai direto.
    */
   readonly limiteDeTokensDaReserva?: LimiteDeTokens
   /** A conferência da D62 **da reserva** (F5b, 2.0): a porta de `reservaElegivel`. Ausente vale não conferida, e a reserva não é elegível. Quem a lê é o roteamento (4.0). */
@@ -132,7 +132,15 @@ interface Medidas {
  */
 const horaDoProcessoMs = (): number => Date.now()
 
-function createMedidas(medidor: Meter | undefined, usosDoTeto: ReadonlyMap<string, { readonly valor: number; readonly em: number }>): Medidas {
+/** O uso do teto de um balde `provedor:modelo` na última reserva dele: a série da métrica leva os dois rótulos, porque o principal e a reserva podem ter o mesmo modelo (os dois falsos) ou o mesmo provedor. */
+interface UsoDoTeto {
+  readonly valor: number
+  readonly em: number
+  readonly provedor: string
+  readonly modelo: string
+}
+
+function createMedidas(medidor: Meter | undefined, usosDoTeto: ReadonlyMap<string, UsoDoTeto>): Medidas {
   if (medidor === undefined) return {}
   const pedidosAcimaDoTeto = medidor.createCounter(METRICS.pedidoAcimaDoTeto, { description: 'Pedidos de IA recusados acima do teto de entrada da tarefa, por tarefa' })
   const degradacao = medidor.createCounter(METRICS.degradacaoDeIa, { description: 'Pedidos de IA que desceram um degrau da degradação (espera, modelo menor, indisponível, provedor de reserva), por degrau' })
@@ -142,9 +150,9 @@ function createMedidas(medidor: Meter | undefined, usosDoTeto: ReadonlyMap<strin
     advice: { explicitBucketBoundaries: LIMITES_DO_HISTOGRAMA_DA_CHAMADA_S },
   })
   const errosDaChamada = medidor.createCounter(METRICS.errosDaChamadaDeIa, { description: 'Chamadas ao provedor de IA que terminaram em erro, por provedor, perfil e código' })
-  medidor.createObservableGauge(METRICS.usoDoTetoDeTokens, { description: 'Quanto do contratado o balde geral de tokens do modelo já consumiu no minuto (0,8 é o balde cheio)' }).addCallback((observador) => {
+  medidor.createObservableGauge(METRICS.usoDoTetoDeTokens, { description: 'Quanto do contratado o balde geral de tokens do provedor e modelo já consumiu no minuto (0,8 é o balde cheio)' }).addCallback((observador) => {
     const agora = horaDoProcessoMs()
-    for (const [modelo, uso] of usosDoTeto) observador.observe(agora - uso.em < VALIDADE_DO_USO_DO_TETO_MS ? uso.valor : 0, { modelo })
+    for (const uso of usosDoTeto.values()) observador.observe(agora - uso.em < VALIDADE_DO_USO_DO_TETO_MS ? uso.valor : 0, { provedor: uso.provedor, modelo: uso.modelo })
   })
   for (const degrau of DEGRAUS) degradacao.add(0, { degrau })
   for (const tarefa of TAREFAS_DE_IA) pedidosAcimaDoTeto.add(0, { tarefa })
@@ -155,6 +163,16 @@ function createMedidas(medidor: Meter | undefined, usosDoTeto: ReadonlyMap<strin
 interface Vaga {
   readonly modelo?: string
   readonly reserva?: ReservaDeTokens
+}
+
+/** O balde do destino recusou o pedido (depois da espera e do menor, no principal): quem chamou decide se a reserva atende ou se termina `sem_vaga`. */
+interface SemVaga {
+  readonly semVaga: true
+  readonly msAteLiberar: number
+}
+
+function faltouVaga(vaga: Vaga | SemVaga): vaga is SemVaga {
+  return 'semVaga' in vaga
 }
 
 /** Funções cujo gasto é de um aluno: sem `alunoId` não há como consultar o freio dele, e a chamada é recusada. */
@@ -228,12 +246,17 @@ interface ChamadaAtendida {
 
 /**
  * A falha do provedor que passa a chamada à reserva (F5b, Tech Spec §5, "A chamada" (2)): o disjuntor aberto, o 5xx e a conexão (`IA_INDISPONIVEL` sem motivo) e o prazo. Não é queda: `rejeitada` (pedido ou configuração com defeito),
- * `limite` (falta de vaga, que desce ao menor e é da 7.0), `soberania` e `sem_vaga`, nem o erro que não é da camada de IA.
+ * `limite` (falta de vaga: desce ao menor e depois à reserva, `isLimite`), `soberania` e `sem_vaga`, nem o erro que não é da camada de IA.
  */
 function isQueda(erro: unknown): boolean {
   if (!(erro instanceof LLMError)) return false
   if (erro.codigoDeIa === 'IA_TEMPO_ESGOTADO') return true
   return erro.codigoDeIa === 'IA_INDISPONIVEL' && (erro.motivo === undefined || erro.motivo === 'disjuntor')
+}
+
+/** O 429 que sobrou da repetição (`limite`): o provedor recusou por falta de vaga, e a chamada desce ao menor e, sem vaga ou sem menor, à reserva (Tech Spec §5, "A chamada" (1)). */
+function isLimite(erro: unknown): boolean {
+  return erro instanceof LLMError && erro.codigoDeIa === 'IA_INDISPONIVEL' && erro.motivo === 'limite'
 }
 
 /** De quem é o contador de chamadas deste alvo: o limite é por destino (o principal e a reserva têm duas cada). */
@@ -276,8 +299,8 @@ export class LLMGateway implements LLMProvider {
   private readonly degradacao: Counter | undefined
   private readonly duracaoDaChamada: Histogram | undefined
   private readonly errosDaChamada: Counter | undefined
-  /** O uso do teto de cada modelo na última reserva, lido pela métrica: depois de um minuto sem reservar, vale 0. */
-  private readonly usosDoTeto = new Map<string, { readonly valor: number; readonly em: number }>()
+  /** O uso do teto de cada balde `provedor:modelo` na última reserva, lido pela métrica: depois de um minuto sem reservar, vale 0. */
+  private readonly usosDoTeto = new Map<string, UsoDoTeto>()
 
   constructor(private readonly dependencias: LLMGatewayDependencies) {
     this.relogio = dependencias.relogio ?? systemClock
@@ -432,9 +455,10 @@ export class LLMGateway implements LLMProvider {
   }
 
   /**
-   * As chamadas da execução, no máximo duas por destino (a primeira e a repetição por saída inválida: quatro com a reserva). A queda do principal (`isQueda`) passa à reserva **uma vez**, se `reservaElegivel` a libera para a
-   * tarefa e o sinal da execução está vivo: a repetição começa sem a correção do principal e fica na reserva, que nunca volta ao principal. A saída inválida **não** é queda: repete no provedor que respondeu. A reserva que falha termina
-   * como hoje (o erro dela sobe: o interativo fica indisponível e o lote adia).
+   * As chamadas da execução, no máximo duas por destino (a primeira e a repetição por saída inválida: quatro com a reserva). A queda do principal (`isQueda`), o 429 que sobrou (`isLimite`, depois do menor) e a falta de vaga no
+   * balde dele (depois da espera e do menor) passam à reserva **uma vez**, se `reservaElegivel` a libera para a tarefa e o sinal da execução está vivo: a repetição começa sem a correção do principal e fica na reserva, que nunca volta ao
+   * principal, e a reserva reserva no balde `provedor:modelo` dela, sem a espera (o principal já esperou, e a queda não tem tempo a gastar): sem vaga ali, `sem_vaga`. A saída inválida **não** é queda: repete no provedor que respondeu.
+   * A reserva que falha termina como hoje (o erro dela sobe: o interativo fica indisponível e o lote adia).
    */
   private async chamarAteValer<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, gasto: Gasto): Promise<Saida> {
     const { tarefa } = pedido
@@ -446,6 +470,12 @@ export class LLMGateway implements LLMProvider {
     while (chamadas[donoDoAlvo(alvo)] < CHAMADAS_MAXIMAS_POR_DESTINO) {
       // A vaga de tokens vem antes da chamada, e a tentativa só conta depois dela: a que terminou `IA_INDISPONIVEL` sem sair não deixa o consumo dizer que houve envio.
       const vaga = await this.vagaDoAlvo(pedido, entrada, correcao, alvo)
+      if (faltouVaga(vaga)) {
+        // Sem vaga no principal, depois da espera e do menor: a reserva elegível, que reserva no balde dela na volta do laço. Sem reserva, ou sem vaga nela, termina `sem_vaga`.
+        alvo = this.reservaOuFimSemVaga(pedido, alvo, vaga)
+        correcao = undefined
+        continue
+      }
       chamadas[donoDoAlvo(alvo)] += 1
       gasto.tentativas += 1
       // O destino e o modelo que vão receber o pedido: se a chamada falhar, o consumo de `falhou` grava estes (regra 70, item 6), e não os do perfil do principal.
@@ -455,8 +485,7 @@ export class LLMGateway implements LLMProvider {
       try {
         atendida = await this.chamarComDegrau(pedido, entrada, correcao, vaga, gasto, alvo)
       } catch (erro) {
-        await this.devolverAVaga(vaga, erro)
-        const reserva = this.reservaParaAQueda(pedido, erro, alvo)
+        const reserva = this.reservaParaOErro(pedido, erro, alvo)
         if (reserva === undefined) throw erro
         this.desviarParaAReserva(pedido, reserva)
         alvo = reserva
@@ -483,12 +512,20 @@ export class LLMGateway implements LLMProvider {
   }
 
   /**
-   * O principal caiu: a reserva, se o erro é queda, o sinal da execução está vivo e a reserva é elegível para a tarefa (configurada, conferida na D62 e aprovada para a tarefa, o provedor e o modelo dela).
-   * A função de elegibilidade é uma só, a mesma que a falta de vaga usará (7.0). `rejeitada` (defeito de pedido ou de configuração), `limite`, `soberania` e `sem_vaga` não são queda.
+   * O principal não atendeu: a reserva, se o erro é queda (`isQueda`) ou o 429 que sobrou (`isLimite`, depois do menor) e a reserva é elegível (`reservaDoPedido`). `rejeitada` (defeito de pedido ou de configuração),
+   * `soberania` e `sem_vaga` não levam à reserva: o `sem_vaga` do balde do principal já a tentou, e o da reserva termina.
    */
-  private reservaParaAQueda<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, erro: unknown, alvo: Alvo): Alvo | undefined {
+  private reservaParaOErro<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, erro: unknown, alvo: Alvo): Alvo | undefined {
+    return isQueda(erro) || isLimite(erro) ? this.reservaDoPedido(pedido, alvo) : undefined
+  }
+
+  /**
+   * A reserva que atende o pedido do principal: configurada, ainda não usada (a reserva nunca volta ao principal nem passa a outra), com o sinal da execução vivo e elegível para a tarefa (conferida na D62 e aprovada para a tarefa, o
+   * provedor e o modelo dela). A função de elegibilidade é uma só, a da queda e a da falta de vaga.
+   */
+  private reservaDoPedido<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, alvo: Alvo): Alvo | undefined {
     const { reserva } = this.dependencias
-    if (reserva === undefined || alvo.peloProvedorDeReserva || !isQueda(erro) || pedido.sinal?.aborted === true) return undefined
+    if (reserva === undefined || alvo.peloProvedorDeReserva || pedido.sinal?.aborted === true) return undefined
     return this.reservaAtende(pedido.tarefa, reserva) ? { adaptador: reserva.adaptador, peloProvedorDeReserva: true } : undefined
   }
 
@@ -502,16 +539,50 @@ export class LLMGateway implements LLMProvider {
   }
 
   /**
-   * A chamada que caiu sem sair (o disjuntor aberto, `semEnvio`) devolve a vaga ao balde na hora: o desvio à reserva não pode deixar a estimativa dela no balde do principal por um minuto, até o balde
+   * A chamada que caiu sem sair (o disjuntor aberto, `semEnvio`) devolve a vaga ao balde na hora: o desvio à reserva não pode deixar a estimativa dela no balde do destino por um minuto, até o balde
    * encher e o `sem_vaga` (que não é queda) tirar do ar o que a reserva atenderia. A que pode ter saído (5xx, conexão, prazo) mantém a estimativa: o provedor pode tê-la contado, e superestimar é o lado seguro (D14).
+   * A vaga é a da chamada que caiu: a do menor quando foi ele que caiu, e nunca a do principal, que o 429 já gastou.
    */
   private async devolverAVaga(vaga: Vaga, erro: unknown): Promise<void> {
     if (erro instanceof LLMError && erro.semEnvio) await vaga.reserva?.acertar(0)
   }
 
-  /** A vaga de tokens é do balde do principal: a reserva ainda não reserva vaga no balde dela (o limitador da reserva e o sem vaga são da 7.0). */
-  private async vagaDoAlvo<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined, alvo: Alvo): Promise<Vaga> {
-    return alvo.peloProvedorDeReserva ? {} : await this.reservarVaga(pedido, entrada, correcao)
+  /** A vaga de tokens do destino: o balde do principal (com a espera e o menor) ou o da reserva, `provedor:modelo` dela. `SemVaga` é a recusa do balde: quem chamou decide o que vem depois. */
+  private async vagaDoAlvo<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined, alvo: Alvo): Promise<Vaga | SemVaga> {
+    return alvo.peloProvedorDeReserva ? await this.reservarNaReserva(pedido, entrada, correcao, alvo) : await this.reservarVaga(pedido, entrada, correcao)
+  }
+
+  /**
+   * A vaga da reserva, no balde `provedor:modelo` dela e na fila do pedido, **sem espera**: o principal já esperou os 8 s, e a queda não tem tempo a gastar do prazo da execução. Acertada pelo uso real, e devolvida quando a
+   * chamada cai sem sair, como a do principal. Sem o limitador dela (o `local`) a chamada vai direto.
+   */
+  private async reservarNaReserva<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined, alvo: Alvo): Promise<Vaga | SemVaga> {
+    const limite = this.dependencias.limiteDeTokensDaReserva
+    if (limite === undefined) return {}
+    const { identidade } = alvo.adaptador
+    const modelo = alvo.adaptador.modeloDoPerfil(pedido.tarefa.perfil)
+    const resultado = await limite.reservar(this.chaveDoBalde(identidade, modelo), this.estimativaDoPedido(pedido, entrada, correcao), pedido.fila ?? 'normal')
+    this.anotarUsoDoTeto(identidade, modelo, resultado.usoDoTeto)
+    return resultado.concedida ? { reserva: resultado.reserva } : { semVaga: true, msAteLiberar: resultado.msAteLiberar }
+  }
+
+  /** O balde do destino recusou: a reserva elegível, que passa a ser o destino, ou, sem ela (ou se o destino já é a reserva), o fim `sem_vaga`. */
+  private reservaOuFimSemVaga<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, alvo: Alvo, vaga: SemVaga): Alvo {
+    const reserva = this.reservaDoPedido(pedido, alvo)
+    if (reserva === undefined) throw this.semVaga(pedido, alvo, vaga.msAteLiberar)
+    this.desviarParaAReserva(pedido, reserva)
+    return reserva
+  }
+
+  /**
+   * O fim sem vaga: o balde do destino recusou e não há mais a quem pedir. `IA_INDISPONIVEL` com o motivo `sem_vaga` (`semEnvio`) e a espera do balde, e o degrau `indisponivel` conta. O `modeloId` do log é o do menor, se a tarefa o
+   * tinha, ou o do destino.
+   */
+  private semVaga<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, alvo: Alvo, msAteLiberar: number): LLMError {
+    const doDestino = alvo.adaptador.modeloDoPerfil(pedido.tarefa.perfil)
+    this.descer('indisponivel', pedido.tarefa.nome, (alvo.peloProvedorDeReserva ? undefined : this.modeloMenorDaTarefa(pedido)) ?? doDestino)
+    // O balde diz quando libera: o lote adia o job por esse tempo (`tenteDeNovoEmSegundos`) em vez de falhar.
+    return new LLMError('IA_INDISPONIVEL', Math.max(1, Math.ceil(msAteLiberar / 1_000)), 'sem_vaga')
   }
 
   /** O degrau da reserva: a métrica e o log só com a tarefa, os ids e o `provedorId` dela. Nunca a entrada, o pedido nem a chave (regra 20, item 9). */
@@ -542,14 +613,24 @@ export class LLMGateway implements LLMProvider {
       const resposta = await this.chamarContando(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, vaga.modelo), gasto, inicioDaChamada, correcao, alvo)
       return { resposta, reserva: vaga.reserva, inicioDaChamada }
     } catch (erro) {
-      // Só o 429 que sobrou, e só na chamada ao principal: o menor que também recusa termina, sem descer de novo. O menor é do principal: a reserva não desce a ele.
-      const desceAoMenor = !alvo.peloProvedorDeReserva && erro instanceof LLMError && erro.motivo === 'limite' && vaga.modelo === undefined
-      const menor = desceAoMenor ? await this.descerPorLimite(pedido, entrada, correcao) : undefined
-      if (menor === undefined) throw erro
+      // Só o 429 que sobrou, e só na chamada ao principal: o menor que também recusa não desce de novo, e vai à reserva. O menor é do principal: a reserva não desce a ele.
+      const desceAoMenor = !alvo.peloProvedorDeReserva && isLimite(erro) && vaga.modelo === undefined
+      const menor = desceAoMenor ? await this.descerPorLimite(pedido, entrada, correcao, this.reservaParaOErro(pedido, erro, alvo) !== undefined) : undefined
+      if (menor === undefined) {
+        // A vaga do principal que caiu sem sair volta ao balde; a do 429 (que saiu) fica com a estimativa.
+        await this.devolverAVaga(vaga, erro)
+        throw erro
+      }
       gasto.modelo = menor.modelo
       const inicioDoMenor = performance.now()
-      const resposta = await this.chamarContando(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, menor.modelo), gasto, inicioDoMenor, correcao, alvo)
-      return { resposta, reserva: menor.reserva, inicioDaChamada: inicioDoMenor }
+      try {
+        const resposta = await this.chamarContando(pedido, chamadaAoModelo({ tarefa, entrada, sinal }, correcao, menor.modelo), gasto, inicioDoMenor, correcao, alvo)
+        return { resposta, reserva: menor.reserva, inicioDaChamada: inicioDoMenor }
+      } catch (erroDoMenor) {
+        // A vaga é a do menor, e não a do principal: o menor que caiu sem sair (o disjuntor aberto) devolve a dele.
+        await this.devolverAVaga(menor, erroDoMenor)
+        throw erroDoMenor
+      }
     }
   }
 
@@ -606,24 +687,25 @@ export class LLMGateway implements LLMProvider {
    *
    * 1. **espera** até `ESPERA_MAXIMA_DA_VAGA_MS`, no ritmo do `msBeforeNext` do balde, cortada pelo `pedido.sinal`: o prazo único da execução cobre a espera;
    * 2. **o modelo menor** do perfil, uma reserva só, se houver e se a tarefa puder (o turno do Tutor, nunca);
-   * 3. **`IA_INDISPONIVEL`**, sem troca contada e sem erro cru.
+   * 3. **`SemVaga`**: quem chamou (`chamarAteValer`) vai à reserva elegível, no balde dela, e só sem reserva, ou sem vaga nela, termina `IA_INDISPONIVEL` (`semVaga`), sem troca contada e sem erro cru.
    *
-   * O 429 que o provedor devolve **depois** de a vaga ser concedida (o `limite` do `ResilientAdapter`) desce o mesmo degrau 2, em `descerPorLimite`, sem a espera.
+   * O 429 que o provedor devolve **depois** de a vaga ser concedida (o `limite` do `ResilientAdapter`) desce o mesmo degrau 2, em `descerPorLimite`, sem a espera, e depois a reserva.
    * Sem limitador configurado, a chamada vai direto ao modelo do perfil.
    */
-  private async reservarVaga<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined): Promise<Vaga> {
+  private async reservarVaga<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined): Promise<Vaga | SemVaga> {
     const limite = this.dependencias.limiteDeTokens
     if (limite === undefined) return {}
     const { tarefa } = pedido
     const fila = pedido.fila ?? 'normal'
     const estimativa = this.estimativaDoPedido(pedido, entrada, correcao)
+    const { identidade } = this.dependencias.adaptador
     const principal = this.dependencias.adaptador.modeloDoPerfil(tarefa.perfil)
     const limiteDaEspera = horaDoProcessoMs() + ESPERA_MAXIMA_DA_VAGA_MS
     let esperou = false
     let msAteLiberar: number
     for (;;) {
-      const resultado = await limite.reservar(this.chaveDoBalde(principal), estimativa, fila)
-      this.anotarUsoDoTeto(principal, resultado.usoDoTeto)
+      const resultado = await limite.reservar(this.chaveDoBalde(identidade, principal), estimativa, fila)
+      this.anotarUsoDoTeto(identidade, principal, resultado.usoDoTeto)
       if (resultado.concedida) return { reserva: resultado.reserva }
       msAteLiberar = resultado.msAteLiberar
       const restante = limiteDaEspera - horaDoProcessoMs()
@@ -634,11 +716,7 @@ export class LLMGateway implements LLMProvider {
       }
       await wait(Math.min(Math.max(resultado.msAteLiberar, ESPERA_MINIMA_ENTRE_RESERVAS_MS), restante), pedido.sinal)
     }
-    const vaga = await this.reservarOMenor(pedido, estimativa, fila, limite)
-    if (vaga !== undefined) return vaga
-    this.descer('indisponivel', tarefa.nome, this.modeloMenorDaTarefa(pedido) ?? principal)
-    // O balde diz quando libera: o lote adia o job por esse tempo (`tenteDeNovoEmSegundos`) em vez de falhar.
-    throw new LLMError('IA_INDISPONIVEL', Math.max(1, Math.ceil(msAteLiberar / 1_000)), 'sem_vaga')
+    return (await this.reservarOMenor(pedido, estimativa, fila, limite)) ?? { semVaga: true, msAteLiberar }
   }
 
   /** O modelo menor que a tarefa pode usar: o do perfil, salvo as que nunca descem (o Tutor e a classificação). */
@@ -656,8 +734,9 @@ export class LLMGateway implements LLMProvider {
   private async reservarOMenor<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, estimativa: number, fila: NonNullable<GenerationRequest<Entrada, Saida>['fila']>, limite: LimiteDeTokens): Promise<Required<Vaga> | undefined> {
     const menor = this.modeloMenorDaTarefa(pedido)
     if (menor === undefined) return undefined
-    const resultado = await limite.reservar(this.chaveDoBalde(menor), estimativa, fila)
-    this.anotarUsoDoTeto(menor, resultado.usoDoTeto)
+    const { identidade } = this.dependencias.adaptador
+    const resultado = await limite.reservar(this.chaveDoBalde(identidade, menor), estimativa, fila)
+    this.anotarUsoDoTeto(identidade, menor, resultado.usoDoTeto)
     if (!resultado.concedida) return undefined
     this.descer('modelo_menor', pedido.tarefa.nome, menor)
     return { modelo: menor, reserva: resultado.reserva }
@@ -665,24 +744,24 @@ export class LLMGateway implements LLMProvider {
 
   /**
    * O principal respondeu 429 depois da repetição: o pedido chegou e o provedor não tem vaga. Desce ao modelo menor, sem a espera de 8 s (o provedor já recusou, o balde nosso estava aberto).
-   * Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, termina como o balde cheio: `IA_INDISPONIVEL`, e o `degrau` conta. Sem limitador configurado não há degrau (o
-   * `local`), e o erro sobe como veio. Quem chama relança o `limite` original quando a resposta é `undefined`.
+   * Sem menor (a tarefa não o tem, ou é o Tutor ou a classificação, D36) ou sem vaga nele, o 429 vai à reserva elegível (`haReserva`) e, sem ela, termina como o balde cheio: `IA_INDISPONIVEL`, e o `degrau`
+   * `indisponivel` conta. Com a reserva a caminho o degrau é o dela, e não o `indisponivel`. Sem limitador configurado não há degrau (o `local`), e o erro sobe como veio. Quem chama relança o `limite` original quando a resposta é `undefined`.
    */
-  private async descerPorLimite<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined): Promise<Required<Vaga> | undefined> {
+  private async descerPorLimite<Entrada, Saida>(pedido: GenerationRequest<Entrada, Saida>, entrada: Entrada, correcao: RepairHint | undefined, haReserva: boolean): Promise<Required<Vaga> | undefined> {
     const limite = this.dependencias.limiteDeTokens
     if (limite === undefined) return undefined
     const vaga = await this.reservarOMenor(pedido, this.estimativaDoPedido(pedido, entrada, correcao), pedido.fila ?? 'normal', limite)
-    if (vaga === undefined) this.descer('indisponivel', pedido.tarefa.nome, this.dependencias.adaptador.modeloDoPerfil(pedido.tarefa.perfil))
+    if (vaga === undefined && !haReserva) this.descer('indisponivel', pedido.tarefa.nome, this.dependencias.adaptador.modeloDoPerfil(pedido.tarefa.perfil))
     return vaga
   }
 
-  /** O balde é do `provedor:modelo`: o modelo menor tem o seu, e dois provedores não dividem balde. */
-  private chaveDoBalde(modelo: string): string {
-    return `${this.dependencias.adaptador.identidade}:${modelo}`
+  /** O balde é do `provedor:modelo`: o modelo menor tem o seu, a reserva tem o dela, e dois provedores não dividem balde. */
+  private chaveDoBalde(identidade: string, modelo: string): string {
+    return `${identidade}:${modelo}`
   }
 
-  private anotarUsoDoTeto(modelo: string, uso: number | undefined): void {
-    if (uso !== undefined) this.usosDoTeto.set(modelo, { valor: uso, em: horaDoProcessoMs() })
+  private anotarUsoDoTeto(provedor: string, modelo: string, uso: number | undefined): void {
+    if (uso !== undefined) this.usosDoTeto.set(this.chaveDoBalde(provedor, modelo), { valor: uso, em: horaDoProcessoMs(), provedor, modelo })
   }
 
   /** Um degrau da vaga (a espera, o modelo menor, o sem vaga): a métrica dele e o log só com a tarefa, o modelo e, no fim, o código. Nunca o pedido (regra 20, item 9). O desvio à reserva (`desviarParaAReserva`) leva também a escola e a execução, que são ids, porque a Operação o cruza com a linha de consumo e com o job. */
