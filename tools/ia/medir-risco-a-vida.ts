@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { interpretarCorpus, medir, type Amostra, type Contagem, type Medida } from '../../packages/core/src/ia/__fixtures__/golden.ts'
+import { interpretarCorpus, medir, piorDe, type Amostra, type Contagem, type Medida } from '../../packages/core/src/ia/medida-do-ouro.ts'
 
 /**
  * Mede o risco à vida do Tutor com o que a tarefa 94.0 acrescentou: o padrão (`mencionaRiscoAVida`) e o modelo, que só soma
@@ -46,29 +46,6 @@ export interface DependenciasDaMedida {
   readonly execucoes?: number
   /** Chamado ao fim de cada execução, para a linha de progresso: o modelo local leva minutos por lote. */
   readonly aoTerminarExecucao?: (execucao: number, execucoes: number) => void
-}
-
-/**
- * A pior de várias medidas: em cada categoria, a execução com menos acertos; no recall e na precisão, o menor valor de cada um.
- * É a "pior de três" da regra 40: a melhor execução esconderia o modelo que oscila.
- */
-export function piorDe(medidas: readonly Medida[]): Medida {
-  const [primeira] = medidas
-  if (primeira === undefined) throw new Error('sem medida para escolher a pior')
-  const porCategoria: Record<string, Contagem> = {}
-  for (const medida of medidas) {
-    for (const [categoria, contagem] of Object.entries(medida.porCategoria)) {
-      const atual = porCategoria[categoria]
-      if (atual === undefined || contagem.certos < atual.certos) porCategoria[categoria] = contagem
-    }
-  }
-  return {
-    recall: Math.min(...medidas.map((medida) => medida.recall)),
-    precisao: Math.min(...medidas.map((medida) => medida.precisao)),
-    porCategoria,
-    barradasDasPositivas: Math.min(...medidas.map((medida) => medida.barradasDasPositivas)),
-    positivas: primeira.positivas,
-  }
 }
 
 export async function medirRiscoAVida(amostras: readonly Amostra[], dependencias: DependenciasDaMedida): Promise<ResultadoDaMedida> {
@@ -165,6 +142,12 @@ export function medirComProvedor(amostras: readonly Amostra[], pecas: PecasDoNuc
 const raizDoRepositorio = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const importar = <T>(caminho: string): Promise<T> => import(pathToFileURL(join(raizDoRepositorio, caminho)).href) as Promise<T>
 
+/**
+ * O núcleo, **módulo a módulo** do `dist`, e nunca o barril (o `index.js`), que reexporta `db/schema` e os repositories: `tools/ia/avaliar-modelos.ts` importa este arquivo, e a guarda do ponto de entrada da
+ * avaliação reprova o barril em qualquer arquivo que ela alcança.
+ */
+const MODULOS_DO_NUCLEO = ['packages/core/dist/config/llm-config.js', 'packages/core/dist/ia/llm-gateway.js', 'packages/core/dist/ia/consumo.js', 'packages/core/dist/ia/suspensao.js', 'packages/core/dist/context/context.js'] as const
+
 export interface ConfiguracaoLida {
   readonly adaptador: string
   readonly modelo?: { readonly processamentoLocal: boolean }
@@ -209,7 +192,7 @@ async function principal(argumentos: readonly string[]): Promise<void> {
   const lote = loteDosArgumentos(argumentos)
   const amostras = interpretarCorpus('riscoAVida', JSON.parse(readFileSync(lote, 'utf8'))).amostras
   // O núcleo vem do `dist` (`npm run -s build -w @educa/shared && npm run -s build -w @educa/core`), como nos scripts de `infra/scripts/`.
-  const nucleo = await importar<NucleoEmDist>('packages/core/dist/index.js')
+  const nucleo = Object.assign({}, ...(await Promise.all(MODULOS_DO_NUCLEO.map((caminho) => importar<Record<string, unknown>>(caminho))))) as NucleoEmDist
   const tarefa = await importar<TarefaEmDist>('packages/core/dist/ia/tasks/turno-do-tutor.js')
   const config = nucleo.loadLLMConfig(process.env)
   exigirModeloDaMedida(config, argumentos)

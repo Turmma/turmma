@@ -1,9 +1,9 @@
-import { Heartbeat, OperationalSettings, OperationalSettingsRepository, resolverJanela, SoberaniaNaSubida, systemClock, throttledWarn, type JanelaLetiva, type Database, type DatabasePool, type DestinoDoAdaptador, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
+import { Heartbeat, OperationalSettings, OperationalSettingsRepository, resolverJanela, SoberaniaNaSubida, systemClock, throttledWarn, type JanelaLetiva, type Database, type DatabasePool, type DestinoDoAdaptador, type DestinosConfigurados, type LLMProvider, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Inject, Module, type DynamicModule, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
 import { ComandosDeIaModule } from './ia/comandos-de-ia.module.js'
 import { DB, DB_POOL, DatabaseModule } from './database.module.js'
 import { ExecucaoProcessor } from './ia/execucao.processor.js'
-import { DESTINO_DO_ADAPTADOR, IaDoWorkerModule } from './ia/ia-do-worker.module.js'
+import { DESTINO_DA_RESERVA, DESTINO_DO_ADAPTADOR, IaDoWorkerModule } from './ia/ia-do-worker.module.js'
 import { LLM_PROVIDER, SUSPENSAO_DE_FUNCAO } from './ia/ia.module.js'
 import { RegistroDeComandos } from './ia/registro-de-comandos.js'
 import { VarreduraDeExecucoes } from './ia/varredura-de-execucoes.js'
@@ -43,6 +43,8 @@ export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationS
   #pulso: NodeJS.Timeout | undefined
   #encerrado = false
   readonly #varredura: VarreduraDeExecucoes
+  /** O principal e a reserva configurada: a linha estimada da execução interrompida sai por destino (F5b, 8.0). */
+  readonly #destinos: DestinosConfigurados
 
   constructor(
     private readonly montagem: Montagem,
@@ -51,10 +53,12 @@ export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationS
     @Inject(LLM_PROVIDER) private readonly ia: LLMProvider,
     @Inject(SUSPENSAO_DE_FUNCAO) private readonly suspensao: SuspensaoDeFuncao,
     @Inject(RegistroDeComandos) private readonly comandos: RegistroDeComandos,
-    @Inject(DESTINO_DO_ADAPTADOR) private readonly destino: DestinoDoAdaptador,
+    @Inject(DESTINO_DO_ADAPTADOR) destino: DestinoDoAdaptador,
     @Inject(SoberaniaNaSubida) private readonly soberania: SoberaniaNaSubida,
+    @Inject(DESTINO_DA_RESERVA) reserva: DestinoDoAdaptador | null,
   ) {
-    this.#varredura = new VarreduraDeExecucoes(banco, montagem.logger, destino, montagem.medidor)
+    this.#destinos = reserva === null ? { principal: destino } : { principal: destino, reserva }
+    this.#varredura = new VarreduraDeExecucoes(banco, montagem.logger, this.#destinos, montagem.medidor)
   }
 
   /**
@@ -76,7 +80,7 @@ export class CicloDoWorkerDeIa implements OnApplicationBootstrap, OnApplicationS
     const janelaDaEscola = new OperationalSettings<JanelaLetiva>(new OperationalSettingsRepository(this.banco), (linha) => resolverJanela(config.janelaPadrao, linha, avisarJanelaDescartada), {
       aoFalhar: throttledWarn(() => logger.warn({ evento: 'worker_ia.configuracao_indisponivel' })),
     })
-    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destino: this.destino, logger, medidor, janelaDaEscola, relogio: systemClock })
+    const processador = new ExecucaoProcessor({ banco: this.banco, ia: this.ia, comandos: this.comandos, suspensao: this.suspensao, destinos: this.#destinos, logger, medidor, janelaDaEscola, relogio: systemClock })
     this.#worker = createWorkerDeIa(config, { banco: this.banco, pool: this.pool }, { 'ia.executar': processador.processar, 'ia.executar-lote': processador.processar }, logger, { medidor })
     this.#varredura.start()
     batimento.bater()
@@ -111,9 +115,9 @@ export class WorkerModule {
       providers: [
         {
           provide: CicloDoWorkerDeIa,
-          useFactory: (banco: Database, pool: DatabasePool, ia: LLMProvider, suspensao: SuspensaoDeFuncao, comandos: RegistroDeComandos, destino: DestinoDoAdaptador, soberania: SoberaniaNaSubida) =>
-            new CicloDoWorkerDeIa({ config, logger, medidor, batimento }, banco, pool, ia, suspensao, comandos, destino, soberania),
-          inject: [DB, DB_POOL, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, RegistroDeComandos, DESTINO_DO_ADAPTADOR, SoberaniaNaSubida],
+          useFactory: (banco: Database, pool: DatabasePool, ia: LLMProvider, suspensao: SuspensaoDeFuncao, comandos: RegistroDeComandos, destino: DestinoDoAdaptador, soberania: SoberaniaNaSubida, reserva: DestinoDoAdaptador | null) =>
+            new CicloDoWorkerDeIa({ config, logger, medidor, batimento }, banco, pool, ia, suspensao, comandos, destino, soberania, reserva),
+          inject: [DB, DB_POOL, LLM_PROVIDER, SUSPENSAO_DE_FUNCAO, RegistroDeComandos, DESTINO_DO_ADAPTADOR, SoberaniaNaSubida, DESTINO_DA_RESERVA],
         },
       ],
     }

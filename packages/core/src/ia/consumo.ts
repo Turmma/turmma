@@ -7,6 +7,7 @@ import type { ModelAdapter } from './adapter.js'
 import type { LLMErrorCode } from './errors.js'
 import { EXECUCAO_INTERROMPIDA } from './executor.js'
 import { MODELO_FALSO, MODELO_FALSO_MENOR } from './fake-adapter.js'
+import { MODELOS_APROVADOS, type ModeloAprovado } from './modelos-aprovados.js'
 import type { Perfil } from './perfis.js'
 import type { EnvioDaChamada, OutputSource } from './port.js'
 import type { FilaDeTokens } from './token-limiter.js'
@@ -47,7 +48,7 @@ interface DadosDoConsumo {
   readonly estado: EstadoDeConsumoDeIa
   /**
    * Verdadeira só na linha de uma chamada que **saiu para o provedor de reserva**, a atendida e a que falhou depois de sair (F5b, 4.0; `consumo_ia.pelo_provedor_de_reserva`, que o `ConsumoRepository` grava desde a 5.0): é o que a Operação conta, as chamadas **enviadas** à reserva.
-   * A estimada da execução interrompida leva o provedor da reserva e esta coluna falsa. Ausente vale falsa: só o gateway a escreve, e o escreve sempre.
+   * A estimada da execução interrompida (uma por destino possível, F5b 8.0) leva o provedor do destino e esta coluna falsa, também na linha da reserva. Ausente vale falsa: só o gateway a escreve, e o escreve sempre.
    */
   readonly peloProvedorDeReserva?: boolean
   /** O código da camada de IA, ou o da execução que o processo caiu no meio dela (`EXECUCAO_INTERROMPIDA`, a linha estimada). */
@@ -77,25 +78,58 @@ type DadosDaTarefaParaEstimar = Pick<TaskDefinition<never, unknown>, 'nome' | 'f
 export const DURACAO_MAXIMA_DA_LINHA_MS = 2_147_483_647
 
 /**
+ * Os destinos que a configuração do worker conhece (F5b, 8.0): o principal, sempre, e a reserva configurada, quando há. `aprovados` é `MODELOS_APROVADOS`, ou o que o teste injeta.
+ * É o que `destinosDaInterrompida` lê para dizer a quantos destinos a execução interrompida deixa linha.
+ */
+export interface DestinosConfigurados {
+  readonly principal: DestinoDoAdaptador
+  readonly reserva?: DestinoDoAdaptador
+  readonly aprovados?: readonly ModeloAprovado[]
+}
+
+/**
+ * Os destinos da linha estimada de uma execução interrompida (D14: o destino também se superestima, e o compartilhamento do aluno o cita, LGPD art. 18, VII): o principal, **sempre**, e a reserva
+ * configurada **se a tarefa tem entrada em `MODELOS_APROVADOS` para o `provedorId` dela**. Compara só a tarefa e o provedor: o modelo diferente do aprovado e a conferência da D62 da reserva não tiram a
+ * linha, porque ninguém sabe se a chamada chegou a ser roteada para lá (a execução morreu no meio) e a conta nunca é a menor. Não é a elegibilidade do gateway (`reservaElegivel`), que decide para onde a
+ * chamada **vai**; esta decide para onde ela **pode ter ido**. Por isso **não olha o ambiente** (`reservaElegivel` recusa a entrada do `falso-reserva` em `AMBIENTE=producao`, e aqui ela geraria a linha da reserva):
+ * a diferença é de propósito, porque a conta nunca é a menor, e a linha do falso grava `provedor` nulo. A linha estimada é **só custo e destino**, nunca saída de IA a aprovar: nenhuma entrega, nota ou mensagem nasce dela (regra 70, item 3).
+ */
+export function destinosDaInterrompida(tarefa: TarefaDeIa, { principal, reserva, aprovados = MODELOS_APROVADOS }: DestinosConfigurados): readonly DestinoDoAdaptador[] {
+  if (reserva === undefined) return [principal]
+  return aprovados.some((entrada) => entrada.tarefa === tarefa && entrada.provedorId === reserva.identidade) ? [principal, reserva] : [principal]
+}
+
+/**
  * A linha de consumo de uma execução `rodando` que o processo não terminou (a reentrega, a varredura): o worker caiu, e ninguém sabe se o
  * pedido chegou a sair nem quanto custou. Por isso ela **superestima, nunca subestima** (D14, regra 20, item 19): os tokens são os **dois tetos da
- * tarefa** (o pior pedido válido e o máximo de saída), e o envio é o do adaptador configurado, como se a chamada tivesse saído.
+ * tarefa** (o pior pedido válido e o máximo de saída), o envio é o do destino, como se a chamada tivesse saído, e o custo é o desses dois tetos **ao preço do modelo do destino**
+ * (`precos`, a tabela da porta; sem preço para o modelo, zero, como na chamada de verdade). Uma linha por destino (`destinosDaInterrompida`).
  * Sem `aluno_id` (o freio do dia conta a pergunta, não a linha) e sem `entrada` nem `saida`; a execução a liga ao rastro de quem a pediu.
+ * `pelo_provedor_de_reserva` é **falsa** também na linha do destino da reserva: a Operação conta as chamadas que saíram (`chamadasPeloProvedorDeReserva`), e esta é a estimativa de uma que talvez não tenha saído.
  */
-export function consumoEstimadoDaInterrompida(entrada: { readonly tarefa: DadosDaTarefaParaEstimar; readonly destino: DestinoDoAdaptador; readonly execucaoId: string; readonly duracaoMs: number; readonly em: Date }): ConsumoDeIa {
-  const { tarefa, destino, execucaoId, duracaoMs, em } = entrada
+export function consumoEstimadoDaInterrompida(entrada: {
+  readonly tarefa: DadosDaTarefaParaEstimar
+  readonly destino: DestinoDoAdaptador
+  readonly execucaoId: string
+  readonly duracaoMs: number
+  readonly em: Date
+  /** A tabela de preços da porta. Sem ela vale `PRECO_DOS_MODELOS`. */
+  readonly precos?: TabelaDePrecos
+}): ConsumoDeIa {
+  const { tarefa, destino, execucaoId, duracaoMs, em, precos } = entrada
+  const modelo = destino.modeloDoPerfil(tarefa.perfil)
+  const tokens = { tokensDeEntrada: tarefa.maximoDeTokensDeEntrada, tokensDeSaida: tarefa.maximoDeTokensDeSaida }
   return {
     execucaoId,
     tarefa: tarefa.nome,
     funcao: tarefa.funcao,
     perfil: tarefa.perfil,
     origem: destino.origem,
-    modelo: destino.modeloDoPerfil(tarefa.perfil),
+    modelo,
     promptVersao: tarefa.prompt.versao,
-    tokensDeEntrada: tarefa.maximoDeTokensDeEntrada,
-    tokensDeSaida: tarefa.maximoDeTokensDeSaida,
-    // O custo da estimada da interrompida, com um destino por linha, é da tarefa 11.0 da camada-ia; até lá ela segue sem custo.
-    custoMicros: 0,
+    ...tokens,
+    custoMicros: custoDaChamada(tokens, precoDoModelo(chaveDoPreco(destino.identidade, modelo), em, precos)),
+    peloProvedorDeReserva: false,
     duracaoMs: Math.min(DURACAO_MAXIMA_DA_LINHA_MS, Math.max(0, Math.round(duracaoMs))),
     // Ao menos uma chamada pode ter saído: é a que se estima.
     tentativas: 1,

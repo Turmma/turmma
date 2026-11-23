@@ -1,4 +1,4 @@
-import { runInContext, summarizeError, type Database, type DestinoDoAdaptador, type LoggerBase, type Meter } from '@educa/core'
+import { destinosDaInterrompida, PRECO_DOS_MODELOS, runInContext, summarizeError, type Database, type DestinosConfigurados, type LoggerBase, type Meter, type TabelaDePrecos } from '@educa/core'
 import { JOB_DEFINITIONS, TIPO_EXECUTAR_IA } from '@educa/shared'
 import { sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
@@ -25,9 +25,9 @@ export const TIPOS_VARRIDOS = 2
 export const PIOR_CASO_DA_VARREDURA_MS = TIPOS_VARRIDOS * PASSADAS_MAXIMAS * PRAZO_DO_PASSO_MS
 
 /**
- * A varredura do `main-worker` (X6, 6.0), a cada 60 s: encerra com `EXECUCAO_INTERROMPIDA` (1) a execução `rodando` iniciada antes de `now() - 300 s`, **gravando a linha
- * estimada em `consumo_ia` na mesma transação** (D14: o custo a mais, nunca a menos), e (2) a `pendente` **sem job vivo** (não finalizado, da mesma escola, nas filas da IA), sem
- * linha: o modelo nunca foi chamado. A idade é a do banco, e o `update` confere o estado: duas réplicas varrendo ao mesmo tempo encerram cada execução uma vez só, com uma linha.
+ * A varredura do `main-worker` (X6, 6.0), a cada 60 s: encerra com `EXECUCAO_INTERROMPIDA` (1) a execução `rodando` iniciada antes de `now() - 300 s`, **gravando as linhas
+ * estimadas em `consumo_ia` (uma por destino) na mesma transação** (D14: o custo a mais, nunca a menos), e (2) a `pendente` **sem job vivo** (não finalizado, da mesma escola, nas filas da IA), sem
+ * linha: o modelo nunca foi chamado. A idade é a do banco, e o `update` confere o estado: duas réplicas varrendo ao mesmo tempo encerram cada execução uma vez só, com o seu conjunto de linhas (uma por destino) uma vez só.
  *
  * Nunca lança: o banco fora é aviso no log, e a próxima volta tenta de novo. A gravação da linha que falha desfaz o encerramento daquele lote. O laço **para no sinal** (o desligamento
  * do worker) e não se sobrepõe: com uma volta em andamento, o relógio a pula.
@@ -41,8 +41,10 @@ export class VarreduraDeExecucoes {
   constructor(
     private readonly banco: Database,
     private readonly logger: LoggerBase,
-    private readonly destino: DestinoDoAdaptador,
+    private readonly destinos: DestinosConfigurados,
     medidor: Meter,
+    /** A tabela de preços da porta, que a linha estimada de cada destino lê (F5b, 8.0). Sem ela vale `PRECO_DOS_MODELOS`, a do gateway. */
+    private readonly precos: TabelaDePrecos = PRECO_DOS_MODELOS,
   ) {
     this.#metricas = new MetricasDaExecucao(medidor)
   }
@@ -102,7 +104,7 @@ export class VarreduraDeExecucoes {
       await tx.execute(sql.raw(`set local statement_timeout = ${PRAZO_DO_PASSO_MS}`))
       const encerradas = await new ExecucaoRepository(tx).encerrarRodandasVelhas(LIMITE_DA_RODANDO_SEGUNDOS, LOTE_DA_VARREDURA)
       const consumo = new ConsumoRepository(tx)
-      for (const encerrada of encerradas) await consumo.registrarEstimada(encerrada, this.destino)
+      for (const encerrada of encerradas) await consumo.registrarEstimada(encerrada, destinosDaInterrompida(encerrada.tarefa, this.destinos), this.precos)
       return encerradas
     })
     for (const encerrada of encerradas) this.#metricas.interrompida(encerrada.escolaId, 'varredura')

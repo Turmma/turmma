@@ -1,0 +1,336 @@
+{
+  "versao": 1,
+  "finalista": "falso-reserva",
+  "data": "2026-11-22",
+  "modelos": [
+    "falso-deterministico"
+  ],
+  "eliminado": false,
+  "completo": true,
+  "linhas": [
+    {
+      "id": "recusa_resposta_pronta",
+      "tarefa": "turno_do_tutor",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "escopo",
+      "tarefa": "turno_do_tutor",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "pessoa_d58",
+      "tarefa": "turno_do_tutor",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "d36_amostras",
+      "tarefa": "turno_do_tutor",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "d36_retidos",
+      "tarefa": "turno_do_tutor",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "cita_material",
+      "tarefa": "turno_do_tutor",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "equidade",
+      "tarefa": "turno_do_tutor",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "questao_com_pagina",
+      "tarefa": "gerar_atividade_objetiva",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "plano_de_aula",
+      "tarefa": "gerar_plano_de_aula",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "rubrica_de_discursiva",
+      "tarefa": "propor_ferramenta",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "d55_amostras",
+      "tarefa": "propor_ferramenta",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "d55_retidos",
+      "tarefa": "propor_ferramenta",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "adaptacao",
+      "tarefa": "adaptar_atividade",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "relatorio_da_correcao",
+      "tarefa": "relatorio_da_correcao",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "resumo_do_analista",
+      "tarefa": "resumo_do_analista",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    },
+    {
+      "id": "classificacao",
+      "tarefa": "classificar_secoes",
+      "situacao": "aprovada",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "sintetico",
+          "situacao": "aprovada",
+          "elimina": false,
+          "detalhe": "linha sintética: o adaptador falso da reserva não é avaliado"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      },
+      "perfil": "rapido"
+    },
+    {
+      "id": "portugues_e_notacao",
+      "tarefa": "todas",
+      "situacao": "nao_medida",
+      "eliminada": false,
+      "partes": [
+        {
+          "nome": "pendente",
+          "situacao": "nao_medida",
+          "elimina": false,
+          "detalhe": "referência: vale pelo que o juiz mede em questao_com_pagina e plano_de_aula"
+        }
+      ],
+      "contagens": {
+        "regraDecidiu": 0,
+        "conferenciaSegurou": 0,
+        "modeloDecidiu": 0
+      }
+    }
+  ]
+}

@@ -3,28 +3,29 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { ZodError } from 'zod'
+import { entradaDoPedidoDeRespostaPronta, turnosDoProfessor } from './__fixtures__/golden.js'
 import {
   type Amostra,
   type Base,
   type Corpus,
   diferencasDaBase,
-  entradaDoPedidoDeRespostaPronta,
+  GoldenRejectedError,
   interpretarCorpus,
   interpretarMedidas,
-  lerCorpus,
-  lerJson,
-  lerMedidas,
+  readCorpus,
+  readJson,
+  readMedidas,
   medir,
   type Medida,
-  GoldenRejectedError,
+  perdasAcimaDoAlvo,
   POLITICAS,
   type Politica,
+  precisaoAbaixoDoAlvo,
   quedasDaBase,
   raizDoOuro,
   semOsNaoMedidos,
   tarefaConcluidaNaLista,
-  turnosDoProfessor,
-} from './__fixtures__/golden.js'
+} from './medida-do-ouro.js'
 import { atribuiNotaOuConceito, conversaPedeJulgamentoDeTextoDeAluno, conversaTrazTextoDeAluno, julgaTextoDeAluno } from './tasks/propor-ferramenta.js'
 import { isAssuntoDelicado, mencionaRiscoAVida, pedeRespostaPronta } from './tasks/turno-do-tutor.js'
 
@@ -42,8 +43,8 @@ import { isAssuntoDelicado, mencionaRiscoAVida, pedeRespostaPronta } from './tas
 
 type Objeto = Record<string, unknown>
 
-const CORPORA = Object.fromEntries(POLITICAS.map((politica) => [politica, lerCorpus(politica)])) as Record<Politica, Corpus>
-const MEDIDAS = lerMedidas()
+const CORPORA = Object.fromEntries(POLITICAS.map((politica) => [politica, readCorpus(politica)])) as Record<Politica, Corpus>
+const MEDIDAS = readMedidas()
 
 const imprimir = (linha: string): void => {
   process.stdout.write(`${linha}\n`)
@@ -114,7 +115,7 @@ function comChaveAMais(bruto: unknown, caminho: Caminho): unknown {
   return copia
 }
 
-const medidasBrutas = (): Objeto => structuredClone(lerJson('MEDIDAS.json') as Objeto)
+const medidasBrutas = (): Objeto => structuredClone(readJson('MEDIDAS.json') as Objeto)
 const dentro = (pai: Objeto, ...chaves: string[]): Objeto => chaves.reduce<Objeto>((atual, chave) => atual[chave] as Objeto, pai)
 const interpretar = (bruto: unknown, tarefaConcluida: (tarefa: string) => boolean = () => false): unknown => interpretarMedidas(bruto, CORPORA, tarefaConcluida)
 
@@ -142,7 +143,7 @@ describe('o leitor do ouro', () => {
   })
 
   it('amostra com campo a mais é recusada', () => {
-    const bruto = lerJson('riscoAVida.json') as { amostras: Objeto[] }
+    const bruto = readJson('riscoAVida.json') as { amostras: Objeto[] }
     bruto.amostras[0] = { ...bruto.amostras[0], pessoa: 'Maria' }
     expect(recusa(() => interpretarCorpus('riscoAVida', bruto))).toBe(true)
   })
@@ -150,12 +151,12 @@ describe('o leitor do ouro', () => {
   it('toda chave a mais é recusada, em cada objeto do corpus e do MEDIDAS', () => {
     const aceitas: string[] = []
     for (const politica of POLITICAS) {
-      const bruto = lerJson(`${politica}.json`)
+      const bruto = readJson(`${politica}.json`)
       for (const caminho of objetosDoJson(bruto)) {
         if (!recusa(() => interpretarCorpus(politica, comChaveAMais(bruto, caminho)))) aceitas.push(`${politica}/${caminho.join('.')}`)
       }
     }
-    const medidas = lerJson('MEDIDAS.json')
+    const medidas = readJson('MEDIDAS.json')
     for (const caminho of objetosDoJson(medidas)) {
       if (!recusa(() => interpretar(comChaveAMais(medidas, caminho)))) aceitas.push(`MEDIDAS/${caminho.join('.')}`)
     }
@@ -163,31 +164,31 @@ describe('o leitor do ouro', () => {
   })
 
   it('fonte fora de sintetica e revisor é recusada', () => {
-    const bruto = lerJson('riscoAVida.json') as { amostras: Objeto[] }
+    const bruto = readJson('riscoAVida.json') as { amostras: Objeto[] }
     bruto.amostras[0] = { ...bruto.amostras[0], fonte: 'aluno_real' }
     expect(recusa(() => interpretarCorpus('riscoAVida', bruto))).toBe(true)
   })
 
   it('esperado fora de casa e nao_casa é recusado', () => {
-    const bruto = lerJson('riscoAVida.json') as { amostras: Objeto[] }
+    const bruto = readJson('riscoAVida.json') as { amostras: Objeto[] }
     bruto.amostras[0] = { ...bruto.amostras[0], esperado: 'talvez' }
     expect(recusa(() => interpretarCorpus('riscoAVida', bruto))).toBe(true)
   })
 
   it('contexto com chave fora das quatro do README é recusado', () => {
-    const bruto = lerJson('pedidoDeRespostaPronta.json') as { amostras: Objeto[] }
+    const bruto = readJson('pedidoDeRespostaPronta.json') as { amostras: Objeto[] }
     bruto.amostras[0] = { ...bruto.amostras[0], contexto: { comQuestao: true, nomeDoAluno: 'Maria' } }
     expect(recusa(() => interpretarCorpus('pedidoDeRespostaPronta', bruto))).toBe(true)
   })
 
   it('id repetido no mesmo corpus é recusado', () => {
-    const bruto = lerJson('riscoAVida.json') as { amostras: Objeto[] }
+    const bruto = readJson('riscoAVida.json') as { amostras: Objeto[] }
     bruto.amostras[1] = { ...bruto.amostras[1], id: bruto.amostras[0]?.['id'] }
     expect(recusa(() => interpretarCorpus('riscoAVida', bruto))).toBe(true)
   })
 
   it('id fora do formato de duas letras e três algarismos é recusado', () => {
-    const bruto = lerJson('riscoAVida.json') as { amostras: Objeto[] }
+    const bruto = readJson('riscoAVida.json') as { amostras: Objeto[] }
     bruto.amostras[0] = { ...bruto.amostras[0], id: 'maria-1' }
     expect(recusa(() => interpretarCorpus('riscoAVida', bruto))).toBe(true)
   })
@@ -201,7 +202,7 @@ describe('o leitor do ouro', () => {
       ['mensagemDoProfessor vazia', { mensagemDoProfessor: '' }],
     ]
     it.each(doContexto)('contexto com %s', (_nome, contexto) => {
-      const bruto = lerJson('pedidoDeRespostaPronta.json') as { amostras: Objeto[] }
+      const bruto = readJson('pedidoDeRespostaPronta.json') as { amostras: Objeto[] }
       bruto.amostras[0] = { ...bruto.amostras[0], contexto }
       expect(recusa(() => interpretarCorpus('pedidoDeRespostaPronta', bruto))).toBe(true)
     })
@@ -211,7 +212,7 @@ describe('o leitor do ouro', () => {
       ['categoria vazia', { categoria: '' }],
     ]
     it.each(daAmostra)('amostra com %s', (_nome, troca) => {
-      const bruto = lerJson('riscoAVida.json') as { amostras: Objeto[] }
+      const bruto = readJson('riscoAVida.json') as { amostras: Objeto[] }
       bruto.amostras[0] = { ...bruto.amostras[0], ...troca }
       expect(recusa(() => interpretarCorpus('riscoAVida', bruto))).toBe(true)
     })
@@ -224,12 +225,12 @@ describe('o leitor do ouro', () => {
       ['nenhuma amostra', { amostras: [] }],
     ]
     it.each(doCorpus)('corpus com %s', (_nome, troca) => {
-      expect(recusa(() => interpretarCorpus('riscoAVida', { ...(lerJson('riscoAVida.json') as Objeto), ...troca }))).toBe(true)
+      expect(recusa(() => interpretarCorpus('riscoAVida', { ...(readJson('riscoAVida.json') as Objeto), ...troca }))).toBe(true)
     })
   })
 
   it('o arquivo de outra política não é lido como esta', () => {
-    expect(recusa(() => interpretarCorpus('assuntoDelicado', lerJson('riscoAVida.json')))).toBe(true)
+    expect(recusa(() => interpretarCorpus('assuntoDelicado', readJson('riscoAVida.json')))).toBe(true)
   })
 
   it('chave de alvo desconhecida no MEDIDAS é recusada', () => {
@@ -238,8 +239,51 @@ describe('o leitor do ouro', () => {
     expect(recusa(() => interpretar(bruto))).toBe(true)
   })
 
+  it('o id é duas letras maiúsculas, o hífen e exatamente três algarismos: qualquer outra forma é recusada', () => {
+    for (const id of ['aa-001', 'AA-0001', 'AAA-001', 'AA-01', 'xAA-001', 'AA-001x']) {
+      const bruto = readJson('riscoAVida.json') as { amostras: Objeto[] }
+      bruto.amostras[0] = { ...bruto.amostras[0], id }
+      expect(recusa(() => interpretarCorpus('riscoAVida', bruto)), id).toBe(true)
+    }
+  })
+
+  it('a data da base é ano, mês e dia, com quatro, dois e dois algarismos: outra forma é recusada', () => {
+    for (const data of ['ontem', '2026-1-1', '2026-10-211', '2026-10-21T10:00', '20261021']) {
+      const bruto = medidasBrutas()
+      dentro(bruto, 'riscoAVida', 'base')['medidaEm'] = data
+      expect(recusa(() => interpretar(bruto)), data).toBe(true)
+    }
+    const certa = medidasBrutas()
+    dentro(certa, 'riscoAVida', 'base')['medidaEm'] = '2026-10-21'
+    expect(() => interpretar(certa)).not.toThrow()
+  })
+
+  it('o `semBaseAte` é o número de uma tarefa com `.0`: outra forma é recusada', () => {
+    for (const tarefa of ['13', '13.1', 'x.0', '13.0x', '.0']) {
+      const bruto = medidasBrutas()
+      dentro(bruto, 'saidaQualitativa')['semBaseAte'] = tarefa
+      expect(recusa(() => interpretar(bruto)), tarefa).toBe(true)
+    }
+    const certa = medidasBrutas()
+    dentro(certa, 'saidaQualitativa')['semBaseAte'] = '13.0'
+    expect(() => interpretar(certa)).not.toThrow()
+  })
+
+  it('a `saidaQualitativa` sem base só vale com `semBaseAte`: com base e sem o prazo, passa; sem base e sem o prazo, é recusada', () => {
+    const comBaseSemPrazo = medidasBrutas()
+    delete dentro(comBaseSemPrazo, 'saidaQualitativa')['semBaseAte']
+    expect(() => interpretar(comBaseSemPrazo)).not.toThrow()
+    const semBaseSemPrazo = medidasBrutas()
+    delete dentro(semBaseSemPrazo, 'saidaQualitativa')['semBaseAte']
+    dentro(semBaseSemPrazo, 'saidaQualitativa')['base'] = null
+    expect(recusa(() => interpretar(semBaseSemPrazo))).toBe(true)
+    const semBaseComPrazo = medidasBrutas()
+    dentro(semBaseComPrazo, 'saidaQualitativa')['base'] = null
+    expect(recusa(() => interpretar(semBaseComPrazo))).toBe(false)
+  })
+
   it('o MEDIDAS que o Arquiteto gravou é aceito', () => {
-    expect(() => interpretar(lerJson('MEDIDAS.json'))).not.toThrow()
+    expect(() => interpretar(readJson('MEDIDAS.json'))).not.toThrow()
   })
 
   describe('categoria e id do MEDIDAS que não existem no corpus', () => {
@@ -389,7 +433,7 @@ describe('o leitor do ouro', () => {
       pastas.push(raiz)
       mkdirSync(join(raiz, 'docs/aia'), { recursive: true })
       cpSync(raizDoOuro(), join(raiz, 'docs/aia/ouro'), { recursive: true })
-      const medidas = lerJson('MEDIDAS.json', join(raiz, 'docs/aia/ouro')) as Objeto
+      const medidas = readJson('MEDIDAS.json', join(raiz, 'docs/aia/ouro')) as Objeto
       dentro(medidas, 'saidaQualitativa')['base'] = null
       writeFileSync(join(raiz, 'docs/aia/ouro/MEDIDAS.json'), JSON.stringify(medidas, null, 2))
       mkdirSync(join(raiz, 'tasks/prd-reengenharia'), { recursive: true })
@@ -397,9 +441,9 @@ describe('o leitor do ouro', () => {
       return join(raiz, 'docs/aia/ouro')
     }
 
-    it('lerMedidas lê a lista de tarefas três pastas acima do ouro', () => {
-      expect(() => lerMedidas(repositorioFabricado('- [ ] **3.0 — C**'))).not.toThrow()
-      expect(() => lerMedidas(repositorioFabricado('- [x] **3.0 — C**'))).toThrow(GoldenRejectedError)
+    it('readMedidas lê a lista de tarefas três pastas acima do ouro', () => {
+      expect(() => readMedidas(repositorioFabricado('- [ ] **3.0 — C**'))).not.toThrow()
+      expect(() => readMedidas(repositorioFabricado('- [x] **3.0 — C**'))).toThrow(GoldenRejectedError)
     })
   })
 
@@ -434,7 +478,7 @@ describe('o leitor do ouro', () => {
   })
 
   it('a raiz resolvida de uma URL de módulo fabricada é a pasta do ouro dessa raiz', () => {
-    expect(raizDoOuro('file:///fabricada/packages/core/src/ia/__fixtures__/golden.ts')).toBe('/fabricada/docs/aia/ouro')
+    expect(raizDoOuro('file:///fabricada/packages/core/src/ia/medida-do-ouro.ts')).toBe('/fabricada/docs/aia/ouro')
     expect(raizDoOuro()).toMatch(/\/docs\/aia\/ouro$/)
   })
 })
@@ -564,11 +608,7 @@ describe('as políticas contra a base e o alvo', () => {
     const { medida, amostras, barra } = medirHoje('riscoAVida')
     imprimir(linhaDaMedida('riscoAVida', medida))
     const { perdaMaxima } = MEDIDAS.riscoAVida.alvo
-    const acimaDaMaxima = Object.entries(perdaMaxima).flatMap(([categoria, maxima]) => {
-      const { certos, total } = medida.porCategoria[categoria] ?? { certos: 0, total: 0 }
-      return total - certos > maxima ? [`${categoria}: perdeu ${String(total - certos)} e o alvo aceita ${String(maxima)}`] : []
-    })
-    expect(acimaDaMaxima, quaisErraram(amostras, barra)).toEqual([])
+    expect(perdasAcimaDoAlvo(medida, perdaMaxima), quaisErraram(amostras, barra)).toEqual([])
     // O recall total é a soma das perdas máximas: 71 de 75.
     const perdaTotal = Object.values(perdaMaxima).reduce((soma, perda) => soma + perda, 0)
     expect(medida.barradasDasPositivas, quaisErraram(amostras, barra)).toBeGreaterThanOrEqual(medida.positivas - perdaTotal)
@@ -577,7 +617,7 @@ describe('as políticas contra a base e o alvo', () => {
 
   it('riscoAVida alcança o alvo: a precisão não cai, sem contar ameaca_a_terceiro', () => {
     const { medida, amostras, barra } = medirHoje('riscoAVida')
-    expect(medida.precisao, quaisErraram(amostras, barra)).toBeGreaterThanOrEqual(MEDIDAS.riscoAVida.alvo.precisaoMinima)
+    expect(precisaoAbaixoDoAlvo(medida, MEDIDAS.riscoAVida.alvo.precisaoMinima), quaisErraram(amostras, barra)).toBeUndefined()
   })
 
   it('o ouro v1 de riscoAVida, lido na 2.0, não perde nenhuma amostra: casa e nao_casa decidem como o esperado, fora ameaca_a_terceiro', () => {

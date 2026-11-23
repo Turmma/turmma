@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Amostra } from '../../packages/core/src/ia/__fixtures__/golden.ts'
-import { descreverMedida, EXECUCOES_DA_MEDIDA, exigirModeloDaMedida, loteDosArgumentos, MedidaRecusada, medirComProvedor, medirRiscoAVida, piorDe, type ConfiguracaoLida, type PecasDoNucleo, type ProvedorDeTurnos, type ResultadoDaMedida } from './medir-risco-a-vida.ts'
+import { piorDe, type Amostra } from '../../packages/core/src/ia/medida-do-ouro.ts'
+import { descreverMedida, EXECUCOES_DA_MEDIDA, exigirModeloDaMedida, loteDosArgumentos, MedidaRecusada, medirComProvedor, medirRiscoAVida, type ConfiguracaoLida, type PecasDoNucleo, type ProvedorDeTurnos, type ResultadoDaMedida } from './medir-risco-a-vida.ts'
 
 // O tsconfig de `tools/` não compila o código do núcleo (o provedor usa parâmetro na assinatura do construtor, que o
 // `erasableSyntaxOnly` recusa): só o Vitest o carrega, por caminho em variável, como em `tools/guardas/guardas.test.ts`.

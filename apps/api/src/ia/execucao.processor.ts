@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
   currentContext,
+  destinosDaInterrompida,
   DomainException,
   estaNaJanela,
   exigirFuncaoAtiva,
@@ -9,13 +10,14 @@ import {
   LLMError,
   MEIO_ABRE_O_DISJUNTOR_EM_MS,
   PRAZO_DA_EXECUCAO_MS,
+  PRECO_DOS_MODELOS,
   proximaAbertura,
   requireEscolaId,
   runInContext,
   summarizeError,
   type Clock,
   type Database,
-  type DestinoDoAdaptador,
+  type DestinosConfigurados,
   type JanelaLetiva,
   type JobExecution,
   type JobProcessor,
@@ -25,6 +27,7 @@ import {
   type OperationalSettings,
   type RequestContext,
   type SuspensaoDeFuncao,
+  type TabelaDePrecos,
 } from '@educa/core'
 import { ErrorCode, InvariantException, JobFailureCode, resultadoGravadoSchema, type ResultadoGravado, type TIPO_EXECUTAR_IA, type TIPO_EXECUTAR_LOTE } from '@educa/shared'
 import type { ComandoExecutavel, GravadorDaConclusao } from './execucao-command.js'
@@ -40,8 +43,10 @@ export interface ExecucaoProcessorDependencies {
   readonly ia: LLMProvider
   readonly comandos: RegistroDeComandos
   readonly suspensao: SuspensaoDeFuncao
-  /** Para onde o adaptador configurado manda o conteúdo: a linha estimada da execução interrompida leva o envio e o modelo dele (D14). */
-  readonly destino: DestinoDoAdaptador
+  /** Para onde o adaptador configurado manda o conteúdo, o principal e a reserva: a linha estimada da execução interrompida, uma por destino, leva o envio e o modelo dele (D14). */
+  readonly destinos: DestinosConfigurados
+  /** A tabela de preços da porta, que a linha estimada de cada destino lê (F5b, 8.0). Sem ela vale `PRECO_DOS_MODELOS`, a do gateway. */
+  readonly precos?: TabelaDePrecos
   readonly logger: LoggerBase
   /** Onde o corte da espera e a execução interrompida são contados (`ia.espera_estourada`, `ia.execucao.interrompida`). */
   readonly medidor: Meter
@@ -71,7 +76,7 @@ function duracaoDesde(inicio: number): number {
  *    varredura encerrou e a pergunta que esperou mais de 20 s não rodam, e o modelo não é chamado. **Com zero linhas na `interativa`, tenta-se o corte** (`pendente` com mais de 20 s →
  *    `falhou IA_INDISPONIVEL`, sem modelo, e `ia.espera_estourada` soma só quando o `update` devolve a linha; RF5). **Com zero linhas ainda, a execução ou terminou, ou está `rodando`**: a reentrega
  *    (o worker morreu no meio, ou a outra entrega ainda roda) a encerra com `EXECUCAO_INTERROMPIDA` por um `update … where estado = 'rodando'`,
- *    **sem modelo e sem troca**, e grava a linha estimada de `consumo_ia` na mesma transação (X6, 6.0; D14, D49). A conclusão da outra entrega, se
+ *    **sem modelo e sem troca**, e grava as linhas estimadas de `consumo_ia`, uma por destino, na mesma transação (X6, 6.0; F5b, 8.0; D14, D49). A conclusão da outra entrega, se
  *    ainda vier, acha a linha encerrada e se desfaz.
  * 3. **Monta o contexto de quem pediu** (a pessoa e o papel dela, e o ano letivo da linha) e roda o comando: `preparar`
  *    (que repete o alcance do `POST`, vínculo inclusive) → modelo → `concluir` na transação do `gravar`. Pessoa desativada ou com eliminação
@@ -195,18 +200,18 @@ export class ExecucaoProcessor {
 
   /**
    * A execução já não estava `pendente`: ou terminou (nada a fazer: o job foi entregue de novo), ou está `rodando`, e então a entrega que a pegou morreu ou ainda
-   * roda. A decisão é do `update` condicional, e não da leitura de antes (`lida.estado` pode já estar velho): quem encerra recebe a linha, e só ele grava a
-   * estimada, na mesma transação. A gravação que falha desfaz o encerramento, e a linha segue `rodando` para a varredura.
+   * roda. A decisão é do `update` condicional, e não da leitura de antes (`lida.estado` pode já estar velho): quem encerra recebe a linha, e só ele grava as
+   * estimadas (uma por destino), na mesma transação. A gravação que falha desfaz o encerramento e todas as linhas, e a execução segue `rodando` para a varredura.
    */
   async #aoReentregar(execucaoId: string, escolaId: string, lida: ExecucaoParaIniciar): Promise<void> {
-    const { logger, banco, destino } = this.dependencias
+    const { logger, banco, destinos, precos = PRECO_DOS_MODELOS } = this.dependencias
     const tipo = lida.tarefa
     let encerrada: boolean
     try {
       encerrada = await banco.transaction(async (tx) => {
         const interrompida = await new ExecucaoRepository(tx).encerrarRodando(execucaoId)
         if (interrompida === undefined) return false
-        await new ConsumoRepository(tx).registrarEstimada(interrompida, destino)
+        await new ConsumoRepository(tx).registrarEstimada(interrompida, destinosDaInterrompida(interrompida.tarefa, destinos), precos)
         return true
       })
     } catch (erro) {

@@ -1,11 +1,11 @@
-import { alunoTrailStatement, currentContext, runInContext, TASK_CATALOG, type DestinoDoAdaptador, type proporFerramenta, type turnoDoTutor } from '@educa/core'
+import { alunoTrailStatement, chaveDoPreco, currentContext, runInContext, TASK_CATALOG, type DestinoDoAdaptador, type ModeloAprovado, type proporFerramenta, type TabelaDePrecos, type turnoDoTutor } from '@educa/core'
 import { ErrorCode, type ResultadoGravado, type TarefaDeIa } from '@educa/shared'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import { aguardarSaudavel, compose, composeAssincronoOuFalha, PROCESSOS_DA_FILA } from '../../../../tools/testes/compose.ts'
 import { montarEscolaComTurma, type EscolaComTurma } from '../../test/escola-turma.fixture.js'
-import { FilaDeIa, type ModeloDeTeste } from '../../test/fila-de-ia.fixture.js'
+import { FilaDeIa, type GatewayDaBancada, type ModeloDeTeste } from '../../test/fila-de-ia.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { esperarNaTrava, WriteBlockTrigger } from '../../test/write-block-trigger.js'
 import type { EntradaDaTarefa, ExecucaoCommand, SaidaDaTarefa } from './execucao-command.js'
@@ -249,11 +249,13 @@ async function esperar(condicao: () => boolean | Promise<boolean>, descricao: st
   }
 }
 
-/** Um gatilho do banco de teste que faz a gravação da linha estimada falhar, só para a execução dada. */
-async function quebrarAGravacaoDa(execucaoId: string): Promise<() => Promise<void>> {
+/** Um gatilho do banco de teste que faz a gravação da linha estimada falhar, só para a execução dada e, com `provedor`, só para a linha desse provedor (a segunda de um par). */
+async function quebrarAGravacaoDa(execucaoId: string, provedor?: string): Promise<() => Promise<void>> {
   const nome = `teste_sem_linha_${randomBytes(6).toString('hex')}`
+  // O provedor entra no gatilho como literal citado pelo banco (`quote_literal`), e não colado no SQL.
+  const soDoProvedor = provedor === undefined ? '' : ` and new.provedor = ${String(((await sql<{ literal: string }>('select quote_literal($1::text) as literal', [provedor])).rows[0] as { literal: string }).literal)}`
   await sql(`create function ${nome}() returns trigger language plpgsql as $$ begin raise exception 'a gravação da linha estimada falhou de propósito'; end $$`)
-  await sql(`create trigger ${nome} before insert on consumo_ia for each row when (new.execucao_id = '${execucaoId}'::uuid) execute function ${nome}()`)
+  await sql(`create trigger ${nome} before insert on consumo_ia for each row when (new.execucao_id = '${execucaoId}'::uuid${soDoProvedor}) execute function ${nome}()`)
   return async () => {
     await sql(`drop trigger if exists ${nome} on consumo_ia`)
     await sql(`drop function if exists ${nome}()`)
@@ -844,6 +846,213 @@ describe('a execução interrompida com o adaptador externo configurado', () => 
     // A `pendente` encerrada no mesmo ciclo não gera linha: o modelo nunca foi chamado.
     expect(await execucaoDe(pendente)).toMatchObject({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA' })
     expect(await linhasDe(pendente)).toEqual([])
+  })
+})
+
+describe('a execução interrompida com a reserva configurada (F5b, 8.0)', () => {
+  const principal: DestinoDoAdaptador = { origem: 'openai_compat', envio: { envioExterno: true, provedorId: 'principal-8-0' }, identidade: 'principal-8-0', modeloDoPerfil: (perfil) => `principal-${perfil}` }
+  const reserva: DestinoDoAdaptador = { origem: 'openai_compat', envio: { envioExterno: true, provedorId: 'reserva-8-0' }, identidade: 'reserva-8-0', modeloDoPerfil: (perfil) => `reserva-${perfil}` }
+  const VIGENCIA = { vigenteDesde: '2026-01-01T00:00:00Z', fonte: 'tabela do teste' }
+  // O principal a 1.300/5.200 e a reserva a 2.000/8.000 micros por mil tokens, no perfil `rapido` (o do Tutor e o da ferramenta).
+  const precos: TabelaDePrecos = {
+    [chaveDoPreco(principal.identidade, 'principal-rapido')]: [{ ...VIGENCIA, entradaMicrosPorMilTokens: 1_300, saidaMicrosPorMilTokens: 5_200 }],
+    [chaveDoPreco(reserva.identidade, 'reserva-rapido')]: [{ ...VIGENCIA, entradaMicrosPorMilTokens: 2_000, saidaMicrosPorMilTokens: 8_000 }],
+  }
+  // Os tetos do `turno_do_tutor` (24.300 de entrada, 700 de saída) a cada preço: 24.300 × 1.300 + 700 × 5.200 = 35.230.000 ÷ 1.000; 24.300 × 2.000 + 700 × 8.000 = 54.200.000 ÷ 1.000.
+  const CUSTO_NO_PRINCIPAL = 35_230
+  const CUSTO_NA_RESERVA = 54_200
+  /** O gateway real da bancada: os dois adaptadores sem roteiro (nenhuma chamada sai) e a reserva conferida. */
+  const GATEWAY: GatewayDaBancada = { principal: { provedorId: principal.identidade, roteiro: [] }, reserva: { provedorId: reserva.identidade, roteiro: [] }, aprovadas: ['turno_do_tutor'] }
+  /** As aprovações que `MODELOS_APROVADOS` teria: o mesmo array é lido a cada interrompida, e o caso o troca no lugar (`aprovar`). */
+  const aprovados: ModeloAprovado[] = []
+  const aprovar = (...entradas: ModeloAprovado[]): void => void aprovados.splice(0, aprovados.length, ...entradas)
+  const aprovacao = (tarefa: TarefaDeIa, provedorId: string = reserva.identidade, modelo = 'reserva-rapido'): ModeloAprovado => ({
+    tarefa,
+    provedorId,
+    modelo,
+    relatorio: 'docs/avaliacao/teste/relatorio.md',
+    sha256: 'sha-do-teste',
+    aprovadoPor: 'teste',
+    aprovadoEm: '2026-11-22',
+  })
+  let fila: FilaDeIa
+  let a: Escola
+  let b: Escola
+
+  beforeAll(async () => {
+    fila = await FilaDeIa.subir(medidor.medidor, {}, undefined, {
+      registro: registroDeTeste(),
+      semConsumir: true,
+      destino: principal,
+      destinosDaInterrompida: { reserva, aprovados },
+      precos,
+      gateway: GATEWAY,
+    })
+    a = await montarEscola(fila)
+    b = await montarEscola(fila)
+  })
+
+  beforeEach(async () => {
+    aprovar()
+    // O roteiro da bancada volta ao de partida: o caso da conferência recusada não deixa a reserva recusada para o seguinte.
+    fila.roteirizar(GATEWAY)
+    await esvaziarAsSobras(fila)
+  })
+
+  afterAll(async () => {
+    await fila.fechar()
+    await limpar(a, b)
+  })
+
+  interface LinhaDoDestino {
+    readonly provedor: string | null
+    readonly modelo: string
+    readonly tokens_de_entrada: number
+    readonly tokens_de_saida: number
+    readonly custo_micros: string | number
+    readonly pelo_provedor_de_reserva: boolean
+    readonly aluno_id: string | null
+    readonly escola_id: string
+    readonly codigo_de_erro: string | null
+    readonly envio_externo: boolean
+  }
+  /** As linhas da execução, uma por destino, em ordem de provedor (`principal-8-0` antes de `reserva-8-0`). */
+  const linhasPorDestino = async (execucaoId: string) =>
+    (
+      await sql<LinhaDoDestino & Record<string, unknown>>(
+        `select provedor, modelo, tokens_de_entrada, tokens_de_saida, custo_micros, pelo_provedor_de_reserva, aluno_id, escola_id, codigo_de_erro, envio_externo from consumo_ia where execucao_id = $1 order by provedor`,
+        [execucaoId],
+      )
+    ).rows.map((linha) => ({ ...linha, custo_micros: Number(linha.custo_micros) }))
+
+  /** As duas linhas que o Tutor interrompido deixa: os dois tetos dele, cada um ao preço do modelo do seu destino, o envio externo, a coluna da Operação falsa e nenhum aluno. */
+  const parDoTutor = (escola: Escola) => [
+    { provedor: principal.identidade, modelo: 'principal-rapido', tokens_de_entrada: 24_300, tokens_de_saida: 700, custo_micros: CUSTO_NO_PRINCIPAL, pelo_provedor_de_reserva: false, aluno_id: null, escola_id: escola.escolaId, codigo_de_erro: 'EXECUCAO_INTERROMPIDA', envio_externo: true },
+    { provedor: reserva.identidade, modelo: 'reserva-rapido', tokens_de_entrada: 24_300, tokens_de_saida: 700, custo_micros: CUSTO_NA_RESERVA, pelo_provedor_de_reserva: false, aluno_id: null, escola_id: escola.escolaId, codigo_de_erro: 'EXECUCAO_INTERROMPIDA', envio_externo: true },
+  ]
+
+  /** Os provedores do rastro do aluno (o compartilhamento), pela mesma instrução que o `CompartilhamentoRepository.rastroDoAluno` roda. */
+  const provedoresDoRastro = async (escola: Escola, aluno: TestSessao): Promise<string[]> =>
+    (await fila.como(escola.escolaId, aluno.usuarioId, async () => (await fila.banco.execute<{ provedor: string | null }>(alunoTrailStatement(aluno.usuarioId))).rows)).map((linha) => linha.provedor ?? '').sort()
+  /** O que entrou no rastro entre `antes` e `depois`, em ordem. */
+  const novos = (antes: string[], depois: string[]): string[] => {
+    const resto = [...depois]
+    for (const provedor of antes) resto.splice(resto.indexOf(provedor), 1)
+    return resto
+  }
+  const provedores = [principal.identidade, reserva.identidade]
+
+  it('varredura (300 s), tarefa aprovada para a reserva, preços 1.300/5.200 e 2.000/8.000: duas linhas, cada uma com os dois tetos ao preço do seu modelo, a coluna da Operação falsa nas duas, e o compartilhamento lista as duas', async () => {
+    aprovar(aprovacao('turno_do_tutor'))
+    const id = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno })
+    const antes = await provedoresDoRastro(a, a.aluno)
+    await fila.varredura().varrer()
+    expect(await linhasPorDestino(id)).toEqual(parDoTutor(a))
+    expect(novos(antes, await provedoresDoRastro(a, a.aluno))).toEqual(provedores)
+  })
+
+  it('reentrega do job (`#aoReentregar`), a varredura desligada: as duas linhas, e o compartilhamento lista as duas', async () => {
+    aprovar(aprovacao('turno_do_tutor'))
+    const id = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno, haSegundos: 20 })
+    const antes = await provedoresDoRastro(a, a.aluno)
+    await fila.entregarDeNovo(id, a.escolaId)
+    expect(await execucaoDe(id)).toEqual({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA', resultado: null })
+    expect(await linhasPorDestino(id)).toEqual(parDoTutor(a))
+    expect(novos(antes, await provedoresDoRastro(a, a.aluno))).toEqual(provedores)
+  })
+
+  it('duas varreduras em `Promise.all` na mesma `rodando`: exatamente duas linhas, uma por destino', async () => {
+    aprovar(aprovacao('turno_do_tutor'))
+    const id = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno })
+    const parada = new WriteBlockTrigger(bancada.pool, { tabela: 'execucao_agente', evento: 'update', quando: `new.id = '${id}'::uuid and new.estado = 'falhou'` })
+    await parada.armar()
+    try {
+      const varreduras = [fila.varredura().varrer(), fila.varredura().varrer()]
+      await parada.esperarParadas(1)
+      await esperarNaTrava(bancada.pool, '%update execucao_agente x set estado%', 2)
+      await parada.soltar()
+      await Promise.all(varreduras)
+    } finally {
+      await parada.desarmar()
+    }
+    expect(await linhasPorDestino(id)).toEqual(parDoTutor(a))
+  })
+
+  it('a gravação da linha da reserva falha (só a segunda): a do principal e o encerramento se desfazem, na varredura e na reentrega, e a execução segue `rodando`', async () => {
+    aprovar(aprovacao('turno_do_tutor'))
+    const daVarredura = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno })
+    const daReentrega = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno, haSegundos: 20 })
+    const consertarAVarredura = await quebrarAGravacaoDa(daVarredura, reserva.identidade)
+    const consertarAReentrega = await quebrarAGravacaoDa(daReentrega, reserva.identidade)
+    const varredura = fila.varredura()
+    try {
+      await expect(varredura.varrer()).resolves.toBe(0)
+      await fila.entregarDeNovo(daReentrega, a.escolaId)
+      for (const id of [daVarredura, daReentrega]) {
+        expect(await execucaoDe(id)).toEqual({ estado: 'rodando', erro: null, resultado: null })
+        expect(await linhasPorDestino(id)).toEqual([])
+      }
+    } finally {
+      await consertarAVarredura()
+      await consertarAReentrega()
+    }
+    // Consertada a gravação, a mesma execução se encerra com as duas: o controle de que foi o gatilho da segunda linha que segurou.
+    await varredura.varrer()
+    await fila.entregarDeNovo(daReentrega, a.escolaId)
+    for (const id of [daVarredura, daReentrega]) {
+      expect(await execucaoDe(id)).toMatchObject({ estado: 'falhou', erro: 'EXECUCAO_INTERROMPIDA' })
+      expect((await linhasPorDestino(id)).map((linha) => linha.provedor)).toEqual(provedores)
+    }
+  })
+
+  it('duas escolas: cada par fica na escola da sua execução, com a da outra escola como a primeira do lote', async () => {
+    aprovar(aprovacao('turno_do_tutor'))
+    // A mais velha é a da B: a varredura a encerra primeiro, e o lote começa na escola dela.
+    const daB = await semear(b, { tarefa: 'turno_do_tutor', por: b.aluno, haSegundos: 400 })
+    const daA = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno, haSegundos: 301 })
+    await fila.varredura().varrer()
+    expect(await linhasPorDestino(daB)).toEqual(parDoTutor(b))
+    expect(await linhasPorDestino(daA)).toEqual(parDoTutor(a))
+  })
+
+  it('aprovação para o provedor da reserva com outro modelo que o dela no perfil: as duas mesmo assim, e o compartilhamento lista as duas', async () => {
+    aprovar(aprovacao('turno_do_tutor', reserva.identidade, 'modelo-antigo'))
+    const id = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno })
+    const antes = await provedoresDoRastro(a, a.aluno)
+    await fila.varredura().varrer()
+    expect((await linhasPorDestino(id)).map((linha) => linha.provedor)).toEqual(provedores)
+    expect(novos(antes, await provedoresDoRastro(a, a.aluno))).toEqual(provedores)
+  })
+
+  it('reserva configurada e recusada na conferência da D62: as duas linhas mesmo assim (a linha 99 diz para onde o dado pode ter ido)', async () => {
+    aprovar(aprovacao('turno_do_tutor'))
+    // A reserva recusada pelo gateway da bancada: o gateway não a chamaria, e a linha estimada, que não sabe se a chamada saiu, a cita do mesmo jeito.
+    fila.roteirizar({ ...GATEWAY, conferenciaDaReserva: { conferida: false } })
+    const id = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno })
+    await fila.varredura().varrer()
+    expect(await linhasPorDestino(id)).toEqual(parDoTutor(a))
+  })
+
+  it('aprovação para outro `provedorId` com o mesmo modelo da reserva: só a do principal, e o compartilhamento só o principal', async () => {
+    aprovar(aprovacao('turno_do_tutor', 'outro-provedor', 'reserva-rapido'))
+    const id = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno })
+    const antes = await provedoresDoRastro(a, a.aluno)
+    await fila.varredura().varrer()
+    expect(await linhasPorDestino(id)).toEqual([parDoTutor(a)[0]])
+    expect(novos(antes, await provedoresDoRastro(a, a.aluno))).toEqual([principal.identidade])
+  })
+
+  it('tarefa sem aprovação para a reserva, mesmo configurada: só a do principal, na varredura e na reentrega, e o compartilhamento só o principal', async () => {
+    // Há aprovação, mas de outra tarefa: o que conta é a tarefa da execução.
+    aprovar(aprovacao('propor_ferramenta'))
+    const daVarredura = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno })
+    const daReentrega = await semear(a, { tarefa: 'turno_do_tutor', por: a.aluno, haSegundos: 20 })
+    const antes = await provedoresDoRastro(a, a.aluno)
+    await fila.varredura().varrer()
+    await fila.entregarDeNovo(daReentrega, a.escolaId)
+    expect(await linhasPorDestino(daVarredura)).toEqual([parDoTutor(a)[0]])
+    expect(await linhasPorDestino(daReentrega)).toEqual([parDoTutor(a)[0]])
+    expect(novos(antes, await provedoresDoRastro(a, a.aluno))).toEqual([principal.identidade, principal.identidade])
   })
 })
 

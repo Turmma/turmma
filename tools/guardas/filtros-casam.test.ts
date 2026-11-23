@@ -230,7 +230,7 @@ function fontesDaArvore(): Fonte[] {
     carregarFonte('knip.json, project', 15, () => projectDoKnip(lerJson<Knip>('knip.json'))),
     carregarFonte('knip.json, ignore', 2, () => ignoreDoKnip(lerJson<Knip>('knip.json'))),
     carregarFonte('.claude/rules, paths', 18, () => unicos(regrasComPaths().flatMap((regra) => pathsDaRegra(lerTexto(regra))))),
-    carregarFonte('dist de infra/scripts e de medir-risco-a-vida', 5, () => unicos(ARQUIVOS_COM_DIST.flatMap((arquivo) => caminhosDeDist(lerTexto(arquivo))))),
+    carregarFonte('dist de infra/scripts e de medir-risco-a-vida', 10, () => unicos(ARQUIVOS_COM_DIST.flatMap((arquivo) => caminhosDeDist(lerTexto(arquivo))))),
   ]
 }
 

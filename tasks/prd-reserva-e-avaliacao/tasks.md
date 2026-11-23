@@ -62,11 +62,11 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 7.3 O alerta dos tokens; `docs/infra.md` 5.4
   - [x] 7.4 Testes
 
-- [ ] **8.0 — A execução interrompida grava a estimada de cada destino, com custo**
-  - [ ] 8.1 `destinosDaInterrompida`
-  - [ ] 8.2 Os dois tetos ao preço de cada destino
-  - [ ] 8.3 `registrarEstimada(execucao, destinos, precos)` na varredura e na reentrega
-  - [ ] 8.4 Testes
+- [x] **8.0 — A execução interrompida grava a estimada de cada destino, com custo**
+  - [x] 8.1 `destinosDaInterrompida`
+  - [x] 8.2 Os dois tetos ao preço de cada destino
+  - [x] 8.3 `registrarEstimada(execucao, destinos, precos)` na varredura e na reentrega
+  - [x] 8.4 Testes
 
 - [x] **9.0 — A fase `reserva` da carga prova a queda do principal**
   - [x] 9.1 A fase e o cenário k6
@@ -94,12 +94,12 @@ recomendação é **não cortar**: as duas metades correm em paralelo (a 10.0 j�
   - [x] 12.4 A D36
   - [x] 12.5 Testes
 
-- [ ] **13.0 — Os lotes retidos e a classificação medidos por `medida-do-ouro.ts`, e a guarda que liga aprovação, relatório e AIA**
-  - [ ] 13.1 `medida-do-ouro.ts`
-  - [ ] 13.2 Os lotes retidos
-  - [ ] 13.3 A classificação no `rapido` e no `padrao`
-  - [ ] 13.4 A guarda do RF16
-  - [ ] 13.5 Testes
+- [x] **13.0 — Os lotes retidos e a classificação medidos por `medida-do-ouro.ts`, e a guarda que liga aprovação, relatório e AIA**
+  - [x] 13.1 `medida-do-ouro.ts`
+  - [x] 13.2 Os lotes retidos
+  - [x] 13.3 A classificação no `rapido` e no `padrao`
+  - [x] 13.4 A guarda do RF16
+  - [x] 13.5 Testes
 
 - [ ] **14.0 — Principal e reserva saem da avaliação executada, com preço e aprovação no código**
   - [ ] 14.1 Rodar por finalista, com as chaves do Joaquim (os lotes retidos, pelo Arquiteto)

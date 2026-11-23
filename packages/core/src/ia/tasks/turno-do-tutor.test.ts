@@ -4,7 +4,7 @@ import { withEscolaContextOfRequest } from '../__fixtures__/escola-context.js'
 import { ScriptedAdapter } from '../__fixtures__/scripted-adapter.js'
 import { ALTERNATIVAS_DAS_AMOSTRAS_DE_SAIDA, AMOSTRAS_DE_PEDIDO, AMOSTRAS_DE_SAIDA, type RequestSample } from '../__fixtures__/tutor-samples.js'
 import { ALUNO_1, entradaDoTutor, ESCOLA_A, questaoDoReagenteLimitante } from '../__fixtures__/inputs.js'
-import { lerCorpus } from '../__fixtures__/golden.js'
+import { readCorpus } from '../medida-do-ouro.js'
 import { MATERIAL_DE_ESTEQUIOMETRIA, PAGINAS_DE_ESTEQUIOMETRIA } from '../__fixtures__/estequiometria.js'
 import type { ModelAdapter } from '../adapter.js'
 import { FakeAdapter } from '../fake-adapter.js'
@@ -979,7 +979,7 @@ describe('risco à vida: um padrão por jeito de dizer, a mensagem fixa e o sina
   })
 
   it('nenhuma amostra dev é frase do ouro, nem está dentro de uma, nem copia uma de quatro palavras ou mais', () => {
-    const doOuro = lerCorpus('riscoAVida').amostras.map((amostra) => ({ id: amostra.id, texto: soPalavras(amostra.texto) }))
+    const doOuro = readCorpus('riscoAVida').amostras.map((amostra) => ({ id: amostra.id, texto: soPalavras(amostra.texto) }))
     for (const { frase } of [...JEITOS_DE_DIZER_RISCO_A_VIDA, ...NAO_E_RISCO_A_VIDA, ...TECLA_ERRADA]) {
       const dev = soPalavras(frase)
       // A frase inteira, ou um pedaço dela, é do ouro; e só a de quatro palavras ou mais conta ao contrário: as formas mínimas ("qro morrer") são o jeito canônico de dizer.
