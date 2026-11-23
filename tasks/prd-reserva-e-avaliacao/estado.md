@@ -1,7 +1,7 @@
 # Estado da execução — reserva-e-avaliacao
 
 ## Agora
-- **Espero:** o Joaquim, na parada de 23/11 ~01:xx (as chaves da 14.0). L1, L2 e L3 ociosas; a 14.0 parte na L1 com a resposta.
+- **Espero:** o `Arquiteto`, no andar, tirando a 14.0 da F5b (decisão do Joaquim, 23/11 ~01:3x); depois, a validação. L1, L2 e L3 ociosas.
 - **Devo ainda:** antes da partida da 14.0, levar ao Joaquim as três perguntas da 13.0 (`TODO.md`, "Da reserva-e-avaliacao, tarefa 13.0"): qual modelo a entrada de `MODELOS_APROVADOS` e a AIA do `padrao` citam, se o segundo modelo tem os mesmos termos de contrato, e o custo do segundo passe frente ao teto de R$ 250. na retro, o item do `tenancy-guardian` da 7.0 (o balde da reserva no item do `TODO.md` sobre a parte por escola do balde); os outros itens da 7.0 já estão no `TODO.md`. Depois do pouso da F5b, a correção da D55 (`achado-d55-recusa-rubrica.md`, decisão do Joaquim 22/11 12:55). A última tarefa (a 14.0) depende das chaves de teste dos finalistas, que são do Joaquim (PRD §10); o gasto da avaliação, aceito, só acontece nela. A `develop` local tem as retros da F4b e da F5a sem push: vão no próximo pouso.
 - **Base:** `spec/reserva-e-avaliacao` em `38973915`, no encontro da 9.0 (esteira verde em `7a8fc3de`, com a 8.0 e a 13.0; a de `38973915` rodando, execução 45110286053)
 
@@ -28,6 +28,7 @@ Decisão: as chaves de teste dos finalistas para rodar a avaliação (PRD §10, 
 Contexto: `14_task.md` (14.1; a chave só por variável de ambiente, `AVALIACAO_CHAVE_API`, nunca em arquivo do repositório nem no terminal de outro agente); finalistas em `docs/avaliacao-de-modelos.md` §1: Maritaca (Sabiazinho 4 e Sabiá 4, `-br-sp`) como principal; AWS Bedrock `sa-east-1` e Magalu Cloud como reserva a confirmar; Google fora. Gasto aceito: R$ 150 a 250 por finalista.
 Opções: chaves da Maritaca e do Bedrock agora | só da Maritaca agora (a reserva fica para depois, e a F5b não fecha sem ela) | adiar a 14.0.
 Recomendo: Maritaca e Bedrock agora, num arquivo `.env` fora do repositório (`chmod 600`), lido pelo Implementador só por variável de ambiente. As três perguntas da 13.0 (`TODO.md`) seguem a techspec §8: a AIA do `padrao` cita o modelo do `padrao`; o segundo modelo é da mesma Maritaca, com o mesmo DPA; o custo do segundo passe vem ao Joaquim antes de rodar, se passar de R$ 250.
+**Respondida em 23/11 ~01:3x: "tira a 14 dessa spec"** — o Joaquim não quer modelo real agora: quer fazer o máximo de specs antes de ligar um modelo e testar tudo de uma vez. A 14.0 sai da F5b; a avaliação (D37) vira spec própria, para depois. O `Arquiteto` registra a revisão (D37, PRD, `tasks.md`) na branch da spec antes da validação.
 ## 22/11 12:52 — a regra fixa da D55 recusa rubrica legítima, no meu terminal
 Decisão: abrir um `/corrigir` depois da F5b para a regra fixa da D55 não recusar rubrica de antes da aplicação (13 de 20 pedidos naturais recusados).
 Contexto: `tasks/prd-reserva-e-avaliacao/achado-d55-recusa-rubrica.md` (vai no commit da 10.0); o `TODO.md` já tem "D55 abaixo do alvo" (F7, da X6).
