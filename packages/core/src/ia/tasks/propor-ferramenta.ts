@@ -196,6 +196,63 @@ const DO_PROPRIO_PROFESSOR =
   /\bque (eu|voce|vc|a gente|nos) (\w+ )?(gerei|gerou|geramos|fiz|fez|fizemos|escrevi|escreveu|montei|montou|montamos|criei|criou|elaborei|elaborou|preparei|preparou)\b|\b(meu|minha|meus|minhas) (plano|texto|enunciado|atividade|prova|questao|questoes|aula|material|rubrica|criterios?)\b/
 /** Pedir a rubrica ou os critérios, **antes** da aplicação: é o que a D55 deixa (`docs/decisoes.md`). */
 const PEDE_RUBRICA = /\b(mont|cri|faz|fac|elabor|ger|prepar|quero|preciso|sugir|suger|escrev|defin)\w* (\w+ ){0,3}(rubricas?|criterios?|barema|grade de correcao)\b/
+/**
+ * O mesmo pedido, como o professor o escreve numa mensagem só: "me ajuda com os critérios", "queria critérios", "me dá descritores".
+ * Fica só na regra de uma mensagem: nos turnos seguintes a um texto longo, "descritores" depois de uma conversa de planejamento não se
+ * distingue do pedido sob medida para um texto colado (D55; decisão 12 do `ouro`), e a regra de turnos segue com a lista de cima.
+ */
+const PEDE_RUBRICA_NO_PEDIDO = /\b(mont|cri|faz|fac|elabor|ger(?=ar?\b|e\b)|prepar|quer|preciso|sugir|suger|escrev|defin|aju[dr])\w* (\w+ ){0,3}(rubricas?|criterios?|descritor(es)?|barema|grade de correcao)\b|\bme da (\w+ ){0,3}(rubricas?|criterios?|descritor(es)?)\b/
+/** "Artigo de opinião" é o gênero que a rubrica vai medir, e não um pedido de opinião sobre texto nenhum. */
+const GENERO_DE_OPINIAO = /\b(?:artigos?|textos?|generos?|paragrafos?|redacao|redacoes|producao|producoes)(?: \w+)? (?:de|d[ao]s?) opiniao\b/g
+/** Onde a rubrica vai parar ("pra colar no caderno deles"): o caderno é do aluno, mas o que se cola nele é do professor. */
+const DESTINO_DA_RUBRICA = /\b(?:n[oa]s?|pr[oa]s?|para (?:o|a|os|as)) (?:caderno|cadernos|quadro|mural|lousa)(?: \w+)? (?:del[ea]s?|d[oa]s? (?:alun\w+|estudante\w*|turma))\b/g
+/**
+ * O pedido de rubrica escrito como um professor escreve: a turma, o gênero, o número de níveis e o enunciado entre aspas.
+ * Passa de 160 caracteres e por isso `trazTextoColado` o toma por texto colado, mas ele é do professor. Só "cabe num pedido de rubrica"
+ * a mensagem de **uma linha**, de até 600 caracteres (o dobro do maior dos quatro pedidos do achado da 10.0 de reserva-e-avaliacao, que
+ * tem 288; é ajuste fino, sem medida atrás, e quem o aumenta deixa caber mais texto colado) e em que **nenhum trecho seguido passa de
+ * 120 caracteres sem falar de rubrica, de nível, de turma ou de quem pede** (`FALA_DE_PLANEJAMENTO`): o enunciado entre aspas do maior
+ * pedido tem 90, a lista de critérios 53, e um texto de aluno de uma linha tem mais que isso. Um bloco depois de dois-pontos, entre aspas
+ * ou colado à frase do pedido é texto de aluno, e a regra o recusa como antes. **O que isto não pega**, dito com franqueza: texto de
+ * aluno de menos de uns 120 caracteres no meio de um pedido, ou colado à frase sem pontuação (a frase do pedido conta até 70
+ * caracteres como pedido, e o resto dela soma ao texto que vem depois). Esse texto segue à conferência da saída (`julgaTextoDeAluno`),
+ * que fica armada porque `trazTextoColado` o toma por colado ou porque o pedido tem dois-pontos ou aspas (`pedeRubricaDeRedacaoComBloco`).
+ */
+const CARACTERES_DE_UM_PEDIDO_DE_RUBRICA = 600
+const CARACTERES_DE_ENUNCIADO_NO_PEDIDO = 120
+/** Até onde uma frase do pedido conta como pedido: o que passa disso, colado a ela, já é outro texto. */
+const CARACTERES_DE_UMA_FRASE_DO_PEDIDO = 70
+/**
+ * O trecho que é do professor: a rubrica, o nível, a turma, a série, o gênero, o enunciado e "pra eu". **Só substantivo de planejamento.**
+ * "queria", "quero", "preciso", "vou", "vai", "vao" e "antes de" **saíram da lista** (rodada 2 da conformidade): são verbos e locuções que
+ * qualquer redação de aluno tem ("Eu vou falar…", "a internet vai mudar…"), e uma lista com eles zerava a contagem de `maiorTrechoForaDoPedido`
+ * a cada trecho de uma redação de 260 caracteres, que então "cabia num pedido". Quem os devolver à lista reabre esse caso (teste `comVai`).
+ */
+const FALA_DE_PLANEJAMENTO = /\b(criterios?|rubricas?|descritor\w*|nivel|niveis|competencias?|turma|serie|genero|enunciado|pra eu)\b/
+/** O maior trecho seguido da mensagem que não fala do pedido: o que sobra de uma frase do pedido, além do limite, vai junto. */
+function maiorTrechoForaDoPedido(mensagem: string): number {
+  let seguido = 0
+  let maior = 0
+  for (const trecho of mensagem.split(/[.?!:;,\n"“”]+/)) {
+    const frase = paraARegra(trecho).trim()
+    seguido = FALA_DE_PLANEJAMENTO.test(frase) ? Math.max(0, frase.length - CARACTERES_DE_UMA_FRASE_DO_PEDIDO) : seguido + frase.length
+    maior = Math.max(maior, seguido)
+  }
+  return maior
+}
+function cabeNumPedidoDeRubrica(mensagem: string): boolean {
+  const cru = mensagem.trim()
+  return cru.length <= CARACTERES_DE_UM_PEDIDO_DE_RUBRICA && !cru.includes('\n') && maiorTrechoForaDoPedido(cru) <= CARACTERES_DE_ENUNCIADO_NO_PEDIDO
+}
+/** O que a rubrica vai servir ("critérios de correção", "pra eu corrigir", "para avaliar") não é pedido de juízo sobre texto nenhum. */
+const FINALIDADE_DA_RUBRICA = /\b(?:pra|para|de|da) (?:eu |a gente |o professor |a professora )?(?:correc\w+|corrig\w+|avali\w+|julg\w+|analis\w+|classific\w+|pontu\w+)\b/g
+/** Dentro do pedido de rubrica, "diz se atende", "fala o que falta": o juízo pedido com verbo de dizer, que `PEDE_JULGAMENTO` não tem. */
+const PEDE_JUIZO_NO_PEDIDO = /\b(diz|diga|dize|fala|fale|conta|me conta|me diz) (\w+ ){0,2}(se|o que|quanto|qual|quais|em que)\b|\b(diz|diga|dize) o nivel\b/
+/**
+ * O texto recebido, dito com a expressão ("a resposta que recebi", "recebi isto", "tipo assim:", "com base no texto"): dentro do pedido de
+ * rubrica, tira a mensagem da exceção. Presa ao objeto: "com base na BNCC" segue passando. Sem o "com" na frente: `com` é um `de` do mapa 7 da X8 e o teste de restos o acusa em regex.
+ */
+const TEXTO_RECEBIDO = /\bque (?:eu )?recebi\b|\brecebi (?:isto|isso|esta|este|essa|esse)\b|\btipo assim\s*:|\bbase n[ao]s? (?:texto|resposta|redac\w*|producao|que)\b/
 /** Opinião pedida sobre o que veio junto, ou antes: "o que achou?", "e aí, ficou bom?", "e esse?". */
 const PEDE_OPINIAO =
   /\b(o que (voce |vc |tu )?(acha|achou)|que (voce |vc )?(acha|achou)|d[ae]r? uma (olhada|olhadinha|lida)|(esta|ta|ficou|e) (bom|boa|certo|certa|ok|legal|melhor|pior)|olha (isso|isto|so|aqui)|e (ai|esse|essa|este|esta|isso|agora)|segue|corrig\w*|corrij\w*|avali\w*|analis\w*|coment\w*|confer\w*|chec\w*|apont\w* (os )?erros)\b/
@@ -228,17 +285,46 @@ function trazTextoColado(mensagem: string): boolean {
  * - texto colado com qualquer pedido de opinião ("… o que achou?", "tem erro aqui? …").
  *
  * Passa, porque é trabalho do professor sobre o material dele: "corrige a atividade que eu gerei", "melhora o enunciado
- * da questão 3", "confere o gabarito", e o pedido de rubrica e de critérios, antes da aplicação.
+ * da questão 3", "confere o gabarito", e o pedido de rubrica e de critérios, antes da aplicação (D55). **O pedido de rubrica passa
+ * quando** pede a rubrica, os critérios ou os descritores (`PEDE_RUBRICA_NO_PEDIDO`) e não traz marca de aluno, nome, texto apontado,
+ * aplicação, juízo (`PEDE_JULGAMENTO`, `PEDE_OPINIAO`, `PEDE_JUIZO_NO_PEDIDO`) nem bloco de texto: o tamanho sozinho não o torna texto
+ * colado, e "cabe num pedido de rubrica" a mensagem de uma linha, de até 600 caracteres, sem trecho seguido de mais de 120 que não fale
+ * do pedido (`cabeNumPedidoDeRubrica`). O que não cabe segue o caminho de antes e é recusado se tiver as marcas de baixo.
+ *
+ * **O que a rubrica deixa passar, dito com franqueza** ("Resto aceito" do documento da correção, decisão do Joaquim de 23/11/2026):
+ * - **Texto de aluno de menos de uns 120 caracteres** numa mensagem de rubrica de uma linha, ou colado à frase do pedido sem pontuação.
+ *   **Isso era recusado antes da correção** (no HEAD, `colado && REDACAO_OU_DISCURSIVA`, quando a mensagem passava de 160 caracteres) **e
+ *   deixou de ser**: é a troca que a correção faz, para o pedido de rubrica de verdade (turma, gênero, níveis, enunciado) passar.
+ * - O bloco colado sem nenhuma palavra de redação ("me dá descritores: <texto>"): não era recusado antes.
+ * - Redação de aluno que usa "turma", "série", "nível" ou "gênero" no próprio texto: cada uma zera a contagem de um trecho.
+ * Todo texto assim chega à conferência da saída (`julgaTextoDeAluno`), a barreira que fica: ela está armada em todo pedido de rubrica de
+ * redação ou discursiva com dois-pontos ou aspas, de qualquer tamanho (`pedeRubricaDeRedacaoComBloco`).
  */
 export function pedeJulgamentoDeTextoDeAluno(mensagem: string): boolean {
   const texto = paraARegra(mensagem)
   if (PEDE_NOTA.test(texto) || SO_A_NOTA.test(texto.trim()) || ESCREVE_DEVOLUTIVA.test(texto)) return true
   const colado = trazTextoColado(mensagem)
-  const julga = PEDE_JULGAMENTO.test(texto)
   const deAluno = DE_ALUNO.test(texto) || citaPessoaPeloNome(mensagem)
   const apontado = TEXTO_APONTADO.test(texto)
+  const pedeRubrica = PEDE_RUBRICA_NO_PEDIDO.test(texto)
+  // O gênero ("artigo de opinião"), o destino ("pra colar no caderno deles") e a finalidade ("critérios de correção", "pra eu corrigir")
+  // da rubrica não são julgamento nem trabalho de aluno. Só `doPedido` os perde: `deAluno` e `julga` leem o texto inteiro, e fora de um pedido
+  // de rubrica "caderno deles" e "opinião" seguem valendo.
+  const doPedido = texto.replace(GENERO_DE_OPINIAO, ' ').replace(DESTINO_DA_RUBRICA, ' ').replace(FINALIDADE_DA_RUBRICA, ' ')
+  // "Diz se atende", "fala o que falta": na rubrica, o juízo pedido com verbo de dizer é julgamento como os de `PEDE_JULGAMENTO`.
+  const pedeJuizoNaRubrica = pedeRubrica && PEDE_JUIZO_NO_PEDIDO.test(doPedido)
+  const julga = PEDE_JULGAMENTO.test(texto) || pedeJuizoNaRubrica
   // A rubrica e os critérios pedidos antes da aplicação passam; aplicados a um texto, não.
-  if (PEDE_RUBRICA.test(texto) && !colado && !deAluno && !apontado && !/\baplic\w*/.test(texto)) return false
+  if (pedeRubrica) {
+    // Rubrica sobre um texto apontado e colado ("pra essa produção, o texto é: …") é pré-correção.
+    if (apontado && colado) return true
+    // O pedido de rubrica de verdade passa de 160 caracteres (turma, gênero, níveis, o enunciado entre aspas): o tamanho sozinho não o
+    // torna texto colado. Com marca de aluno, aplicação, julgamento ou opinião, ou com um bloco de texto que não é pedido (várias
+    // linhas, mais de 600 caracteres, um trecho seguido que não fala do pedido), a regra de baixo decide, como antes.
+    const semTextoDeAluno = !DE_ALUNO.test(doPedido) && !citaPessoaPeloNome(mensagem) && !/\baplic\w*/.test(texto) && !TEXTO_RECEBIDO.test(texto)
+    const semJuizo = !PEDE_JULGAMENTO.test(doPedido) && !PEDE_OPINIAO.test(doPedido) && !pedeJuizoNaRubrica
+    if (semTextoDeAluno && semJuizo && (!colado || cabeNumPedidoDeRubrica(mensagem))) return false
+  }
   if (julga && (REDACAO_OU_DISCURSIVA.test(texto) || deAluno)) return true
   if (colado && (deAluno || REDACAO_OU_DISCURSIVA.test(texto) || julga || PEDE_OPINIAO.test(texto))) return true
   // Daqui para baixo, a marca é fraca: o que o próprio professor diz que é dele, ou do material dele, não é texto de aluno.
@@ -257,7 +343,17 @@ type Turno = AssistenteInput['turnosAnteriores'][number]
  */
 function mensagemTrazTextoDeAluno(mensagem: string): boolean {
   const texto = paraARegra(mensagem)
-  return trazTextoColado(mensagem) || DE_ALUNO.test(texto) || pessoaDonaDoTexto(mensagem) || TEXTO_APONTADO.test(texto)
+  return trazTextoColado(mensagem) || DE_ALUNO.test(texto) || pessoaDonaDoTexto(mensagem) || TEXTO_APONTADO.test(texto) || pedeRubricaDeRedacaoComBloco(mensagem, texto)
+}
+
+/**
+ * Pedido de rubrica de redação ou discursiva **com dois-pontos ou aspas**: o que vem depois pode ser texto de aluno de qualquer tamanho
+ * (a regra de entrada, que é um filtro, deixa passar o de até 120 caracteres: "Resto aceito" da correção, decisão do Joaquim de
+ * 23/11/2026). Liga a conferência da saída, que é a barreira. Antes, ela só ligava na mensagem de 160 caracteres ou mais: o pedido curto
+ * passava com a conferência desligada.
+ */
+function pedeRubricaDeRedacaoComBloco(mensagem: string, texto: string): boolean {
+  return PEDE_RUBRICA_NO_PEDIDO.test(texto) && REDACAO_OU_DISCURSIVA.test(texto) && /[:"“]/.test(mensagem)
 }
 
 /** "Para esse tipo de texto": o demonstrativo, "tipo de" e uma palavra de texto apontam para o que veio antes (decisão 12 do `ouro`). */
@@ -319,8 +415,9 @@ function pedeRubricaSobreOAnterior(mensagem: string): boolean {
  * ("o que a turma entendeu disso?", ironia, abreviação nova); texto de aluno curto colado sem marca nenhuma e sem pedido;
  * julgamento sobre uma pessoa citada só pelo primeiro nome com um verbo que a lista de `PESSOA_QUE_FEZ` não tem; e o
  * que vier por um turno de mais de oito mensagens atrás. Esses seguem para o modelo, sob o prompt, que proíbe julgar
- * texto de aluno, e sob a conferência da saída, que recusa nota, conceito e pontuação. Por isso a tarefa declara
- * `levaTextoDeAluno`. A D55 não se resolve só com lista de palavras.
+ * texto de aluno, e sob a conferência da saída, que recusa nota, conceito e pontuação; o pedido de rubrica longo com texto de aluno de
+ * menos de uns 120 caracteres, ou colado à frase do pedido sem pontuação, também (ver `pedeJulgamentoDeTextoDeAluno`). Por isso a
+ * tarefa declara `levaTextoDeAluno`. A D55 não se resolve só com lista de palavras.
  */
 export function conversaPedeJulgamentoDeTextoDeAluno(mensagem: string, turnosAnteriores: readonly Turno[], semProposta = false): boolean {
   if (pedeJulgamentoDeTextoDeAluno(mensagem)) return true

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { withEscolaContextOfRequest } from '../__fixtures__/escola-context.js'
 import { ScriptedAdapter } from '../__fixtures__/scripted-adapter.js'
 import { AMOSTRAS_DO_ASSISTENTE } from '../__fixtures__/assistente-samples.js'
-import { AMOSTRAS_DA_REVISAO, SAIDAS_DA_REVISAO } from '../__fixtures__/assistente-review-samples.js'
+import { AMOSTRAS_DA_REVISAO, PEDIDOS_DE_RUBRICA_DO_ACHADO, REDACAO_COM_VERBOS_COMUNS, SAIDAS_DA_REVISAO, TEXTO_CURTO_DE_ALUNO } from '../__fixtures__/assistente-review-samples.js'
 import { entradaDoAnalista, entradaDoAssistente, entradaDoRelatorio, ESCOLA_A } from '../__fixtures__/inputs.js'
 import { MATERIAL_DE_ESTEQUIOMETRIA } from '../__fixtures__/estequiometria.js'
 import type { ModelAdapter } from '../adapter.js'
@@ -592,6 +592,149 @@ describe('propor_ferramenta na tarefa 3.0: juízo sobre texto de aluno, na entra
         expect(conversaPedeJulgamentoDeTextoDeAluno(pedido, []), pedido).toBe(false)
       }
       expect(conversaPedeJulgamentoDeTextoDeAluno('cria uma rubrica de redação', [doProfessor('monta uma atividade de mol')])).toBe(false)
+    })
+
+    it('rubrica e critérios pedidos antes da aplicação passam, longos ou curtos, e a regra fixa não recusa (D55)', () => {
+      const pedidos = [
+        ...PEDIDOS_DE_RUBRICA_DO_ACHADO,
+        'me dá uma rubrica pra prova discursiva de História',
+        'queria descritores de desempenho pra produção textual do 7º ano, três níveis cada um, pra turma que vai escrever sobre o meio ambiente e a cidade na semana que vem, antes de começarem',
+        'cria critérios de correção para a redação do Enem, pra eu corrigir na semana que vem, com os níveis de cada competência e o que caracteriza cada um',
+        'no geral, gera uma rubrica de redação pra turma do 9º ano, com cinco níveis, o enunciado e o gênero que a turma vai escrever na semana que vem, e eu quero mostrar antes de eles começarem a escrever na sala',
+        'cria uma rubrica pra essa redação do ENEM que eu vou passar',
+        // "Com base na BNCC" não é texto recebido: a guarda das expressões de texto recebido está presa ao objeto.
+        'monta os critérios pra redação do 9º ano com base na BNCC, com quatro níveis, três critérios por competência e o que caracteriza cada nível, numa linguagem que a turma entenda, pra eu mostrar antes de eles começarem a escrever',
+        // Frases com o "diz se" e o "corrigir" de quem fala da redação, sem pedir rubrica: não são julgamento de texto de aluno.
+        'me diz se a redação do ENEM tem cinco competências',
+      ]
+      for (const pedido of pedidos) {
+        expect(conversaPedeJulgamentoDeTextoDeAluno(pedido, []), pedido).toBe(false)
+        expect(proporFerramenta.semModelo?.(entradaDoAssistente(pedido)), pedido).toBeUndefined()
+      }
+    })
+
+    it('o pedido longo de rubrica ainda é texto colado para a conferência da saída: o juízo que o modelo escrevesse seria barrado', () => {
+      for (const pedido of PEDIDOS_DE_RUBRICA_DO_ACHADO.filter((p) => p.length >= 160)) {
+        expect(conversaTrazTextoDeAluno(pedido, []), pedido).toBe(true)
+        expect(julgaTextoDeAluno('O texto da Bia ficou confuso e fraco, sem coesão.', conversaTrazTextoDeAluno(pedido, [])), pedido).toBe(true)
+      }
+    })
+
+    it('o pedido de critérios que traz texto de aluno junto, ou que pede juízo, segue recusado, mesmo longo', () => {
+      const PLANEJAMENTO_DO_PEDIDO = 'Turma de 9º ano, primeira vez com esse gênero, e eu queria critérios pra redação com cinco níveis cada'
+      const lucas = 'Na minha opinião a internet ajudou muito as pessoas porque agora da para estudar de casa e falar com os amigos. Mas tambem tem coisas ruins como o cyberbullying e as fake news.'
+      // Sem "opinião" nem verbo de juízo: cada pedido abaixo só é recusado por uma marca, a que o nome do caso diz.
+      const curto = 'A internet ajudou muito as pessoas porque agora da para estudar de casa e falar com os amigos. Mas tambem tem coisas ruins como o cyberbullying e as fake news.'
+      const redacoes = 'Redação 1: A educação é a base de tudo e sem ela o país não cresce.\nRedação 2: Eu acho que a escola devia ensinar mais coisa pratica e menos teoria.'
+      const pedidos = [
+        `me ajuda com os critérios pra essa redação: ${lucas}`,
+        `monta os critérios pra redação do Davi, pra eu aplicar nela: ${lucas}`,
+        `me dá critérios pra redação, com os níveis de cada um:\n${redacoes}`,
+        `queria critérios pra um texto de opinião, o que você acha deste: ${lucas}`,
+        `me ajuda com os critérios, a redação dela: ${curto}`,
+        `monta os critérios pra Bianca, o texto: ${curto}`,
+        `me ajuda com os critérios pra essa redação: ${curto}`,
+        `me ajuda com os critérios, aplica na redação: ${curto}`,
+        `me ajuda com os critérios pra uma redação e depois reescreve o trecho: ${curto}`,
+        `me ajuda com os critérios pra uma redação, segue o que escrevi: ${curto}`,
+        'monta os critérios e corrige o texto do Lucas',
+        // O texto colado sem marca nenhuma de aluno, depois do pedido: dois-pontos, aspas, "recebi isto", "tipo assim", "com base na resposta que recebi".
+        `monta os critérios pra redação: ${curto}`,
+        `cria uma rubrica de redação "${curto}"`,
+        `quero critérios pra redação sobre internet. Texto: ${curto}`,
+        `me dá uma rubrica pra redação do 9º ano. ${curto}`,
+        `cria rubrica pra redação, recebi isto: ${curto}`,
+        `queria critérios pra uma redação, tipo assim: ${curto}`,
+        `cria a rubrica pra discursiva com base na resposta que recebi: "${curto}"`,
+        `cria uma rubrica de redação: ${curto}`,
+        // Texto de aluno com "vou", "vai" e "antes de" (rodada 2): esses verbos não zeram a contagem do trecho que não fala do pedido.
+        `monta os critérios pra redação: ${REDACAO_COM_VERBOS_COMUNS}`,
+        `cria uma rubrica de redação "${REDACAO_COM_VERBOS_COMUNS}"`,
+        `queria critérios pra redação do 9º ano com cinco níveis: ${REDACAO_COM_VERBOS_COMUNS}`,
+        `cria a rubrica pra redação, com níveis, a partir deste: ${REDACAO_COM_VERBOS_COMUNS}`,
+        // O texto recebido dito com a expressão, mesmo curto (60 caracteres): é a expressão que recusa, e não o tamanho.
+        `${PLANEJAMENTO_DO_PEDIDO}, com base na resposta que recebi: ${TEXTO_CURTO_DE_ALUNO}`,
+        `${PLANEJAMENTO_DO_PEDIDO}, tipo assim: ${TEXTO_CURTO_DE_ALUNO}`,
+        `${PLANEJAMENTO_DO_PEDIDO}. Recebi isto: "${TEXTO_CURTO_DE_ALUNO}"`,
+        `${PLANEJAMENTO_DO_PEDIDO}. Com base no texto que recebi: ${TEXTO_CURTO_DE_ALUNO}`,
+        `Queria critérios pra uma redação do 9º ano com base nesta que recebi: ${TEXTO_CURTO_DE_ALUNO}. Com 4 critérios e 3 níveis cada, pra turma de manhã.`,
+        // Texto apontado e colado, sem palavra de redação: o apontar com o colar basta.
+        `cria uma rubrica pra essa produção, o texto é: ${curto}`,
+        // O juízo pedido junto com a rubrica, com ou sem texto na mensagem.
+        'me ajuda a corrigir pelos critérios a redação',
+        'me ajuda a avaliar pelos descritores as redações',
+        'queria saber em que critérios a redação está fraca',
+        'me ajuda nos critérios, a redação ficou boa?',
+        'cria uma rubrica pra redação e diz se esse atende',
+        'cria uma rubrica pra redação e vê o que falta',
+        `monta critérios e diz o nível do texto abaixo ${curto}`,
+        'monta os critérios e diz o nível do texto abaixo',
+        // Uma linha de prosa do professor que "no geral" não é pedido de rubrica (a raiz `ger` não casa com "geral"), e um pedido de várias linhas.
+        'No geral os critérios pra redação do 9º ano têm sido úteis, e a turma gosta, mas eu preciso escrever algo novo para a semana que vem sobre outro assunto, qualquer um.',
+        // O pedido de uma linha só, de prosa, que ainda assim traz uma marca: "da turma", o nome de quem escreveu, "aplica".
+        'queria critérios pra redação da turma do 9º ano, turma nova, com cinco níveis e o gênero artigo, que a turma vai escrever na semana que vem, antes de começarem a escrever na sala',
+        'queria critérios pra redação do Davi, turma nova, com cinco níveis e o gênero artigo, que a turma vai escrever na semana que vem, antes de começarem a escrever na sala',
+        'queria critérios pra redação do 9º ano, turma nova, com cinco níveis, e aplica isso na semana que vem, antes de começarem a escrever na sala, sem pressa nenhuma',
+        // O pedido depois do texto: o trecho que não fala do pedido vem antes, e o maior trecho seguido é o dele, não o último.
+        `${curto} monta os critérios pra redação`,
+        'queria critérios pra redação do 9º ano, turma nova\ncom cinco níveis e o gênero artigo, que a turma vai escrever na semana que vem, antes de começarem',
+        // Só o pedido de opinião, sem palavra de redação nem de juízo: "segue aí".
+        'queria critérios pra um relato, turma nova, com cinco níveis, e segue aí o gênero que a turma vai escrever na semana que vem, antes de começarem a escrever na sala',
+      ]
+      for (const pedido of pedidos) {
+        expect(conversaPedeJulgamentoDeTextoDeAluno(pedido, []), pedido).toBe(true)
+        expect(proporFerramenta.semModelo?.(entradaDoAssistente(pedido)), pedido).toMatchObject({ texto: RECUSA_DE_CORRECAO_DE_TEXTO_DE_ALUNO })
+      }
+    })
+
+    it('o limite de um pedido de rubrica: 600 caracteres passam, 601 não; e o trecho que não fala do pedido passa até 120, 121 não', () => {
+      // O pedido de 600 caracteres só cabe porque "turma" e "critérios" estão em `FALA_DE_PLANEJAMENTO`: cada trecho de vírgula fala do pedido, e a
+      // contagem não passa de 120. Quem tirar essas palavras da lista move a fronteira de 600/601.
+      const comTamanho = (tamanho: number) => 'queria critérios pra redação, turma, '.repeat(30).slice(0, tamanho)
+      expect(conversaPedeJulgamentoDeTextoDeAluno(comTamanho(600), [])).toBe(false)
+      expect(conversaPedeJulgamentoDeTextoDeAluno(comTamanho(601), [])).toBe(true)
+      // O enunciado entre aspas, que não fala de rubrica nem de nível: até 120 caracteres seguidos cabem no pedido.
+      const planejamento = 'Turma de 9º ano, primeira vez com esse gênero, e eu queria critérios pra redação com cinco níveis cada. '
+      const enunciado = (tamanho: number) => `"${'palavra '.repeat(30).slice(0, tamanho).trim().padEnd(tamanho, 'x')}"`
+      expect(conversaPedeJulgamentoDeTextoDeAluno(`${planejamento}${enunciado(120)}`, [])).toBe(false)
+      expect(conversaPedeJulgamentoDeTextoDeAluno(`${planejamento}${enunciado(121)}`, [])).toBe(true)
+      // Uma frase do pedido sem pontuação conta como pedido até 70 caracteres; o que passa disso soma ao trecho que vem depois.
+      const frase = (tamanho: number) => `queria critérios pra redação ${'x'.repeat(tamanho - 'queria critérios pra redação '.length)}`
+      expect(conversaPedeJulgamentoDeTextoDeAluno(frase(190), [])).toBe(false)
+      expect(conversaPedeJulgamentoDeTextoDeAluno(frase(191), [])).toBe(true)
+    })
+
+    it('"colar no caderno deles" e "artigo de opinião" só deixam de contar fora de um pedido de rubrica: no resto da conversa, seguem valendo', () => {
+      expect(pedeJulgamentoDeTextoDeAluno('corrige o que escreveram no caderno deles')).toBe(true)
+      expect(conversaTrazTextoDeAluno('o caderno deles', [])).toBe(true)
+      expect(pedeJulgamentoDeTextoDeAluno('o que você acha dessa redação, um artigo de opinião?')).toBe(true)
+    })
+
+    it('o texto de aluno de uma linha que a regra não pega ("me dá descritores: …", sem marca nenhuma) chega à conferência da saída, que barra o juízo', () => {
+      const pedido = 'me dá descritores: A internet ajudou muito as pessoas porque agora da para estudar de casa e falar com os amigos. Mas tambem tem coisas ruins como o cyberbullying e as fake news.'
+      expect(conversaPedeJulgamentoDeTextoDeAluno(pedido, [])).toBe(false)
+      const trazTexto = conversaTrazTextoDeAluno(pedido, [])
+      expect(trazTexto).toBe(true)
+      expect(julgaTextoDeAluno('O texto está confuso e fraco, sem coesão.', trazTexto)).toBe(true)
+      expect(atribuiNotaOuConceito('Daria nota 7 a esse texto.')).toBe(true)
+    })
+
+    it('o pedido de rubrica de redação ou discursiva com dois-pontos ou aspas liga a conferência da saída, curto que seja: o juízo que o modelo escrevesse seria barrado', () => {
+      // Antes da correção esses pedidos passavam na regra de entrada e **com a conferência desligada** (menos de 160 caracteres).
+      const pedidos = [
+        'monta os critérios pra redação: A internet ajuda a estudar mas tem fake news e cyberbullying',
+        'cria critérios pra discursiva: Desigualdade é quando uns tem mais dinheiro que outros.',
+        `cria uma rubrica de redação "${TEXTO_CURTO_DE_ALUNO}"`,
+      ]
+      for (const pedido of pedidos) {
+        expect(pedido.length, pedido).toBeLessThan(160)
+        expect(conversaTrazTextoDeAluno(pedido, []), pedido).toBe(true)
+        expect(julgaTextoDeAluno('O texto está confuso e fraco, sem coesão.', conversaTrazTextoDeAluno(pedido, [])), pedido).toBe(true)
+      }
+      // Sem dois-pontos nem aspas, ou sem redação ou discursiva, a rubrica em geral não liga a chave: nomear o gênero não põe texto na conversa.
+      for (const pedido of ['monta os critérios pra redação do 9º ano', 'cria critérios pra discursiva de História', 'monta os critérios: tese, argumentos e linguagem', 'explica a redação do Enem: as cinco competências']) {
+        expect(conversaTrazTextoDeAluno(pedido, []), pedido).toBe(false)
+      }
     })
 
     it('mexer no que veio antes, com a referência a ele, é mexer no texto do aluno; no enunciado ou no que é do professor, não', () => {
