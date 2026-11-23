@@ -85,7 +85,11 @@ mesmo tamanho. O que fica aceito, e a Mesa julga a correção contra este limite
 
 1. **Um trecho livre de até 120 caracteres, numa mensagem de rubrica de uma linha, chega ao modelo**, e o texto colado à frase do pedido
    **sem pontuação** (`monta os critérios pra redação A internet ajudou muito…`, em que a frase do pedido conta até 70 caracteres como pedido
-   e o resto soma ao que vem), sob o prompt e sob a conferência da saída **ligada** (`pedeRubricaDeRedacaoComBloco`): a saída que julgasse o texto, desse nota ou conceito é barrada e substituída pela recusa fixa.
+   e o resto soma ao que vem), sob o prompt. A conferência da saída fica **ligada** quando o pedido é de rubrica de redação ou discursiva
+   com dois-pontos ou aspas (`pedeRubricaDeRedacaoComBloco`), ou quando a mensagem passa de 160 caracteres (`trazTextoColado`); ligada, a
+   saída que julgasse o texto, desse nota ou conceito é barrada e substituída pela recusa fixa. **O texto colado à frase do pedido sem
+   pontuação, abaixo de 160 caracteres, chega com a conferência desligada, como no HEAD:** sem dois-pontos nem aspas,
+   `pedeRubricaDeRedacaoComBloco` não liga, e a mensagem curta não é texto colado.
 2. **Isso era recusado antes da correção** quando a mensagem passava de 160 caracteres, e **passava sem conferência** quando era mais curta
    (o furo que o HEAD já tinha, medido na sonda do Arquiteto). A correção troca uma coisa pela outra: o pedido de rubrica de verdade passa; o
    texto curto passa também, mas agora com a barreira armada.
