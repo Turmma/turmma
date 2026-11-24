@@ -200,6 +200,12 @@ export const METRICS = {
    */
   tutorRecusadoSemMaterial: 'tutor.recusa_sem_material',
   /**
+   * Histograma, em segundos, de cada conferência da trava do Tutor por prova (avaliacao-e-correcao, 7.0; Tech Spec §5.10), por `escola_id`: a consulta das avaliativas abertas da turma
+   * e, quando há prova com janela, a das extensões e a das quedas. Roda três vezes por turno (o `POST`, o `preparar` e o `concluir`, os dois últimos no worker), e é gravada também
+   * quando a conferência lança. O único rótulo é a escola: nunca o aluno, a turma nem a prova. Sem alerta (decisão da 7.0): quem a lê é o painel, com o p95 por escola.
+   */
+  duracaoDaTravaDoTutor: 'tutor.trava.duracao',
+  /**
    * Pedidos de IA que o gateway recusou com `PEDIDO_ACIMA_DO_TETO` (reengenharia-continuacao, tarefa 4.0), por `tarefa`: o pedido passou pelo
    * esquema da entrada e estourou o `maximoDeTokensDeEntrada` da tarefa. Só guarda de defeito, e o alerta dispara com qualquer valor acima de zero.
    * O único rótulo é a tarefa do catálogo (nunca a escola, a execução, o usuário nem o conteúdo).
@@ -304,6 +310,7 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.habilidadeAnulada,
   METRICS.usoDoOrcamentoDoMes,
   METRICS.usoDoTetoDoOrcamento,
+  METRICS.duracaoDaTravaDoTutor,
 ]
 
 /** O rótulo da escola nas métricas de job. Rotina do sistema, sem escola, aparece como `sistema`, como na chave da vaga. */

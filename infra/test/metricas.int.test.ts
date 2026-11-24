@@ -265,6 +265,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         // O que a escola já gastou do orçamento de IA do mês e do teto de segurança dele, por escola: o que os alertas de 80%, de 100% e do teto leem (camada-ia, tarefa 4.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.usoDoOrcamentoDoMes,
         ...NOMES_NO_PROMETHEUS.usoDoTetoDoOrcamento,
+        // A duração da conferência da trava do Tutor por prova, por escola: o p95 que o painel mostra, sem alerta (avaliacao-e-correcao, tarefa 7.0; Tech Spec §5.10 e §7c).
+        ...NOMES_NO_PROMETHEUS.duracaoDaTravaDoTutor,
       ].sort(),
     )
     expect(comEscola.filter((nome) => !admitidas.has(nome ?? ''))).toEqual([])

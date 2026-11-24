@@ -105,6 +105,7 @@ export const NOMES_NO_PROMETHEUS = {
   extracaoDoMaterial: ['material_extracao_total'],
   duracaoDaExtracaoDoMaterial: ['material_extracao_duracao_seconds_bucket', 'material_extracao_duracao_seconds_count', 'material_extracao_duracao_seconds_sum'],
   tutorRecusadoSemMaterial: ['tutor_recusa_sem_material_total'],
+  duracaoDaTravaDoTutor: ['tutor_trava_duracao_seconds_bucket', 'tutor_trava_duracao_seconds_count', 'tutor_trava_duracao_seconds_sum'],
   pedidoAcimaDoTeto: ['ia_pedido_acima_do_teto_total'],
   esperaEstourada: ['ia_espera_estourada_total'],
   execucaoInterrompida: ['ia_execucao_interrompida_total'],

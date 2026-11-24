@@ -58,7 +58,8 @@ function paraATela(mensagem: MensagemDaConversa): unknown {
  *    avaliação aberta, o limite do dia, o pacote esgotado e a função suspensa não tiram do aluno o encaminhamento. A
  *    mensagem fixa não ajuda em prova nenhuma. Esse turno não chama modelo, não espera fila, e o professor recebe o
  *    sinal sem o conteúdo.
- * 3. **Atividade avaliativa aberta trava o Tutor** para a turma (`TUTOR_PAUSADO_EM_AVALIACAO`; regra 30, item 10). A
+ * 3. **Atividade avaliativa aberta trava o Tutor** para o aluno (`TUTOR_PAUSADO_EM_AVALIACAO`; regra 30, item 10), do `abre_em` até o fim da
+ *    janela ou o limite dele, e a segunda chamada trava só o convocado (`TutorDoAlunoRepository.avaliativaAberta`). A
  *    conferência se repete em duas janelas, as do comando (`turno.command.ts`): ao rodar (`preparar`, antes de trechos,
  *    memória e modelo) e ao concluir (`concluir`, na transação que grava a resposta). A avaliação que abre depois do `202`
  *    faz a execução `falhar` com esse código: sem resposta, sem sinal e sem troca contada, com a pergunta só em
