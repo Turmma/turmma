@@ -329,6 +329,28 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(shared.acompanhamentoDoAlunoSchema.safeParse({ ...aluno, saidasDaAba: 2 }).success).toBe(false)
   })
 
+  it('avaliacao-e-correcao 3.0: o que o aluno lê da prova (`comecar`, `prova`, `tempo`, `minhas-atividades`) leva só o `limiteEm` dele, e nunca a saída da aba, o tempo adicional nem o percentual', () => {
+    const doAluno = {
+      provaOnlineResponseSchema: shared.provaOnlineResponseSchema,
+      provaAntesDeComecarResponseSchema: shared.provaAntesDeComecarResponseSchema,
+      provaEmAndamentoResponseSchema: shared.provaEmAndamentoResponseSchema,
+      tempoResponseSchema: shared.tempoResponseSchema,
+      minhasAtividadesResponseSchema: shared.minhasAtividadesResponseSchema,
+    }
+    for (const [nome, esquema] of Object.entries(doAluno)) {
+      const campos = camposDoEsquema(esquema)
+      for (const proibido of ['saida', 'saidas', 'tempoAdicional', 'adicional', 'percentual', 'extensao', 'concedidoPor', 'concedida']) {
+        // A exceção é uma só, e antiga: `adaptacao.tempoExtraPercentual` é o da **versão adaptada**, que vale para a turma inteira que a recebeu (MVP, A2), e não o de um aluno (D35).
+        expect(campos.filter((campo) => campo !== 'adaptacao.tempoExtraPercentual' && campo.toLowerCase().includes(proibido.toLowerCase())), `${nome}: ${proibido}`).toEqual([])
+      }
+    }
+    expect(camposDoEsquema(shared.tempoResponseSchema).sort()).toEqual(['agora', 'envio', 'limiteEm'])
+    // O contrato é estrito: o campo a mais (o percentual do aluno) é recusado, e não repassado.
+    const tempo = { limiteEm: new Date().toISOString(), agora: new Date().toISOString(), envio: null }
+    expect(shared.tempoResponseSchema.safeParse(tempo).success).toBe(true)
+    expect(shared.tempoResponseSchema.safeParse({ ...tempo, percentual: 50 }).success).toBe(false)
+  })
+
   it('e-mail é recusado em contrato que pode chegar ao aluno, e só passa em contrato declarado da equipe', () => {
     const comEmail = z.object({ itens: z.array(z.object({ usuarioId: z.uuid(), email: z.email() })) })
     expect(problemasDoContrato('alunosDaTurmaResponseSchema', comEmail)).toEqual(['alunosDaTurmaResponseSchema: itens[].email (email)'])

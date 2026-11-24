@@ -318,21 +318,21 @@ describe('o pulso da API', () => {
       // Uma aplicação de outra escola: o 503 não pode dizer se o id existe.
       const outra = await montarEscolaComAssistente(api, bancada)
       outraEscolaAplicacaoId = await aplicarAtividade(rotas, outra.professora, await criarAtividade(bancada, outra), outra.turma)
-      // A Ana já abriu a prova antes do pulso existir: os casos abaixo não dependem uns dos outros.
-      expect((await rotas.prova(ana, aplicacaoId)).status).toBe(200)
+      // A Ana já começou a prova antes do pulso existir: os casos abaixo não dependem uns dos outros.
+      expect((await rotas.comecar(ana, aplicacaoId)).status).toBe(200)
     })
 
     afterAll(async () => {
       await api.app.close()
     })
 
-    it('antes de o pulso ser iniciado a instância não mede nada: com o relógio uma hora adiante, a prova abre', async () => {
+    it('antes de o pulso ser iniciado a instância não mede nada: com o relógio uma hora adiante, a prova começa', async () => {
       deslocamentoMs = 60 * 60_000
-      expect((await rotas.prova(cris, aplicacaoId)).status).toBe(200)
+      expect((await rotas.comecar(cris, aplicacaoId)).status).toBe(200)
       deslocamentoMs = 0
     })
 
-    it('+29 s e +30 s aceitam `prova`, PUT e envio; +31 s recusa as três com 503, antes de ler e de gravar, e `minhas-atividades` segue; o tique volta e as três aceitam', async () => {
+    it('+29 s e +30 s aceitam `comecar`, `prova`, `tempo`, PUT e envio; +31 s recusa as cinco com 503, antes de ler e de gravar, e `minhas-atividades` segue; o tique volta e as cinco aceitam', async () => {
       await api.app.get(PulsoService).start()
       expect(acaoDoTique, 'o tique foi registrado').toBeDefined()
 
@@ -342,23 +342,29 @@ describe('o pulso da API', () => {
         [30_000, dani],
       ] as const) {
         deslocamentoMs = adiante
+        expect((await rotas.comecar(aluna, aplicacaoId)).status, `+${String(adiante)} ms: comecar`).toBe(200)
         expect((await rotas.prova(aluna, aplicacaoId)).status, `+${String(adiante)} ms: prova`).toBe(200)
+        expect((await rotas.tempo(aluna, aplicacaoId)).status, `+${String(adiante)} ms: tempo`).toBe(200)
         expect((await rotas.responder(aluna, aplicacaoId, 1, 0)).status, `+${String(adiante)} ms: PUT da resposta`).toBe(200)
         expect((await rotas.enviar(aluna, aplicacaoId)).status, `+${String(adiante)} ms: envio`).toBe(200)
         expect(await contar('resposta_atividade', aluna), `+${String(adiante)} ms: a resposta gravou`).toBe(1)
       }
 
       deslocamentoMs = 31_000
+      expect(await status(rotas.comecar(bia, aplicacaoId))).toEqual(INDISPONIVEL)
       expect(await status(rotas.prova(bia, aplicacaoId))).toEqual(INDISPONIVEL)
+      expect(await status(rotas.tempo(ana, aplicacaoId))).toEqual(INDISPONIVEL)
       expect(await status(rotas.responder(ana, aplicacaoId, 1, 0))).toEqual(INDISPONIVEL)
       expect(await status(rotas.enviar(ana, aplicacaoId))).toEqual(INDISPONIVEL)
       // O 503 vem antes de qualquer leitura: o mesmo para o id de uma aplicação de outra escola e para um id que não existe (regra 10, item 6; regra 20, item 6).
       for (const id of [outraEscolaAplicacaoId, randomUUID()]) {
+        expect(await status(rotas.comecar(bia, id)), 'comecar').toEqual(INDISPONIVEL)
         expect(await status(rotas.prova(bia, id)), 'prova').toEqual(INDISPONIVEL)
+        expect(await status(rotas.tempo(bia, id)), 'tempo').toEqual(INDISPONIVEL)
         expect(await status(rotas.responder(bia, id, 1, 0)), 'PUT').toEqual(INDISPONIVEL)
         expect(await status(rotas.enviar(bia, id)), 'envio').toEqual(INDISPONIVEL)
       }
-      // Recusou antes de ler e de gravar: a Bia segue sem tentativa (a prova de hoje cria uma ao abrir), a Ana sem resposta e sem envio.
+      // Recusou antes de ler e de gravar: a Bia segue sem tentativa (só `comecar` cria uma), a Ana sem resposta e sem envio.
       expect(await contar('tentativa_atividade', bia)).toBe(0)
       expect(await contar('resposta_atividade', ana)).toBe(0)
       expect((await sql<{ enviada_em: Date | null }>('select enviada_em from tentativa_atividade where aluno_id = $1', [ana.usuarioId]))[0]?.enviada_em).toBeNull()
@@ -367,7 +373,9 @@ describe('o pulso da API', () => {
 
       // O tique volta: o pulso grava, a instância volta a aceitar, e a recusa não fica presa.
       await dispararOTique()
+      expect((await rotas.comecar(bia, aplicacaoId)).status).toBe(200)
       expect((await rotas.prova(bia, aplicacaoId)).status).toBe(200)
+      expect((await rotas.tempo(bia, aplicacaoId)).status).toBe(200)
       expect((await rotas.responder(ana, aplicacaoId, 1, 0)).status).toBe(200)
       expect((await rotas.enviar(ana, aplicacaoId)).status).toBe(200)
     })

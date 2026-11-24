@@ -1,9 +1,9 @@
 # Estado da execução — avaliacao-e-correcao
 
 ## Agora
-- **Espero:** linha 1 (`Implementador` e `Mesa`) na **correção `2026-11-23-explain-semana-itens`** (esteira VERMELHA em `8778bdd`, execução 45287313249: `apps/api/test/semana-itens.int.test.ts`, o `EXPLAIN` das aplicadas escolhe outro índice depois da 1.0), 1ª tentativa. Linha 2 (`Implementador 2` e `Mesa 2`) na **10.0** (porte grande), 1ª tentativa. Linha 3 (`Implementador 3` e `Mesa 3`, aberta às ~22:30) na **3.0**, 1ª tentativa.
-- **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim.
-- **Base:** `spec/avaliacao-e-correcao` em `bdd0936d` (encontro da 2.0); esteira vermelha em `8778bdd` (execução 45287313249), verde antes em `6c187bd`
+- **Espero:** linha 1 (`Implementador` e `Mesa`) na **7.0** (porte grande, partida 23/11 depois do encontro da correção explain), 1ª tentativa. Linha 2 (`Implementador 2` e `Mesa 2`) na **5.0** (porte grande, partida 23/11 depois do encontro da 10.0), 1ª tentativa. Linha 3 (`Implementador 3` e `Mesa 3`, aberta às ~22:30) na **3.0**, 1ª tentativa.
+- **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim. No fechamento, levar também ao `TODO.md` as duas linhas de "Recomendações sem aplicar" de `tasks/correcoes/2026-11-23-explain-semana-itens.md` (regex sem `ano_letivo_id`; regra no lugar da lista de nomes); as outras duas vão para a retro.
+- **Base:** `spec/avaliacao-e-correcao` em `4876cb1f` (encontro da correção explain); esteira VERMELHA em `5e4d786` (execução 45308060223, o mesmo EXPLAIN, anterior à correção), execução nova rodando em `4876cb1`
 - **Decidido (23/11), aviso fixo da coluna "Saiu da aba":** o Joaquim aprovou, nesta conversa, o texto proposto em `cenarios.md` §4, sem mudança.
 
 ## Concluídas
@@ -12,6 +12,8 @@
 | 2.0 (linha 1) | `aee849ff` → spec `bdd0936d` | Sonnet | 2 (`test-engineer` reprovou na 1ª) | encontro 23/11, verificação verde |
 | 1.0 (linha 2) | `cb79a2c2` → spec `8778bddb` | Sonnet | 3 (divergência de desenho na 2ª; BLOQUEIO do Arquiteto; o Joaquim escolheu A, a exceção do art. 18 no arquivo do titular) | encontro 23/11 ~17:35, verificação verde |
 | correção d55-recusa-rubrica (linha 1) | `b448df3d` → spec `84852d06`; "Resto aceito" reescrito pelo Arquiteto, itens 3 e 4 em `5ec3577d` e item 1 em `6c187bd3` | Sonnet | 3 (escalada na 2ª; diagnóstico do Arquiteto 2; alternativa A do Joaquim) | encontro 23/11 ~15:40, verificação verde; esteira verde em `b9dd235` (execução 45219624849) antes deste push |
+| 10.0 (linha 2) | `f860fc60` → spec `5e4d7867` | Sonnet | 2 (sete revisores aprovaram na 2ª) | encontro 23/11, verificação verde; seis itens da Mesa no `TODO.md`; "Mudar a janela da prova" e o painel da prova ficam para a Validação |
+| correção explain-semana-itens (linha 1) | `89884d98` → spec `4876cb1f` | Sonnet | 3 (`revisor-geral` reprovou na 2ª, aprovou na 3ª) | encontro 23/11, verificação verde; esteira vermelha de `5e4d786` é o mesmo EXPLAIN, anterior à correção |
 
 ## Esperando o Joaquim
 ## 23/11 16:25 — 1.0 (linha 2), BLOQUEIO do Arquiteto na divergência da 2ª rodada — RESPONDIDA (23/11 ~17:05, no terminal do Arquiteto): A, os dois entram na versão `coordenacao` por exceção declarada (art. 18); PRD, Tech Spec, cenarios.md e docs/lgpd.md editados pelo Arquiteto na linha 2, sem commit, vão no commit da 1.0

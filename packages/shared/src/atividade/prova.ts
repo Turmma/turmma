@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ALTERNATIVAS_POR_QUESTAO, adaptacaoAplicadaSchema, citacaoSchema, habilidadeSchema, type ConteudoDeAtividade } from '../assistente/conteudo.js'
 import { MAXIMO_DE_QUESTOES_POR_ATIVIDADE } from '../assistente/conversa.js'
 import { paginationQuerySchema, pageSchema } from '../estrutura/pagination.js'
-import { duracaoDaProvaSchema, ENVIOS_DA_TENTATIVA, ESTADOS_DE_ATIVIDADE_APLICADA, janelaDaProvaSchema } from './atividade-aplicada.js'
+import { DURACAO_MAXIMA_DA_PROVA_MIN, DURACAO_MINIMA_DA_PROVA_MIN, ENVIOS_DA_TENTATIVA, ESTADOS_DE_ATIVIDADE_APLICADA, janelaDaProvaSchema } from './atividade-aplicada.js'
 
 /**
  * O lado do aluno na atividade (MVP, A3): `GET /v1/minhas-atividades`, a prova, as respostas, o envio e o diagnóstico.
@@ -12,6 +12,9 @@ import { duracaoDaProvaSchema, ENVIOS_DA_TENTATIVA, ESTADOS_DE_ATIVIDADE_APLICAD
  * **Duas contagens, para ninguém errar por um:** `questao` é o **número** da questão, a partir de 1, como a turma a vê
  * (a posição em `questoes` mais um); `alternativa` é o **índice** da alternativa, de 0 a 3, o mesmo do `gabarito`.
  */
+
+/** Quantas vezes por minuto o mesmo aluno pode chamar `comecar` (`rl:comecar-prova`, 429 acima): o clique repetido e o laço de reenvio não esgotam a cota dele nem a da escola. */
+export const LIMITE_DO_COMECAR_POR_MINUTO = 30
 
 /** O número da questão, de 1 a 20, no caminho (`/respostas/:questao`) e nos corpos. */
 export const numeroDaQuestaoSchema = z.coerce.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE)
@@ -38,7 +41,13 @@ export const alternativaSchema = z.number().int().min(0).max(ALTERNATIVAS_POR_QU
 export const SITUACOES_DA_MINHA_ATIVIDADE = ['para_fazer', 'em_andamento', 'enviada', 'encerrada', 'com_diagnostico'] as const
 export type SituacaoDaMinhaAtividade = (typeof SITUACOES_DA_MINHA_ATIVIDADE)[number]
 
-/** Uma atividade da turma do aluno, na lista dele. Sem acertos: o resultado só existe no diagnóstico, depois da aprovação. */
+/**
+ * A duração que o **aluno** lê (`prova` antes de começar e a lista): a da prova com o tempo adicional dele já somado, sem dizer que há tempo adicional nem
+ * o percentual (D35). O teto é o dobro do da prova, porque +100% sobre 300 min passa dele; arredondada para cima, em minutos inteiros.
+ */
+export const duracaoDoAlunoSchema = z.number().int().min(DURACAO_MINIMA_DA_PROVA_MIN).max(DURACAO_MAXIMA_DA_PROVA_MIN * 2)
+
+/** Uma atividade da turma do aluno, na lista dele. Sem acertos: o resultado só existe no diagnóstico, depois da aprovação. A janela e a duração são nulas na atividade sem prova online. */
 export const minhaAtividadeSchema = z.strictObject({
   id: z.uuid(),
   titulo: z.string().min(1),
@@ -49,6 +58,8 @@ export const minhaAtividadeSchema = z.strictObject({
   respondidas: z.number().int().nonnegative(),
   aplicadaEm: z.iso.datetime(),
   enviadaEm: z.iso.datetime().nullable(),
+  janela: janelaDaProvaSchema.nullable(),
+  duracaoMin: duracaoDoAlunoSchema.nullable(),
 })
 export type MinhaAtividade = z.infer<typeof minhaAtividadeSchema>
 
@@ -103,7 +114,7 @@ export type EspelhoDaFila = z.infer<typeof espelhoDaFilaSchema>
 /**
  * Resposta de `GET /v1/atividades-aplicadas/:id/prova`: a atividade como o aluno a faz. `adaptacao` traz só os **tipos**
  * da versão (para a tela ampliar a fonte ou mostrar o tempo extra), e vale para a turma inteira que recebeu a versão.
- * Abrir a prova cria a tentativa do aluno, uma só.
+ * Quem cria a tentativa do aluno, uma só, é `comecar`; ler a prova não grava (avaliacao-e-correcao, 3.0).
  */
 export const provaResponseSchema = z.strictObject({
   atividadeAplicadaId: z.uuid(),
@@ -214,7 +225,7 @@ export const provaAntesDeComecarResponseSchema = z.strictObject({
   atividadeAplicadaId: z.uuid(),
   titulo: z.string().min(1),
   janela: janelaDaProvaSchema.nullable(),
-  duracaoMin: duracaoDaProvaSchema.nullable(),
+  duracaoMin: duracaoDoAlunoSchema.nullable(),
 })
 export type ProvaAntesDeComecarResponse = z.infer<typeof provaAntesDeComecarResponseSchema>
 

@@ -10,6 +10,14 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       cadastro e a D62 (dono: Arquiteto)
 - [ ] (semana-do-professor, 1.0, privacy-guardian, 1ª) **Reserva no expurgo da `aula`.** A escola que nunca encerra o ano guarda o texto da aula, e com ele
       algum nome de aluno, sem limite. Rotina de reserva no expurgo, como a da `lista_nome`; muda retenção (dono: Arquiteto; fechamento da F2b, 07/11/2026)
+- [ ] (avaliacao-e-correcao, 3.0, privacy-guardian, 1ª) **Registrar em `docs/lgpd.md` os baldes de rate limit por usuário**, entre eles `rl:comecar-prova:{usuarioId}`
+      (30 por minuto): os anteriores (`rl:busca-titular`, `rl:importacao`) também não estão lá; uma passada só para todos (dono: Arquiteto)
+- [ ] (avaliacao-e-correcao, 3.0, revisor-geral, 2ª) **O rótulo "(c) enviar × responder" do `prova-online-aluno.int.test.ts` repete a letra do "(c)" de
+      `cenarios.md`** (resposta × encerrar e resposta × job): trocar o rótulo ou acrescentar a linha com letra própria no `cenarios.md` (documento da spec;
+      dono: Arquiteto)
+- [ ] (avaliacao-e-correcao, 3.0, infra-guardian, 2ª) **Estreitar o filtro do caso do `tempo` sem trava** (`prova-online-aluno.int.test.ts`): `query ilike '%atividade_aplicada%'`
+      também pega consultas de tabelas que citam `atividade_aplicada_id`; restringir a `'%from "atividade_aplicada"%for%'` ou filtrar pelo id. Só falha por motivo errado,
+      nunca passa por engano
 - [ ] Contrato de tratamento de dados escola↔nós, com advogado (escola controladora)
 - [ ] Contrato com provedor de IA vedando treinamento com nosso dado
 - [ ] Política de privacidade e termos, com seção de menor de idade
@@ -311,6 +319,9 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 - [ ] **`PulsoService.beforeApplicationShutdown` devolve a conexão sem esperar o pulso em curso (avaliacao-e-correcao, 2.0, `revisor-geral` da 1ª rodada):** o efeito é só um `pulso.falhou` falso no log, no desligamento. Esperar o `#emAndamento` muda o comportamento do serviço e pede caso e bloco de mutação novos.
 - [ ] **Registrar a vaga do pool que a conexão do pulso ocupa (avaliacao-e-correcao, 2.0, `infra-guardian` da 1ª rodada):** em `docs/infra.md` ou no comentário de `BANCO_POOL_MAXIMO` (`infra/compose.yml`), para quem dimensionar o pool na rajada da N2 saber que cada instância HTTP da API retém uma conexão a mais.
 - [ ] **O bloco "sem `skip locked`" do expurgo fica vermelho por espera (avaliacao-e-correcao, 2.0, `test-engineer` da 1ª rodada):** um `lock_timeout` curto na sessão do caso (`apps/worker/test/expurgo-de-acesso.int.test.ts`, `lote ordenado e skip locked`) daria vermelho rápido, pela asserção. Muda a mecânica do teste de corrida do expurgo e pede nova prova.
+- [ ] **A exceção por nome da varredura da 3.0 não prova que só vale dentro de `adaptacao` (avaliacao-e-correcao, correção 2026-11-24-encontro-5, `conformidade-reviewer` da 1ª rodada):** o caso da 3.0 em `apps/api/test/contracts.test.ts` abre `adaptacao.tempoExtraPercentual` por nome; falta um caso que prove que ele só aparece sob `adaptacao`. Entra na próxima tarefa da spec que tocar `contracts.test.ts`.
+- [ ] **O caso da 3.0 em `contracts.test.ts` não confere que os cinco esquemas do aluno entram na varredura geral (avaliacao-e-correcao, correção 2026-11-24-encontro-5, `test-engineer` da 1ª rodada):** o da 5.0 faz `expect(esquemasDeResposta.map(([nome]) => nome)).toContain(...)`; o da 3.0 não. Mesmo arquivo e mesma tarefa do item acima.
+- [ ] **Falta o teste de integração que passa pelas duas rotas da extensão de tempo (avaliacao-e-correcao, correção 2026-11-24-encontro-5, `test-engineer` da 1ª rodada):** estender pela rota do professor e conferir (1) o `tempo` do aluno estendido traz o limite mais os minutos, (2) o colega da mesma turma não ganha os minutos, (3) o PUT da resposta grava depois do limite original. Entra na tarefa da spec que tocar `prova-online-aluno.int.test.ts` ou `extensao.int.test.ts`.
 - [ ] **O pool do caso "`encerrar` devolve a conexão retida" não entra em `pools` (avaliacao-e-correcao, 2.0, `revisor-geral` e `test-engineer` da 2ª rodada):** em `apps/api/src/atividade/pulso/pulso.int.test.ts:164-172`, com o caso vermelho ninguém encerra o pool e a conexão fica pendurada até o worker do vitest cair. Registrá-lo em `pools` e deixar o `afterEach` cuidar dele.
 - [ ] **`not.toHaveProperty('erro.message')` só cobre a chave `message` (avaliacao-e-correcao, 2.0, `revisor-geral` da 2ª rodada):** em `apps/api/src/atividade/pulso/pulso.service.test.ts:161`, uma lista positiva das chaves permitidas em `erro` (`toEqual({ sqlstate: ... })`) endurece o teste contra outra chave que ninguém escreveu.
 - [ ] **Escrita a mais por troca do Tutor (F3, 4.0):** `execucao_agente_a_anonimizar_idx`,

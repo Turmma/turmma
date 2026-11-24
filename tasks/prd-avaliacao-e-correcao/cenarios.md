@@ -74,7 +74,7 @@
 
 | Cenário | Mutação |
 |---|---|
-| Escola sem ano em curso: as rotas do aluno, `NAO_ENCONTRADO` (o ano é parte do alcance) e `minhas-atividades` vazia; as do professor, a recusa de hoje no aplicar e `NAO_ENCONTRADO` no `:id` | tirar o `anoLetivoId` do `where` |
+| Escola sem ano em curso: as rotas do aluno, `NAO_ENCONTRADO` (o ano é parte do alcance), `minhas-atividades` também (é rota do aluno como as outras, e o repository, com o ano trocado, devolve a lista vazia); as do professor, a recusa de hoje no aplicar e `NAO_ENCONTRADO` no `:id` | tirar o `anoLetivoId` do `where` |
 | Aluno transferido do 7ºA para o 7ºB com tentativa em andamento em A: em A, `comecar`, `prova`, `tempo`, PUT e saídas são `NAO_ENCONTRADO`; a tentativa fica e entra na correção de A; em `minhas-atividades`, só as de B | aceitar vínculo em qualquer estado |
 | Convocado transferido antes da segunda chamada: não começa | o mesmo |
 | Professor com vínculo encerrado na turma X e aberto na Y: em X não estende, não muda janela, não lê acompanhamento, não abre segunda chamada | o mesmo |

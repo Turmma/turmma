@@ -17,10 +17,11 @@ interface Resposta {
   readonly corpo?: unknown
 }
 
-type Rota = 'atividades' | 'prova' | 'responder' | 'enviar' | 'diagnostico' | 'conversa' | 'mensagens' | 'memoria' | 'execucao'
+type Rota = 'atividades' | 'comecar' | 'prova' | 'responder' | 'enviar' | 'diagnostico' | 'conversa' | 'mensagens' | 'memoria' | 'execucao'
 
 const ROTAS: readonly { readonly rota: Rota; readonly metodo: string; readonly caminho: RegExp }[] = [
   { rota: 'atividades', metodo: 'GET', caminho: /^\/v1\/minhas-atividades$/ },
+  { rota: 'comecar', metodo: 'POST', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/comecar$/ },
   { rota: 'prova', metodo: 'GET', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/prova$/ },
   { rota: 'responder', metodo: 'PUT', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/respostas\/([^/]+)$/ },
   { rota: 'enviar', metodo: 'POST', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/enviar$/ },
@@ -137,7 +138,8 @@ export class AlunoApiMock {
     }
     const prova = this.provas.get(id)
     if (prova === undefined) return apiError(404, 'NAO_ENCONTRADO')
-    if (rota === 'prova') return { status: 200, corpo: prova }
+    // A tela de hoje começa a prova antes de lê-la; a atividade encerrada ou enviada volta a ser lida como antes (a tentativa já existe).
+    if (rota === 'prova' || rota === 'comecar') return { status: 200, corpo: { ...prova, comecou: true, tempo: { limiteEm: null, agora: new Date().toISOString(), envio: null } } }
     if (prova.enviadaEm !== null || prova.estado === 'encerrada') return apiError(409, 'ATIVIDADE_ENCERRADA')
     if (rota === 'enviar') {
       const enviadaEm = new Date().toISOString()
@@ -201,6 +203,8 @@ export function minhaAtividade(campos: Partial<MinhaAtividade> = {}): MinhaAtivi
     respondidas: 0,
     aplicadaEm: '2026-10-05T13:00:00.000Z',
     enviadaEm: null,
+    janela: null,
+    duracaoMin: null,
     ...campos,
   }
 }

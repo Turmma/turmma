@@ -1,4 +1,4 @@
-import { atividadeAplicadaResponseSchema, atividadeEncerradaResponseSchema, listaDeAtividadesAplicadasResponseSchema, minhasAtividadesResponseSchema, provaResponseSchema, questaoSalvaResponseSchema } from '@educa/shared'
+import { atividadeAplicadaResponseSchema, atividadeEncerradaResponseSchema, listaDeAtividadesAplicadasResponseSchema, minhasAtividadesResponseSchema, provaEmAndamentoResponseSchema, provaOnlineResponseSchema, questaoSalvaResponseSchema } from '@educa/shared'
 import { PASTA_MIGRACOES } from '@educa/core'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -108,7 +108,7 @@ describe('atividade aplicada', () => {
       expect(resposta.status).toBe(201)
       expect(await sql(`select depois -> 'versaoAdaptada' as adaptada from auditoria where acao = 'atividade.aplicada' and entidade_id = $1`, [resposta.corpo['id']])).toEqual([{ adaptada: true }])
       // A prova da versão adaptada diz só os tipos da adaptação, que valem para a turma: nada sobre aluno (D35).
-      const prova = provaResponseSchema.parse((await rotas.prova(a.aluno, resposta.corpo['id'] as string)).corpo)
+      const prova = provaEmAndamentoResponseSchema.parse((await rotas.comecar(a.aluno, resposta.corpo['id'] as string)).corpo)
       expect(prova.adaptacao).toEqual({ tipos: ['fonte_ampliada'] })
     })
 
@@ -138,9 +138,9 @@ describe('atividade aplicada', () => {
   describe('o aluno responde', () => {
     it('a prova traz número, enunciado e alternativas, e nada do gabarito, da explicação, da habilidade nem da citação', async () => {
       const id = await aplicada()
-      const resposta = await rotas.prova(a.aluno, id)
+      const resposta = await rotas.comecar(a.aluno, id)
       expect(resposta.status).toBe(200)
-      const prova = provaResponseSchema.parse(resposta.corpo)
+      const prova = provaEmAndamentoResponseSchema.parse(resposta.corpo)
       expect(prova).toMatchObject({ atividadeAplicadaId: id, estado: 'aberta', adaptacao: null, respostas: [], enviadaEm: null })
       expect(prova.questoes).toHaveLength(5)
       for (const questao of prova.questoes) expect(Object.keys(questao).sort()).toEqual(['alternativas', 'enunciado', 'numero'])
@@ -148,10 +148,12 @@ describe('atividade aplicada', () => {
       for (const proibido of ['gabarito', 'explicacao', EXPLICACAO_DE_TESTE, 'habilidade', 'QUI.EM', 'EM13CNT', 'citacao', 'correta', 'acertos']) expect(texto).not.toContain(proibido)
     })
 
-    it('abrir a prova cria a tentativa do aluno, uma só, mesmo em duas abas ao mesmo tempo', async () => {
+    it('começar a prova cria a tentativa do aluno, uma só, mesmo em três abas ao mesmo tempo; abrir a prova só para ler não cria', async () => {
       const id = await aplicada()
-      await Promise.all([rotas.prova(a.aluno, id), rotas.prova(a.aluno, id), rotas.prova(a.aluno, id)])
-      await rotas.prova(a.aluno, id)
+      expect((await rotas.prova(a.aluno, id)).status).toBe(200)
+      expect(await contar('tentativa_atividade', 'atividade_aplicada_id = $1', [id])).toBe(0)
+      await Promise.all([rotas.comecar(a.aluno, id), rotas.comecar(a.aluno, id), rotas.comecar(a.aluno, id)])
+      await rotas.comecar(a.aluno, id)
       expect(await sql('select aluno_id, enviada_em from tentativa_atividade where atividade_aplicada_id = $1', [id])).toEqual([{ aluno_id: a.aluno.usuarioId, enviada_em: null }])
     })
 
@@ -170,7 +172,7 @@ describe('atividade aplicada', () => {
 
     it('a resposta é gravada de forma idempotente: a mesma questão duas vezes, e cinco ao mesmo tempo depois da queda de rede, é uma linha só, com a última alternativa', async () => {
       const id = await aplicada()
-      await rotas.prova(a.aluno, id)
+      await rotas.comecar(a.aluno, id)
       const primeira = await rotas.responder(a.aluno, id, 2, 1)
       expect(primeira.status).toBe(200)
       expect(primeira.corpo).toMatchObject({ questao: 2, alternativa: 1 })
@@ -183,13 +185,13 @@ describe('atividade aplicada', () => {
       expect(await respostasDe(id, a.aluno.usuarioId)).toEqual([{ questao: 2, alternativa: 3 }])
       // A prova reaberta devolve o que ficou salvo, para o aluno continuar de onde parou.
       // (cliente antigo, sem `sequencia`: cada um dos 2 + 5 envios subiu a escala em 1)
-      expect(provaResponseSchema.parse((await rotas.prova(a.aluno, id)).corpo).respostas).toEqual([{ questao: 2, alternativa: 3, sequencia: 7 }])
+      expect(provaEmAndamentoResponseSchema.parse((await rotas.prova(a.aluno, id)).corpo).respostas).toEqual([{ questao: 2, alternativa: 3, sequencia: 7 }])
     })
 
     // 51.1, caracterização: o que o cliente antigo (sem `sequencia`) faz tem de continuar valendo depois da 51.0.
     it('caracterização: cinco reenvios iguais ao mesmo tempo são uma linha só, e trocar a alternativa troca a gravada', async () => {
       const id = await aplicada()
-      await rotas.prova(a.aluno, id)
+      await rotas.comecar(a.aluno, id)
       const iguais = await Promise.all(Array.from({ length: 5 }, () => rotas.responder(a.aluno, id, 3, 2)))
       expect(iguais.map((resposta) => resposta.status)).toEqual([200, 200, 200, 200, 200])
       for (const resposta of iguais) expect(resposta.corpo).toMatchObject({ questao: 3, alternativa: 2 })
@@ -214,7 +216,7 @@ describe('atividade aplicada', () => {
       it('5 e 7 ao mesmo tempo, nas duas ordens, deixam a 7: vinte repetições, e a prova reaberta devolve a alternativa e a sequência gravadas', async () => {
         const aluno = alunos[0] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         for (let repeticao = 0; repeticao < 20; repeticao++) {
           const base = repeticao * 10
           const pedidos = [responderComSequencia(aluno, id, 1, 1, base + 5), responderComSequencia(aluno, id, 1, 2, base + 7)]
@@ -222,13 +224,13 @@ describe('atividade aplicada', () => {
           expect(respostas.map((resposta) => resposta.status), `repetição ${String(repeticao)}`).toEqual([200, 200])
           expect(await gravadasDe(id, aluno.usuarioId), `repetição ${String(repeticao)}`).toMatchObject([{ questao: 1, alternativa: 2, sequencia: base + 7 }])
         }
-        expect(provaResponseSchema.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 1, alternativa: 2, sequencia: 197 }])
+        expect(provaEmAndamentoResponseSchema.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 1, alternativa: 2, sequencia: 197 }])
       })
 
       it('a 5 que chega depois da 7 responde 200 com a 7 gravada (alternativa e sequência), e nada muda no banco', async () => {
         const aluno = alunos[1] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         const sete = await responderComSequencia(aluno, id, 2, 3, 7)
         expect(dessaForma(sete)).toMatchObject({ questao: 2, alternativa: 3, sequencia: 7 })
         const [antes] = await gravadasDe(id, aluno.usuarioId)
@@ -241,7 +243,7 @@ describe('atividade aplicada', () => {
       it('a mesma sequência com outra alternativa não troca a gravada (duas abas que leram a mesma): a segunda recebe a da primeira; o reenvio igual devolve a mesma', async () => {
         const aluno = alunos[2] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         await responderComSequencia(aluno, id, 1, 1, 6)
         expect(dessaForma(await responderComSequencia(aluno, id, 1, 3, 6))).toMatchObject({ alternativa: 1, sequencia: 6 })
         const iguais = await Promise.all(Array.from({ length: 5 }, () => responderComSequencia(aluno, id, 1, 1, 6)))
@@ -252,7 +254,7 @@ describe('atividade aplicada', () => {
       it('a mesma sequência com outra alternativa, ao mesmo tempo: uma vence, e as duas respostas são iguais à linha gravada', async () => {
         const aluno = alunos[10] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         const [um, outro] = await Promise.all([responderComSequencia(aluno, id, 1, 1, 6), responderComSequencia(aluno, id, 1, 3, 6)])
         const [gravada] = await gravadasDe(id, aluno.usuarioId)
         expect(gravada).toMatchObject({ questao: 1, sequencia: 6 })
@@ -268,7 +270,7 @@ describe('atividade aplicada', () => {
       it('quem perde numa questão recebe a gravada daquela questão e daquele aluno, nunca a de outra questão nem a de um colega', async () => {
         const aluno = alunos[3] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         await responderComSequencia(bia, id, 2, 0, 90)
         await responderComSequencia(aluno, id, 1, 3, 40)
         await responderComSequencia(aluno, id, 2, 1, 50)
@@ -280,7 +282,7 @@ describe('atividade aplicada', () => {
       it('cliente antigo (sem sequência) e depois o novo com servidor + 1: o novo vence, e o antigo sobe a sequência em 1', async () => {
         const aluno = alunos[4] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         expect(dessaForma(await rotas.responder(aluno, id, 4, 0))).toMatchObject({ alternativa: 0, sequencia: 1 })
         expect(dessaForma(await rotas.responder(aluno, id, 4, 1))).toMatchObject({ alternativa: 1, sequencia: 2 })
         const novo = await responderComSequencia(aluno, id, 4, 2, 3)
@@ -294,7 +296,7 @@ describe('atividade aplicada', () => {
       it('sequência negativa, fracionária, texto ou nula, ou uma chave a mais, é ENTRADA_INVALIDA, e nada é gravado', async () => {
         const aluno = alunos[5] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         for (const corpo of [{ alternativa: 1, sequencia: -1 }, { alternativa: 1, sequencia: 1.5 }, { alternativa: 1, sequencia: '3' }, { alternativa: 1, sequencia: null }, { alternativa: 1, sequencia: 1, alunoId: bia.usuarioId }, { alternativa: 1, sequencia: 1, escolaId: a.escolaId }]) {
           expect(erro(await rotas.pedir(aluno, 'PUT', caminho(id, 1), corpo)), JSON.stringify(corpo)).toEqual({ status: 400, codigo: 'ENTRADA_INVALIDA' })
         }
@@ -308,7 +310,7 @@ describe('atividade aplicada', () => {
         const aluno = alunos[6] as TestSessao
         const b = await montarEscolaComAssistente(api, bancada)
         const deB = await aplicarAtividade(rotas, b.professora, await criarAtividade(bancada, b), b.turma)
-        await rotas.prova(b.aluno, deB)
+        await rotas.comecar(b.aluno, deB)
         await responderComSequencia(b.aluno, deB, 1, 2, 5)
         const [antes] = await gravadasDe(deB, b.aluno.usuarioId)
         const inexistente = erro(await responderComSequencia(aluno, randomUUID(), 1, 0, 9))
@@ -321,7 +323,7 @@ describe('atividade aplicada', () => {
       it('depois do envio, ATIVIDADE_ENCERRADA com qualquer sequência, e o que estava salvo não muda', async () => {
         const aluno = alunos[7] as TestSessao
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         await responderComSequencia(aluno, id, 1, 2, 5)
         await rotas.enviar(aluno, id)
         for (const sequencia of [0, 5, 6, 1000]) expect(erro(await responderComSequencia(aluno, id, 1, 0, sequencia)), String(sequencia)).toEqual({ status: 409, codigo: 'ATIVIDADE_ENCERRADA' })
@@ -352,20 +354,20 @@ describe('atividade aplicada', () => {
         }
         // E no banco de verdade: a linha sem `sequencia` nasce em 0, a prova a devolve assim, e o cliente antigo a leva a 1.
         const id = await aplicada()
-        await rotas.prova(aluno, id)
+        await rotas.comecar(aluno, id)
         await sql(
           `insert into resposta_atividade (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, questao, alternativa)
            select escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, 5, 2 from tentativa_atividade where atividade_aplicada_id = $1 and aluno_id = $2`,
           [id, aluno.usuarioId],
         )
-        expect(provaResponseSchema.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 5, alternativa: 2, sequencia: 0 }])
+        expect(provaEmAndamentoResponseSchema.parse((await rotas.prova(aluno, id)).corpo).respostas).toEqual([{ questao: 5, alternativa: 2, sequencia: 0 }])
         expect(dessaForma(await rotas.responder(aluno, id, 5, 3))).toMatchObject({ alternativa: 3, sequencia: 1 })
       })
     })
 
     it('a questão que a atividade não tem responde como inexistente, e a alternativa fora de 0 a 3 ou um campo a mais, ENTRADA_INVALIDA; nada é gravado', async () => {
       const id = await aplicada()
-      await rotas.prova(a.aluno, id)
+      await rotas.comecar(a.aluno, id)
       // O `coerce` sozinho aceitaria `0x3`, `+3` e `001` como a questão 3, 3 e 1: o caminho só tem um ou dois dígitos.
       for (const questao of [6, 0, 21, 'abc', '1.5', '-1', '0x3', '+3', '001']) expect(erro(await rotas.responder(a.aluno, id, questao, 0))).toEqual({ status: 404, codigo: 'NAO_ENCONTRADO' })
       expect(erro(await rotas.responder(a.aluno, id, 1, 4))).toEqual({ status: 400, codigo: 'ENTRADA_INVALIDA' })
@@ -378,7 +380,7 @@ describe('atividade aplicada', () => {
 
     it('o corpo fora do contrato não apaga nem troca a resposta que já estava salva: ENTRADA_INVALIDA, e a gravada continua (17.0)', async () => {
       const id = await aplicada()
-      await rotas.prova(a.aluno, id)
+      await rotas.comecar(a.aluno, id)
       expect((await rotas.responder(a.aluno, id, 2, 1)).status).toBe(200)
       for (const corpo of [{ alternativa: 4 }, { alternativa: 3, correta: true }, { alternativa: 'a' }, {}]) {
         expect(erro(await rotas.pedir(a.aluno, 'PUT', `/v1/atividades-aplicadas/${id}/respostas/2`, corpo)), JSON.stringify(corpo)).toEqual({ status: 400, codigo: 'ENTRADA_INVALIDA' })
@@ -416,6 +418,7 @@ describe('atividade aplicada', () => {
       expect(deNovo.status).toBe(200)
       expect(deNovo.corpo).toEqual(enviada.corpo)
       // O envio de um aluno não fecha a atividade para a colega.
+      expect((await rotas.comecar(bia, id)).status).toBe(200)
       expect((await rotas.responder(bia, id, 1, 0)).status).toBe(200)
     })
 
@@ -428,10 +431,11 @@ describe('atividade aplicada', () => {
       expect(erro(await rotas.enviar(a.aluno, id))).toEqual({ status: 409, codigo: 'ATIVIDADE_ENCERRADA' })
       expect(await respostasDe(id, a.aluno.usuarioId)).toEqual([{ questao: 1, alternativa: 0 }])
 
-      // A colega que faltou abre a atividade já encerrada: vê as questões, sem gabarito, e não ganha tentativa.
+      // A colega que faltou abre a atividade já encerrada: não vê questão nenhuma, não consegue começar e não ganha tentativa.
       const prova = await rotas.prova(bia, id)
-      expect(provaResponseSchema.parse(prova.corpo)).toMatchObject({ estado: 'encerrada', respostas: [], enviadaEm: null })
-      expect(JSON.stringify(prova.corpo)).not.toContain('gabarito')
+      expect(provaOnlineResponseSchema.parse(prova.corpo)).toMatchObject({ comecou: false, atividadeAplicadaId: id })
+      expect(JSON.stringify(prova.corpo)).not.toMatch(/questoes|gabarito/)
+      expect(erro(await rotas.comecar(bia, id))).toEqual({ status: 409, codigo: 'ATIVIDADE_ENCERRADA' })
       expect(erro(await rotas.responder(bia, id, 1, 0))).toEqual({ status: 409, codigo: 'ATIVIDADE_ENCERRADA' })
       expect(await contar('tentativa_atividade', 'atividade_aplicada_id = $1 and aluno_id = $2', [id, bia.usuarioId])).toBe(0)
       expect(minhasAtividadesResponseSchema.parse((await rotas.minhas(bia)).corpo).itens.find((item) => item.id === id)).toMatchObject({ situacao: 'encerrada', respondidas: 0 })
@@ -449,7 +453,7 @@ describe('atividade aplicada', () => {
       const c = await montarEscolaComAssistente(api, bancada)
       const turma = await alunosComSessao(bancada, c, c.turma, Array.from({ length: 35 }, (_, i) => `Aluno sintético ${String(i + 1)}`))
       const id = await aplicarAtividade(rotas, c.professora, await criarAtividade(bancada, c), c.turma)
-      const respostas = await Promise.all(turma.map(async (aluno) => [await rotas.prova(aluno, id), await rotas.responder(aluno, id, 1, 0), await rotas.enviar(aluno, id)]))
+      const respostas = await Promise.all(turma.map(async (aluno) => [await rotas.comecar(aluno, id), await rotas.responder(aluno, id, 1, 0), await rotas.enviar(aluno, id)]))
       expect(new Set(respostas.flat().map((resposta) => resposta.status))).toEqual(new Set([200]))
       expect(await contar('resposta_atividade', 'atividade_aplicada_id = $1', [id])).toBe(35)
       expect(await contar('tentativa_atividade', 'atividade_aplicada_id = $1 and enviada_em is not null', [id])).toBe(35)
@@ -461,8 +465,7 @@ describe('atividade aplicada', () => {
       const id = await aplicada()
       // Caio acerta 4 de 5; Bia abre a prova e não responde nada (em branco). Ninguém mais abriu.
       await responderProva(rotas, a.aluno, id, [0, 1, 2, 3, 1])
-      await rotas.prova(bia, id)
-
+      await rotas.comecar(bia, id)
       const resposta = await rotas.encerrar(a.professora, id)
       expect(resposta.status).toBe(200)
       const encerrada = atividadeEncerradaResponseSchema.parse(resposta.corpo)

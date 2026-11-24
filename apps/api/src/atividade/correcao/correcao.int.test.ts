@@ -390,6 +390,7 @@ describe('correção de objetiva e validação do lote', () => {
         expect(minhasAtividadesResponseSchema.parse(lista.corpo).itens).toEqual([expect.objectContaining({ id, situacao: 'enviada' })])
         const prova = await rotas.prova(turma.caio, id)
         expect(prova.status).toBe(200)
+        expect(prova.corpo['comecou']).toBe(true)
         for (const corpo of [lista.corpo, prova.corpo]) {
           for (const proibido of ['acertos', 'gabarito', 'correta', 'explicacao', EXPLICACAO_DE_TESTE, 'habilidade', 'destaque', 'com_diagnostico']) expect(JSON.stringify(corpo)).not.toContain(proibido)
         }
@@ -651,8 +652,8 @@ describe('correção de objetiva e validação do lote', () => {
       const meu = await rotas.diagnostico(turma.caio, id)
       expect(meu.status).toBe(200)
       expect((meu.corpo['porHabilidade'] as { habilidade: { codigo: string } | null }[]).map((linha) => linha.habilidade?.codigo ?? null)).toEqual([HABILIDADE_DAS_TRES_PRIMEIRAS.codigo, null])
-      // E a prova abre para quem a lê, com as cinco questões, sem levar o gabarito.
-      const prova = await rotas.prova(turma.ana2, id)
+      // E a prova abre para quem a fez (tem tentativa), com as cinco questões, sem levar o gabarito.
+      const prova = await rotas.prova(turma.caio, id)
       expect(prova.status).toBe(200)
       expect((prova.corpo['questoes'] as unknown[]).length).toBe(5)
       expect(JSON.stringify(prova.corpo)).not.toContain('gabarito')
