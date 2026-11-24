@@ -379,10 +379,13 @@ describe('os itens do dia na Semana (F2b, tarefa 3.0)', () => {
       await cliente.query('set local enable_bitmapscan = off')
 
       const consultas = runInContext(contextoDe(a, a.professora), () => new SemanaRepository(createDatabase(apoio)).consultasDosItens(a.anoLetivoId, '2026-06-22', '2026-06-28'))
-      // O planejador prefere, na atividade aplicada, o único `(escola, ano, turma, id)` ao `atividade_aplicada_turma_idx`: os dois começam pela escola e pela turma.
+      // Na atividade aplicada, o teste aceita qualquer um destes índices: todos começam pela escola e pela turma (os dois únicos com o ano entre elas;
+      // o `atividade_aplicada_turma_idx` não tem o ano), e a asserção abaixo exige que a condição dele cite a escola e a turma.
+      // Qual deles o planejador escolhe depende das estatísticas e dos índices que existem.
+      const indicesDaAplicada = ['atividade_aplicada_turma_idx', 'atividade_aplicada_escola_ano_turma_id_unico', 'atividade_aplicada_escola_ano_turma_artefato_id_unico']
       for (const [nome, consulta, tabela, indices] of [
-        ['aplicadas', consultas.aplicadas, 'atividade_aplicada', ['atividade_aplicada_turma_idx', 'atividade_aplicada_escola_ano_turma_id_unico']],
-        ['encerradas', consultas.encerradas, 'atividade_aplicada', ['atividade_aplicada_turma_idx', 'atividade_aplicada_escola_ano_turma_id_unico']],
+        ['aplicadas', consultas.aplicadas, 'atividade_aplicada', indicesDaAplicada],
+        ['encerradas', consultas.encerradas, 'atividade_aplicada', indicesDaAplicada],
         ['lotes', consultas.lotes, 'entrega', ['entrega_turma_idx']],
       ] as const) {
         const { sql: texto, params } = consulta.toSQL()
