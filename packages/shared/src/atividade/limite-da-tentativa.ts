@@ -78,3 +78,36 @@ export function limiteDaTentativa(entrada: EntradaDoLimite): Date | null {
     limite = proximo
   }
 }
+
+/** A duração do aluno em milissegundos: a da prova com o percentual de tempo adicional dele (nenhum, se não tem). Sempre inteira: 600 ms por minuto e por ponto percentual. */
+function duracaoDoAlunoEmMs(duracaoMin: number, percentual: number | null): number {
+  return 600 * duracaoMin * (100 + (percentual ?? 0))
+}
+
+/**
+ * A duração que o aluno lê (`prova` antes de começar e a lista), em minutos inteiros: a da prova com o tempo adicional dele somado, **arredondada para cima**, e sem dizer que há
+ * tempo adicional (D35). Quem não tem tempo adicional lê a duração da prova.
+ */
+export function duracaoDoAlunoEmMinutos(duracaoMin: number, percentual: number | null): number {
+  return Math.ceil(duracaoDoAlunoEmMs(duracaoMin, percentual) / MS_POR_MINUTO)
+}
+
+export interface EntradaDoLimiteBase {
+  /** O `now()` do banco no começo: é o início da tentativa. */
+  readonly agora: Date
+  /** O fim da janela da aplicação; `null` quando a atividade não tem janela, e então a tentativa não tem limite. */
+  readonly fechaEm: Date | null
+  readonly duracaoMin: number | null
+  /** O tempo adicional do aluno nesta prova, ou `null`. */
+  readonly percentual: number | null
+}
+
+/**
+ * O limite base da tentativa, gravado no começo (`limite_base_em`; Tech Spec §5.3): **o que vier antes**, o início mais a duração do aluno (com o tempo adicional) ou o fim da
+ * janela (RF1). Sem duração, é o fim da janela; sem janela, não há limite (`null`). Quem começa a 10 min do fim com duração de 40 tem 10.
+ */
+export function limiteBaseDaTentativa({ agora, fechaEm, duracaoMin, percentual }: EntradaDoLimiteBase): Date | null {
+  if (fechaEm === null) return null
+  if (duracaoMin === null) return fechaEm
+  return new Date(Math.min(agora.getTime() + duracaoDoAlunoEmMs(duracaoMin, percentual), fechaEm.getTime()))
+}

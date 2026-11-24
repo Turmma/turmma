@@ -1,4 +1,4 @@
-import { LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO, LIMITE_DA_PLANILHA_POR_MINUTO } from '@educa/shared'
+import { LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO, LIMITE_DA_PLANILHA_POR_MINUTO, LIMITE_DO_COMECAR_POR_MINUTO } from '@educa/shared'
 import { Logger } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { RateLimiterMemory, RateLimiterRedis, RateLimiterRes } from 'rate-limiter-flexible'
@@ -11,6 +11,7 @@ import {
   JANELA_LIMITE_SEGUNDOS,
   insuranceLimit,
   PREFIXO_LIMITE_BUSCA_TITULAR,
+  PREFIXO_LIMITE_COMECAR_PROVA,
   PREFIXO_LIMITE_ESCOLA,
   PREFIXO_LIMITE_IMPORTACAO,
   PREFIXO_LIMITE_IP,
@@ -160,6 +161,7 @@ export class RateLimiter {
   readonly #operador: Limite
   readonly #buscaDeTitulares: Limite
   readonly #importacao: Limite
+  readonly #comecarProva: Limite
   readonly #proporcaoDoSeguro: SlidingWindowRatio
   readonly #avisarAtivado = throttledWarn(() => this.#logger.warn('limite.seguro_ativado'))
   readonly #avisarDesativado = throttledWarn(() => this.#logger.log('limite.seguro_desativado'))
@@ -176,6 +178,7 @@ export class RateLimiter {
     this.#operador = createLimite(cliente, PREFIXO_LIMITE_OPERADOR, config.porOperadorMin, config.instancias)
     this.#buscaDeTitulares = createLimite(cliente, PREFIXO_LIMITE_BUSCA_TITULAR, LIMITE_DA_BUSCA_DE_TITULARES_POR_MINUTO, config.instancias)
     this.#importacao = createLimite(cliente, PREFIXO_LIMITE_IMPORTACAO, LIMITE_DA_PLANILHA_POR_MINUTO, config.instancias)
+    this.#comecarProva = createLimite(cliente, PREFIXO_LIMITE_COMECAR_PROVA, LIMITE_DO_COMECAR_POR_MINUTO, config.instancias)
   }
 
   /** 1 enquanto a última requisição limitada foi contada pelo seguro em memória. */
@@ -261,6 +264,14 @@ export class RateLimiter {
    */
   async consumeDaImportacao(usuarioId: string): Promise<RateLimitResult> {
     return this.#consumeUmaChave(this.#importacao, usuarioId)
+  }
+
+  /**
+   * O limite de `comecar` na prova online (`rl:comecar-prova:{usuarioId}`, avaliacao-e-correcao, 3.0): 30 por minuto, por usuário, balde próprio. Conta **além** do limite do
+   * usuário e do da escola, que continuam valendo; outro aluno atrás do mesmo IP tem os 30 dele (regra 80, item 1).
+   */
+  async consumeDoComecarDaProva(usuarioId: string): Promise<RateLimitResult> {
+    return this.#consumeUmaChave(this.#comecarProva, usuarioId)
   }
 
   async #consumeUmaChave(limite: Limite, chave: string): Promise<RateLimitResult> {

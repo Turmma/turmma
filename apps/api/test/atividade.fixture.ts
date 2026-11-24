@@ -121,6 +121,8 @@ export function rotasDaAtividade(api: TestApi) {
     mudarJanela: (sessao: TestSessao, id: string, corpo: unknown) => pedir(sessao, 'PATCH', `/v1/atividades-aplicadas/${id}/janela`, corpo),
     minhas: (sessao: TestSessao, consulta = '') => pedir(sessao, 'GET', `/v1/minhas-atividades${consulta}`),
     prova: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/prova`),
+    comecar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/comecar`, {}),
+    tempo: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/tempo`),
     responder: (sessao: TestSessao, id: string, questao: number | string, alternativa: number) => pedir(sessao, 'PUT', `/v1/atividades-aplicadas/${id}/respostas/${String(questao)}`, { alternativa }),
     enviar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/enviar`, {}),
     diagnostico: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/meu-diagnostico`),
@@ -143,10 +145,10 @@ export async function aplicarAtividade(rotas: RotasDaAtividade, sessao: TestSess
   return resposta.corpo['id'] as string
 }
 
-/** O aluno abre a prova e marca as alternativas dadas, na ordem das questões (`null` deixa em branco), pela rota. */
+/** O aluno começa a prova e marca as alternativas dadas, na ordem das questões (`null` deixa em branco), pela rota. */
 export async function responderProva(rotas: RotasDaAtividade, aluno: TestSessao, atividadeAplicadaId: string, marcadas: readonly (number | null)[], enviar = true): Promise<void> {
-  const prova = await rotas.prova(aluno, atividadeAplicadaId)
-  if (prova.status !== 200) throw new Error(`prova não aberta: ${String(prova.status)}`)
+  const prova = await rotas.comecar(aluno, atividadeAplicadaId)
+  if (prova.status !== 200) throw new Error(`prova não começada: ${String(prova.status)}`)
   for (const [indice, alternativa] of marcadas.entries()) {
     if (alternativa === null) continue
     const salva = await rotas.responder(aluno, atividadeAplicadaId, indice + 1, alternativa)

@@ -1,4 +1,4 @@
-import { IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
+import { ComecarProvaRateLimit, IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
 import {
   ErrorCode,
   minhasAtividadesQuerySchema,
@@ -11,8 +11,9 @@ import {
   type AtividadeEnviadaResponse,
   type MeuDiagnosticoResponse,
   type MinhasAtividadesResponse,
-  type ProvaResponse,
+  type ProvaOnlineResponse,
   type QuestaoSalvaResponse,
+  type TempoResponse,
 } from '@educa/shared'
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Put, Query, UseGuards } from '@nestjs/common'
 import { RotasDeProvaGuard } from '../pulso/rotas-de-prova.guard.js'
@@ -25,8 +26,8 @@ import { MinhaAtividadeService } from './minha-atividade.service.js'
  * A entrada passa pelo `ZodValidationPipe` e pelo `IdPipe` no parâmetro (17.0); a `questao` do caminho fora do formato ou
  * do intervalo, onde nenhuma questão existe, responde como o inexistente (`NAO_ENCONTRADO`), e não como entrada inválida.
  *
- * **A prova, a resposta e o envio** são as rotas de prova de hoje: a instância que não pulsa há mais de 30 s as recusa com 503 antes de ler ou gravar (`RotasDeProvaGuard`,
- * avaliacao-e-correcao, 2.0). A lista e o diagnóstico seguem. A rota nova de prova (3.0) entra com a mesma guarda.
+ * **`comecar`, a prova, o tempo, a resposta e o envio** são as rotas de prova: a instância que não pulsa há mais de 30 s as recusa com 503 antes de ler ou gravar
+ * (`RotasDeProvaGuard`, avaliacao-e-correcao, 2.0 e 3.0). A lista e o diagnóstico seguem. `comecar` conta ainda no balde próprio de 30 por minuto por usuário (`rl:comecar-prova`).
  *
  * O limite é o geral de requisições, por usuário e por escola, nunca por IP (regra 80, item 1): trinta e cinco alunos
  * respondem do mesmo IP.
@@ -42,12 +43,33 @@ export class MinhaAtividadeController {
     return this.atividades.list(consulta)
   }
 
+  /** Começa a prova, ou devolve a que já começou: é o que cria a tentativa. Corpo vazio e estrito, 200 também na primeira vez (repetir devolve a mesma). */
+  @Post('atividades-aplicadas/:id/comecar')
+  @UseGuards(RotasDeProvaGuard)
+  @ComecarProvaRateLimit()
+  @RequirePermissao('minha_atividade', 'comecar')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  comecar(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<ProvaOnlineResponse> {
+    return this.atividades.comecar(atividadeAplicadaId)
+  }
+
+  /** Antes de começar, só a janela e a duração; depois, a prova e o tempo. **Não grava**: quem cria a tentativa é `comecar`. */
   @Get('atividades-aplicadas/:id/prova')
   @UseGuards(RotasDeProvaGuard)
   @RequirePermissao('minha_atividade', 'ler_prova')
   @Header('Cache-Control', 'no-store')
-  prova(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<ProvaResponse> {
+  prova(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<ProvaOnlineResponse> {
     return this.atividades.prova(atividadeAplicadaId)
+  }
+
+  /** O limite do aluno, o `agora` do servidor e como foi enviada: a tela o relê a cada 30 s. */
+  @Get('atividades-aplicadas/:id/tempo')
+  @UseGuards(RotasDeProvaGuard)
+  @RequirePermissao('minha_atividade', 'ler_tempo')
+  @Header('Cache-Control', 'no-store')
+  tempo(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<TempoResponse> {
+    return this.atividades.tempo(atividadeAplicadaId)
   }
 
   @Put('atividades-aplicadas/:id/respostas/:questao')

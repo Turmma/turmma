@@ -44,6 +44,12 @@ export const PREFIXO_LIMITE_BUSCA_TITULAR = 'rl:busca-titular'
  */
 export const PREFIXO_LIMITE_IMPORTACAO = 'rl:importacao'
 
+/**
+ * O limite de `comecar` na prova online (`rl:comecar-prova`, avaliacao-e-correcao, 3.0; Tech Spec §7c): 30 por minuto **por usuário**, num balde próprio, além do limite de
+ * usuário e de escola do F0. Por usuário e nunca por IP (regra 80, item 1): trinta e cinco alunos atrás do mesmo IP começam a mesma prova na mesma manhã.
+ */
+export const PREFIXO_LIMITE_COMECAR_PROVA = 'rl:comecar-prova'
+
 /** O semáforo das prévias e gravares simultâneos de uma escola (`sem:importacao:{escolaId}`, F2, tarefa 5.0). */
 export const PREFIXO_VAGAS_DA_IMPORTACAO = 'sem:importacao'
 

@@ -10,6 +10,14 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
       cadastro e a D62 (dono: Arquiteto)
 - [ ] (semana-do-professor, 1.0, privacy-guardian, 1ª) **Reserva no expurgo da `aula`.** A escola que nunca encerra o ano guarda o texto da aula, e com ele
       algum nome de aluno, sem limite. Rotina de reserva no expurgo, como a da `lista_nome`; muda retenção (dono: Arquiteto; fechamento da F2b, 07/11/2026)
+- [ ] (avaliacao-e-correcao, 3.0, privacy-guardian, 1ª) **Registrar em `docs/lgpd.md` os baldes de rate limit por usuário**, entre eles `rl:comecar-prova:{usuarioId}`
+      (30 por minuto): os anteriores (`rl:busca-titular`, `rl:importacao`) também não estão lá; uma passada só para todos (dono: Arquiteto)
+- [ ] (avaliacao-e-correcao, 3.0, revisor-geral, 2ª) **O rótulo "(c) enviar × responder" do `prova-online-aluno.int.test.ts` repete a letra do "(c)" de
+      `cenarios.md`** (resposta × encerrar e resposta × job): trocar o rótulo ou acrescentar a linha com letra própria no `cenarios.md` (documento da spec;
+      dono: Arquiteto)
+- [ ] (avaliacao-e-correcao, 3.0, infra-guardian, 2ª) **Estreitar o filtro do caso do `tempo` sem trava** (`prova-online-aluno.int.test.ts`): `query ilike '%atividade_aplicada%'`
+      também pega consultas de tabelas que citam `atividade_aplicada_id`; restringir a `'%from "atividade_aplicada"%for%'` ou filtrar pelo id. Só falha por motivo errado,
+      nunca passa por engano
 - [ ] Contrato de tratamento de dados escola↔nós, com advogado (escola controladora)
 - [ ] Contrato com provedor de IA vedando treinamento com nosso dado
 - [ ] Política de privacidade e termos, com seção de menor de idade
