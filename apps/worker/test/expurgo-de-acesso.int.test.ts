@@ -283,6 +283,10 @@ describe('sistema.expurgar-acesso', () => {
   const secoesDos = async (ids: readonly string[]): Promise<number> =>
     (await bancada.pool.query<{ n: number }>('select count(*)::int as n from incidente_escola where incidente_id = any($1::uuid[])', [ids])).rows[0]?.n ?? -1
 
+  /** Uma indisponibilidade da API que terminou `ha` antes do `AGORA`, de 5 min: o prazo de 13 meses conta do `fim`. */
+  const indisponibilidade = (ha: string) =>
+    inserir(`insert into indisponibilidade (inicio, fim) values ($1::timestamptz - $2::interval - interval '5 minutes', $1::timestamptz - $2::interval) returning id`, [AGORA.toISOString(), ha])
+
   let operadoresDoCaso: string[] = []
   const novoDesativado = async () => {
     const id = await operador(false)
@@ -437,6 +441,9 @@ describe('sistema.expurgar-acesso', () => {
     // O incidente de segurança (F3, 9.0): 5 anos do registro, com uma seção em cada uma das duas escolas.
     resultado.fica.incidente.push(await incidente('5 years -1 day', escolas), await incidente('5 years -1 hour', escolas), await incidente('1 day', escolas))
     resultado.sai.incidente.push(await incidente('5 years 1 day', escolas), await incidente('5 years 1 hour', escolas), await incidente('50 years', escolas))
+    // A indisponibilidade da API (avaliacao-e-correcao, 2.0): 13 meses depois de a API voltar (o `fim`), global e sem escola.
+    resultado.fica.indisponibilidade.push(await indisponibilidade('12 months'), await indisponibilidade('13 months -1 day'), await indisponibilidade('13 months -1 hour'))
+    resultado.sai.indisponibilidade.push(await indisponibilidade('13 months 1 hour'), await indisponibilidade('13 months 1 day'), await indisponibilidade('14 months'))
     return resultado
   }
 
@@ -521,7 +528,7 @@ describe('sistema.expurgar-acesso', () => {
     const eventos = log.doEvento('acesso.expurgado')
     expect(eventos).toHaveLength(1)
     const [linha] = eventos
-    for (const chave of ['registrosDeAcessoTotal', 'sessoesTotal', 'convitesTotal', 'acessosDaTurmaTotal', 'importacoesTotal', 'acessosDaOperacaoTotal', 'sessoesDeOperadorTotal', 'convitesDeOperadorTotal', 'linksDaContaTotal', 'enviosDeLinkFechadosTotal', 'incidentesTotal']) {
+    for (const chave of ['registrosDeAcessoTotal', 'sessoesTotal', 'convitesTotal', 'acessosDaTurmaTotal', 'importacoesTotal', 'acessosDaOperacaoTotal', 'sessoesDeOperadorTotal', 'convitesDeOperadorTotal', 'linksDaContaTotal', 'enviosDeLinkFechadosTotal', 'incidentesTotal', 'indisponibilidadesTotal']) {
       expect(linha?.[chave], chave).toEqual(expect.any(Number))
     }
     const texto = log.linhas.join('\n')
@@ -581,13 +588,14 @@ describe('sistema.expurgar-acesso', () => {
       linksDaContaTotal: porAlvo.link_da_conta,
       enviosDeLinkFechadosTotal: 5,
       incidentesTotal: porAlvo.incidente,
+      indisponibilidadesTotal: porAlvo.indisponibilidade,
       contasLimpasTotal: 7,
     })
   })
 
   it('alvo sem total (A0b, tarefa 9.0): o objeto dos totais do processador é conferido alvo a alvo pelo compilador', () => {
-    // @ts-expect-error falta o total de `incidente` (F3, 9.0): sem a afirmação `as Record`, o compilador recusa o objeto.
-    const semUmAlvo: TotaisDoExpurgoDeAcesso = { registro_acesso: 0, sessao: 0, convite: 0, acesso_turma: 0, importacao_planilha: 0, acesso_operacao: 0, sessao_operador: 0, convite_operador: 0, link_da_conta: 0 }
+    // @ts-expect-error falta o total de `indisponibilidade` (avaliacao-e-correcao, 2.0): sem a afirmação `as Record`, o compilador recusa o objeto.
+    const semUmAlvo: TotaisDoExpurgoDeAcesso = { registro_acesso: 0, sessao: 0, convite: 0, acesso_turma: 0, importacao_planilha: 0, acesso_operacao: 0, sessao_operador: 0, convite_operador: 0, link_da_conta: 0, incidente: 0 }
     expect(Object.keys(semUmAlvo)).toHaveLength(ALVOS_DO_EXPURGO_DE_ACESSO.length - 1)
   })
 
@@ -648,6 +656,32 @@ describe('sistema.expurgar-acesso', () => {
     }
     expect(await new ExpurgoDeAcessoRepository(bancada.banco).deleteLoteVencido('incidente', AGORA, 1)).toBe(1)
     expect(await restantes('incidente', [maisAntigo, seguinte])).toEqual([])
+  })
+
+  it('lote ordenado e skip locked (avaliacao-e-correcao, 2.0): o lote de `indisponibilidade` leva primeiro a de `fim` mais antigo, mesmo semeada fora da ordem, pula a que outra transação segura e apaga a de 13 meses e um dia só uma vez', async () => {
+    // Muito além de qualquer linha semeada ou deixada por outro caso, e inseridas fora da ordem do prazo: a mais antiga por último.
+    const duzentos = await indisponibilidade('200 years')
+    const cem = await indisponibilidade('100 years')
+    const trezentos = await indisponibilidade('300 years')
+    semeado.sai.indisponibilidade.push(duzentos, cem, trezentos)
+    const repositorio = new ExpurgoDeAcessoRepository(bancada.banco)
+    const existem = async () => (await restantes('indisponibilidade', [duzentos, cem, trezentos])).sort()
+
+    expect(await repositorio.deleteLoteVencido('indisponibilidade', AGORA, 1)).toBe(1)
+    expect(await existem()).toEqual([duzentos, cem].sort())
+    const segurador = await bancada.pool.connect()
+    try {
+      await segurador.query('begin')
+      await segurador.query('select id from indisponibilidade where id = $1 for update', [duzentos])
+      // A mais antiga que sobrou está presa: o lote a pula, apaga a seguinte e não espera o segurador.
+      expect(await repositorio.deleteLoteVencido('indisponibilidade', AGORA, 1)).toBe(1)
+      expect(await existem()).toEqual([duzentos])
+    } finally {
+      await segurador.query('rollback')
+      segurador.release()
+    }
+    expect(await repositorio.deleteLoteVencido('indisponibilidade', AGORA, 1)).toBe(1)
+    expect(await existem()).toEqual([])
   })
 
   it('concorrência (F3, tarefa 9.0): dois expurgos em paralelo apagam cada incidente vencido uma vez só, e a soma das duas contagens é o que havia vencido', async () => {
@@ -781,6 +815,7 @@ describe('sistema.expurgar-acesso', () => {
       ['sessao_operador', 0],
       ['convite_operador', 0],
       ['incidente', 0],
+      ['indisponibilidade', 0],
       ['conta', 0],
     ])
     await conferir()
@@ -870,6 +905,7 @@ describe('sistema.expurgar-acesso', () => {
       'sessao_operador',
       'convite_operador',
       'incidente',
+      'indisponibilidade',
       'conta',
     ])
     await conferir()

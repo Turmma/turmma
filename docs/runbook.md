@@ -1702,6 +1702,28 @@ Nada vai ao aluno, e nenhuma nota depende do lote (a correção da objetiva é r
 
 **Depois:** registre no `TODO.md` a escola (só o id), o mês, o teto e quanto tempo o lote esperou. Escola que passa do teto mais de um mês entra na conversa de preço (D50).
 
+## Pulso da API parado
+
+**Dispara quando:** uma instância da API está de pé (publica a métrica) e o último pulso bem-sucedido dela tem 2 min ou mais por 1 min seguido (`max by (instance) (api_pulso_idade_s{job="educa/api"}) >= 120`, por
+instância; regra `infra/grafana/alertas/pulso-da-api-parado.yaml`; avaliacao-e-correcao, tarefa 2.0). A API fora do ar, ou a que ainda não deu o primeiro pulso, não publica a série e não dispara este alerta.
+
+**Impacto:** a instância recusa com 503 (`INDISPONIVEL_TENTE_DE_NOVO`) as **rotas de prova** desde os 30 s sem pulso: hoje, abrir a prova, salvar uma resposta e enviar (`RotasDeProvaGuard`; as rotas novas da prova online entram com a
+mesma guarda). O aluno que cai nela recebe 503 e tenta de novo; o que ele já salvou continua salvo. O resto da API (login, lista de atividades, Tutor, professor) segue. A outra instância atende a prova normalmente, e a borda não
+tira esta da rotação, porque a prontidão dela não depende do pulso. Enquanto o pulso não grava, a queda desta instância não entra no tempo da prova: a lacuna fica gravada quando o pulso volta (`indisponibilidade`), e é ela
+que `limiteDaTentativa` soma de volta ao limite de quem estava em prova.
+
+**Primeiro olhar:** `docker compose logs --since 10m api-1 api-2`: `pulso.falhou` traz `erro.sqlstate`, o código do erro do Postgres (nunca a instrução). Com o Postgres de pé, `docker compose exec postgres psql -U "$POSTGRES_USUARIO" "$POSTGRES_BANCO" -c "select ultimo_em, now() - ultimo_em as idade from pulso_da_api"`: a idade é a da **última instância que pulsou**, e o alerta é da que não pulsa; se a idade é de segundos, a outra instância pulsa e só esta está presa.
+
+**Causas prováveis:**
+
+1. `pulso.falhou` com `erro.sqlstate` de conexão (`57P01`, `08006`, `08003`) ou sem `sqlstate` → o Postgres reiniciou ou a rede até ele caiu: o pulso reconecta sozinho na tentativa seguinte (10 s); se o Postgres voltou e o pulso não, reinicie a instância: `docker compose restart api-1` (ela drena, e a borda manda o tráfego para a outra).
+2. `pulso.falhou` com `erro.sqlstate` `57014` (`statement_timeout`) → o Postgres está lento ou travado, e o pulso, que trava a linha única, espera atrás de outra escrita: veja o alerta do banco e `select pid, wait_event_type, query from pg_stat_activity where query ilike '%pulso_da_api%'`. Matar a sessão que segura a linha (`pg_terminate_backend`) libera o pulso; **não apague a linha de `pulso_da_api`** (o pulso a recria, mas sem a lacuna).
+3. O pool esgotado impede a reconexão do pulso → a API está saturada: veja o alerta de taxa de 5xx e `docker stats api-1 api-2`; reiniciar a instância devolve as conexões.
+
+**Se nada disso resolver:** reinicie a instância parada (`docker compose restart api-1`, depois `api-2`, uma de cada vez e fora do horário de aula quando der) e, com o horário de aula em curso, **avise as escolas com prova aberta** (seção "Como avisar as escolas"): não existe comando para apagar `indisponibilidade`, e o pulso não a grava de novo: o tempo que ela devolveu é do aluno.
+
+**Depois:** registre no `TODO.md` a hora, a instância (nome do serviço, sem id de escola: o repositório é público), o `sqlstate` do `pulso.falhou` e quanto tempo a instância ficou sem pulsar. Mais de uma vez no mês é tarefa de investigação do banco.
+
 ## Salvamento de resposta de prova lento ou falhando
 
 *A preencher no F6.* Prioridade máxima: há aluno fazendo prova agora.

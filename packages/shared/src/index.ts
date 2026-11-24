@@ -835,6 +835,8 @@ export type {
   SituacaoNoAcompanhamento,
   AcompanhamentoResponse,
 } from './atividade/atividade-aplicada.js'
+export { LIMIAR_DA_LACUNA_MS, limiteDaTentativa } from './atividade/limite-da-tentativa.js'
+export type { EntradaDoLimite, ExtensaoDoLimite, IntervaloDeIndisponibilidade, PulsoDoLimite } from './atividade/limite-da-tentativa.js'
 export {
   acertoPorHabilidadeSchema,
   alternativaSchema,

@@ -84,6 +84,7 @@ export const REGRAS_PROVISIONADAS = {
   iaOrcamentoAos80: 'educa-ia-orcamento-80',
   iaOrcamentoAos100: 'educa-ia-orcamento-100',
   iaOrcamentoTeto: 'educa-ia-orcamento-teto',
+  pulsoDaApiParado: 'educa-pulso-da-api-parado',
 } as const
 
 export const WORKERS_INTERATIVOS = ['worker-interativo-1', 'worker-interativo-2'] as const

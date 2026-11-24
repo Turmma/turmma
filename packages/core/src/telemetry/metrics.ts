@@ -33,6 +33,11 @@ export const METRICS = {
   jobsStalled: 'fila.jobs_stalled',
   /** Conexões abertas nesta instância do realtime. */
   conexoesRealtime: 'realtime.conexoes',
+  /**
+   * Há quantos segundos esta instância da API pulsou com sucesso (avaliacao-e-correcao, 2.0; Tech Spec §5.7 e §7c). Sem rótulo: a série é por instância (`instance`), e o alerta
+   * "Pulso da API parado" olha cada uma sozinha, para a que ficou sem pulsar não se esconder atrás da que pulsa. Sem unidade declarada: o nome já a traz.
+   */
+  idadeDoPulso: 'api.pulso.idade_s',
   /** Conexões do pool emprestadas agora. */
   poolEmUso: 'db.pool.em_uso',
   /** Conexões que o pool jogou fora: erro de conexão, sessão suja, conexão ociosa derrubada. */
@@ -372,6 +377,17 @@ export function observeDatabasePool(medidor: Meter, pool: DatabasePool): void {
   })
   // Conexão ociosa que o Postgres derrubou: o pool a remove.
   pool.on('error', () => descartadas.add(1))
+}
+
+/**
+ * `api.pulso.idade_s`: os segundos desde o último pulso bem-sucedido desta instância, lidos no momento da coleta. Sem pulso ainda (a instância não chegou ao primeiro),
+ * a série não existe: o alerta não dispara por quem acabou de subir, e a instância só abre a porta depois do primeiro pulso.
+ */
+export function observePulsoDaApi(medidor: Meter, idadeEmSegundos: () => number | undefined): void {
+  medidor.createObservableGauge(METRICS.idadeDoPulso, { description: 'Segundos desde o último pulso bem-sucedido desta instância da API' }).addCallback((observador) => {
+    const idade = idadeEmSegundos()
+    if (idade !== undefined) observador.observe(idade)
+  })
 }
 
 /** Instância de Redis que o processo usa: o de fila (BullMQ, vagas, uso, realtime) ou o de cache (rate limit). */

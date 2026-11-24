@@ -14,7 +14,8 @@ import {
   type ProvaResponse,
   type QuestaoSalvaResponse,
 } from '@educa/shared'
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common'
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Post, Put, Query, UseGuards } from '@nestjs/common'
+import { RotasDeProvaGuard } from '../pulso/rotas-de-prova.guard.js'
 import { MinhaAtividadeService } from './minha-atividade.service.js'
 
 /**
@@ -23,6 +24,9 @@ import { MinhaAtividadeService } from './minha-atividade.service.js'
  * coordenação são recusados pela guarda. Tudo sai com `no-store`: é dado do aluno, num computador que a turma divide.
  * A entrada passa pelo `ZodValidationPipe` e pelo `IdPipe` no parâmetro (17.0); a `questao` do caminho fora do formato ou
  * do intervalo, onde nenhuma questão existe, responde como o inexistente (`NAO_ENCONTRADO`), e não como entrada inválida.
+ *
+ * **A prova, a resposta e o envio** são as rotas de prova de hoje: a instância que não pulsa há mais de 30 s as recusa com 503 antes de ler ou gravar (`RotasDeProvaGuard`,
+ * avaliacao-e-correcao, 2.0). A lista e o diagnóstico seguem. A rota nova de prova (3.0) entra com a mesma guarda.
  *
  * O limite é o geral de requisições, por usuário e por escola, nunca por IP (regra 80, item 1): trinta e cinco alunos
  * respondem do mesmo IP.
@@ -39,6 +43,7 @@ export class MinhaAtividadeController {
   }
 
   @Get('atividades-aplicadas/:id/prova')
+  @UseGuards(RotasDeProvaGuard)
   @RequirePermissao('minha_atividade', 'ler_prova')
   @Header('Cache-Control', 'no-store')
   prova(@Param('id', IdPipe) atividadeAplicadaId: string): Promise<ProvaResponse> {
@@ -46,6 +51,7 @@ export class MinhaAtividadeController {
   }
 
   @Put('atividades-aplicadas/:id/respostas/:questao')
+  @UseGuards(RotasDeProvaGuard)
   @RequirePermissao('minha_atividade', 'responder')
   @Header('Cache-Control', 'no-store')
   responder(
@@ -57,6 +63,7 @@ export class MinhaAtividadeController {
   }
 
   @Post('atividades-aplicadas/:id/enviar')
+  @UseGuards(RotasDeProvaGuard)
   @RequirePermissao('minha_atividade', 'enviar')
   @HttpCode(HttpStatus.OK)
   @Header('Cache-Control', 'no-store')

@@ -262,6 +262,16 @@ describe('regras de alerta provisionadas', () => {
     expect(NOMES_NO_PROMETHEUS.provedorDeReservaConferido).toEqual(['ia_provedor_de_reserva_conferido'])
     expect(expressao(reservaNaoConferida)).not.toMatch(/escola|usuario|execucao|aluno/)
 
+    // avaliacao-e-correcao, tarefa 2.0: "Pulso da API parado" é a idade do pulso de **cada instância** (`max by (instance)`), com 2 min ou mais por 1 min, e nenhuma soma nem média entre instâncias: a que não
+    // pulsa não se esconde atrás da que pulsa. `noDataState: OK` e nenhum `absent()`: a API fora do ar, ou a que ainda não deu o primeiro pulso, não publica a série (a queda tem os alertas dela).
+    const pulsoParado = regraPorUid(REGRAS_PROVISIONADAS.pulsoDaApiParado).regra
+    expect(pulsoParado.for).toBe('1m')
+    expect(expressao(pulsoParado)).toBe('max by (instance) (api_pulso_idade_s{job="educa/api"}) >= 120')
+    expect(expressao(pulsoParado)).not.toMatch(/absent|avg|sum|min by|escola|usuario|aluno/)
+    expect(limiar(pulsoParado)).toEqual({ type: 'gt', params: [0] })
+    expect(pulsoParado.noDataState).toBe('OK')
+    expect(NOMES_NO_PROMETHEUS.idadeDoPulso).toEqual(['api_pulso_idade_s'])
+
     // camada-ia, tarefa 4.0: o uso do orçamento do mês, por escola, pelo maior valor entre as réplicas do worker-lote. O limiar está na expressão: `>= 0.8` e `>= 1` (o aviso da coordenação vale `>=`) e `> 1` no teto (o lote
     // só espera com o custo **acima** dele). `noDataState: OK`: escola sem orçamento ou sem aluno ativo não tem série. Nenhuma das três leva valor em reais na consulta.
     const orcamentoAos80 = regraPorUid(REGRAS_PROVISIONADAS.iaOrcamentoAos80).regra

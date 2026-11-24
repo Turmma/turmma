@@ -1,14 +1,15 @@
 # Estado da execução — avaliacao-e-correcao
 
 ## Agora
-- **Espero (23/11 14:40):** a linha 2 (`Implementador 2` e `Mesa 2`, Sonnet), aberta às 14:36 em `…--l2`, na **1.0** (porte grande), 1ª tentativa, desde 14:39; **DIVERGÊNCIA de desenho na 2ª rodada (23/11 ~16:10)**: a versão `coordenacao` do arquivo do titular leva tempo adicional e saídas da aba, contra o PRD §4 (ordem `.processo/ordens/1_task-r2.md`, item 1). O Joaquim escolheu A (exceção declarada); `PEDIDO de retomada` ao `Implementador 2` (23/11 ~17:05) para fechar o item 1 da ordem r2 e pedir a 3ª rodada. Tarefas conferidas pelo `test-engineer` (`b9dd2353`). Paralelo: 3.0, 5.0 e 7.0 depois da 2.0; 10.0 depois da 1.0; 11.0 ao lado da 12.0.
-- **Devo ainda:** com a 1.0 encontrada, partem 2.0 e 10.0 (paralelo). No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim.
-- **Base:** `spec/avaliacao-e-correcao` em `84852d06` (encontro da correção d55, 23/11 ~15:40); na abertura, sobre a `develop` em `23761ad6` (F5b pousada, esteira verde, execução 45194314577, tentativa 2)
+- **Espero (23/11 20:16):** linha 1 (`Implementador` e `Mesa`) na **2.0** (porte grande) e linha 2 (`Implementador 2` e `Mesa 2`) na **10.0** (porte grande), 1ª tentativa das duas. Paralelo: 3.0, 5.0 e 7.0 depois da 2.0; 11.0 ao lado da 12.0.
+- **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim.
+- **Base:** `spec/avaliacao-e-correcao` em `8778bddb` (encontro da 1.0); esteira verde em `6c187bd` (execução 45251286725)
 - **Decidido (23/11), aviso fixo da coluna "Saiu da aba":** o Joaquim aprovou, nesta conversa, o texto proposto em `cenarios.md` §4, sem mudança.
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 1.0 (linha 2) | `cb79a2c2` → spec `8778bddb` | Sonnet | 3 (divergência de desenho na 2ª; BLOQUEIO do Arquiteto; o Joaquim escolheu A, a exceção do art. 18 no arquivo do titular) | encontro 23/11 ~17:35, verificação verde |
 | correção d55-recusa-rubrica (linha 1) | `b448df3d` → spec `84852d06`; "Resto aceito" reescrito pelo Arquiteto, itens 3 e 4 em `5ec3577d` e item 1 em `6c187bd3` | Sonnet | 3 (escalada na 2ª; diagnóstico do Arquiteto 2; alternativa A do Joaquim) | encontro 23/11 ~15:40, verificação verde; esteira verde em `b9dd235` (execução 45219624849) antes deste push |
 
 ## Esperando o Joaquim

@@ -17,7 +17,7 @@ export interface ExpurgoDeAcessoDependencies {
  * expirada há mais de 30 dias, o convite usado, revogado ou expirado há mais de 30 dias e o acesso da turma vencido ou
  * revogado há mais de 30 dias (A1, tarefa 10.0), o link da conta (o do "esqueci a senha") usado, substituído ou vencido há mais de 30 dias, depois de fechar `falhou` o envio dele parado há mais de 24 h (acesso-e-convites, tarefa 5.0), a importação de planilha terminada há mais de 90 dias (F2, tarefa 5.0), e, com os mesmos prazos, o
  * acesso, a sessão e o convite da operação Turmma (tarefa 9.0), e o incidente de segurança com mais de 5 anos, com as seções
- * das escolas em cascata (F3, tarefa 9.0), um lote de 5.000 por
+ * das escolas em cascata (F3, tarefa 9.0), e a indisponibilidade da API com mais de 13 meses (avaliacao-e-correcao, 2.0), um lote de 5.000 por
  * instrução, tabela por tabela, até sobrar lote incompleto. Depois limpa a conta da equipe que ficou sem usuário ativo
  * e sem convite válido, que a desativação deixou para quando o convite vencesse. Cada lote é uma transação curta: a sessão é lida pela
  * guarda em toda requisição, e o expurgo não pode segurar lock nela.
@@ -73,6 +73,7 @@ export function createExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOT
       sessao_operador: await deleteAlvo('sessao_operador'),
       convite_operador: await deleteAlvo('convite_operador'),
       incidente: await deleteAlvo('incidente'),
+      indisponibilidade: await deleteAlvo('indisponibilidade'),
     }
     const contasLimpasTotal = await clearContas()
     const {
@@ -86,6 +87,7 @@ export function createExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOT
       sessao_operador: sessoesDeOperadorTotal,
       convite_operador: convitesDeOperadorTotal,
       incidente: incidentesTotal,
+      indisponibilidade: indisponibilidadesTotal,
     } = totais
     // Só contagens, uma chave fixa por tabela.
     logger.info({
@@ -101,6 +103,7 @@ export function createExpurgoDeAcesso({ repositorio, relogio, logger, lote = LOT
       sessoesDeOperadorTotal,
       convitesDeOperadorTotal,
       incidentesTotal,
+      indisponibilidadesTotal,
       contasLimpasTotal,
     })
   }

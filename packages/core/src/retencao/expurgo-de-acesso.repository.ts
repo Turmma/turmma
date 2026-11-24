@@ -35,14 +35,20 @@ export const RETENCAO_IMPORTACAO_DIAS = 90
 export const RETENCAO_INCIDENTE_ANOS = 5
 
 /**
- * As dez tabelas que o `sistema.expurgar-acesso` apaga por prazo, na ordem em que ele passa; a conta vem depois. As
+ * Por quantos meses a indisponibilidade da API fica (avaliacao-e-correcao, 2.0; `docs/modelo-de-dados.md`): é fato do nosso sistema, sem escola e sem
+ * pessoa, que só serve para devolver o tempo da prova online. Treze meses cobrem um ano letivo inteiro mais a revisão de janeiro.
+ */
+export const RETENCAO_INDISPONIBILIDADE_MESES = 13
+
+/**
+ * As onze tabelas que o `sistema.expurgar-acesso` apaga por prazo, na ordem em que ele passa; a conta vem depois. As
  * seis primeiras são das escolas ou da conta: registro de acesso, sessão e convite (tarefa 17.0), o link da conta (acesso-e-convites, tarefa 5.0, que é global), o acesso da turma (A1, tarefa
  * 10.0) e a importação de planilha terminada (F2, tarefa 5.0); as três seguintes, da operação Turmma (A0, tarefa 9.0), com os mesmos prazos; a última, o incidente de segurança
- * (F3, tarefa 9.0), que é da operação mas leva as seções das escolas em cascata. A `auditoria_operacao` (vigência + 5
+ * (F3, tarefa 9.0), que é da operação mas leva as seções das escolas em cascata; e a indisponibilidade da API (avaliacao-e-correcao, 2.0), global e sem pessoa. A `auditoria_operacao` (vigência + 5
  * anos) e o `operador` (o dado pessoal sai no `desativar`) nunca são alvo, nem os pedidos de reivindicação (vigência + 5
  * anos, sem expurgo na A1).
  */
-export const ALVOS_DO_EXPURGO_DE_ACESSO = ['registro_acesso', 'sessao', 'convite', 'link_da_conta', 'acesso_turma', 'importacao_planilha', 'acesso_operacao', 'sessao_operador', 'convite_operador', 'incidente'] as const
+export const ALVOS_DO_EXPURGO_DE_ACESSO = ['registro_acesso', 'sessao', 'convite', 'link_da_conta', 'acesso_turma', 'importacao_planilha', 'acesso_operacao', 'sessao_operador', 'convite_operador', 'incidente', 'indisponibilidade'] as const
 export type AlvoDoExpurgoDeAcesso = (typeof ALVOS_DO_EXPURGO_DE_ACESSO)[number]
 
 /**
@@ -80,6 +86,8 @@ export type AlvoDoExpurgoDeAcesso = (typeof ALVOS_DO_EXPURGO_DE_ACESSO)[number]
  *   lida inteira.
  * - **Incidente** (F3, tarefa 9.0): 5 anos depois de registrado, do mais antigo, e as seções das escolas (`incidente_escola`)
  *   saem junto, pela cascata da FK: este arquivo não cita a tabela delas. Poucos por ano, sem índice próprio.
+ * - **Indisponibilidade** (avaliacao-e-correcao, 2.0): 13 meses depois de a API voltar (`fim`), da mais antiga, pelo índice `indisponibilidade_fim_idx`. É fato global e sem pessoa:
+ *   o prazo não depende de escola nem de ano letivo.
  */
 const APAGAR_LOTE: Record<AlvoDoExpurgoDeAcesso, (agora: Date, limite: number) => SQL> = {
   registro_acesso: (agora, limite) => sql`
@@ -182,6 +190,16 @@ const APAGAR_LOTE: Record<AlvoDoExpurgoDeAcesso, (agora: Date, limite: number) =
       for update skip locked
     ))
   `,
+  indisponibilidade: (agora, limite) => sql`
+    delete from indisponibilidade
+    where id = any(array(
+      select id from indisponibilidade
+      where fim < ${agora.toISOString()}::timestamptz - make_interval(months => ${RETENCAO_INDISPONIBILIDADE_MESES})
+      order by fim
+      limit ${limite}
+      for update skip locked
+    ))
+  `,
 }
 
 /** A conta sem uso: sem usuário ativo e sem usuário esperando convite ainda válido no `agora`. `c` é a conta. */
@@ -259,8 +277,8 @@ export class ExpurgoDeAcessoRepository {
     'o expurgo é rotina nossa e aplica o mesmo prazo de registro de acesso, sessão, convite (de coordenador e de professor) ' +
       'e acesso da turma (link e código da sala) a todas as escolas (e à falha de login sem escola), à importação de planilha ' +
       'terminada (90 dias, sem a que está na fila), ao link da conta (30 dias, que é da conta global e não tem escola), e às tabelas de acesso, ' +
-      'sessão e convite da operação Turmma, que são da equipe e não têm escola, e ao incidente de segurança, que também não tem ' +
-      'escola e leva as seções delas em cascata; não devolve linha, só a quantidade apagada, ' +
+      'sessão e convite da operação Turmma, que são da equipe e não têm escola, ao incidente de segurança, que também não tem ' +
+      'escola e leva as seções delas em cascata, e à indisponibilidade da API, que é fato global sem escola nem pessoa; não devolve linha, só a quantidade apagada, ' +
       'e não atende requisição de escola nenhuma',
   )
   async deleteLoteVencido(alvo: AlvoDoExpurgoDeAcesso, agora: Date, limite: number = LOTE_DO_EXPURGO): Promise<number> {

@@ -69,6 +69,7 @@ export const NOMES_NO_PROMETHEUS = {
   vagasEmUso: ['fila_vagas_em_uso'],
   jobsStalled: ['fila_jobs_stalled_total'],
   conexoesRealtime: ['realtime_conexoes'],
+  idadeDoPulso: ['api_pulso_idade_s'],
   poolEmUso: ['db_pool_em_uso'],
   conexoesDescartadas: ['db_pool_conexoes_descartadas_total'],
   redisDisponivel: ['redis_disponivel'],
