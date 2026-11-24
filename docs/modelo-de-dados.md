@@ -882,7 +882,8 @@ liga a decisão sobre o professor (D45, regra 70 item 8). Os dois estão no mapa
      o expurgo de acesso apaga por prazo — ver "Comunicação, conta e conformidade";
    - o `PulsoDaApi` e a `Indisponibilidade` (F6, `avaliacao-e-correcao`): o último pulso das instâncias da API (linha
      única) e as janelas em que ela ficou fora, que devolvem o tempo da prova online (regra 80, item 6). Fato operacional
-     global, sem dono e sem pessoa: só o repository do pulso escreve, e o cálculo do limite da tentativa lê.
+     global, sem dono e sem pessoa: só o repository do pulso escreve, e o cálculo do limite da tentativa lê. A `Indisponibilidade` sai 13 meses depois de a API
+     voltar, pelo `sistema.expurgar-acesso` (a linha do pulso é única e nunca sai).
    A lista de escolas da rotina noturna (`CronEscolasRepository.listIds`, F3) não é tabela sem escola: é a
    consulta sem escopo que abre o contexto de cada escola — ver "Comunicação, conta e conformidade".
 2. Id é UUID. Nunca sequencial.

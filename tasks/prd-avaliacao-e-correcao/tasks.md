@@ -13,13 +13,13 @@
   - [x] 1.5 PATCH parcial da janela
   - [x] 1.6 Testes: RF1 a RF3 do professor, corridas (b) e (k), isolamento, schema, expurgo, titular
 
-- [ ] **2.0 — Pulso da API, indisponibilidade, `limiteDaTentativa` e o 503 das rotas de prova**
-  - [ ] 2.1 `limiteDaTentativa` pura, com a lacuna aberta
-  - [ ] 2.2 O pulso numa instrução, com conexão própria, antes do `listen`
-  - [ ] 2.3 A recusa das rotas de prova com o pulso parado
-  - [ ] 2.4 Pulso e indisponibilidades lidos numa consulta
-  - [ ] 2.5 Expurgo da indisponibilidade aos 13 meses; alerta e runbook
-  - [ ] 2.6 Testes: RF6 do pulso, corrida (g)
+- [x] **2.0 — Pulso da API, indisponibilidade, `limiteDaTentativa` e o 503 das rotas de prova**
+  - [x] 2.1 `limiteDaTentativa` pura, com a lacuna aberta
+  - [x] 2.2 O pulso numa instrução, com conexão própria, antes do `listen`
+  - [x] 2.3 A recusa das rotas de prova com o pulso parado
+  - [x] 2.4 Pulso e indisponibilidades lidos numa consulta
+  - [x] 2.5 Expurgo da indisponibilidade aos 13 meses; alerta e runbook
+  - [x] 2.6 Testes: RF6 do pulso, corrida (g)
 
 - [ ] **3.0 — O aluno começa e responde dentro do limite**
   - [ ] 3.1 Alcance, janela e limite, nessa ordem

@@ -209,6 +209,7 @@ export {
   observeRealtimeConnections,
   observeEventLoop,
   observeDatabasePool,
+  observePulsoDaApi,
   observeRedis,
   observeInsuranceLimiter,
   observeProvedorDeReserva,
@@ -227,6 +228,7 @@ export {
   RETENCAO_CONVITE_DIAS,
   RETENCAO_IMPORTACAO_DIAS,
   RETENCAO_INCIDENTE_ANOS,
+  RETENCAO_INDISPONIBILIDADE_MESES,
   RETENCAO_REGISTRO_ACESSO_MESES,
   RETENCAO_SESSAO_DIAS,
 } from './retencao/expurgo-de-acesso.repository.js'

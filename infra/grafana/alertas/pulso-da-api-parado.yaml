@@ -1,0 +1,64 @@
+# Alerta "Pulso da API parado" (avaliacao-e-correcao, tarefa 2.0; runbook: docs/runbook.md#pulso-da-api-parado).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `api.pulso.idade_s` (`api_pulso_idade_s`) é, por instância da API, o tempo desde o último pulso bem-sucedido dela. A instância que passa de 30 s sem pulsar recusa as rotas de
+# prova com 503 (`RotasDeProvaGuard`); este alerta avisa que ela **continua de pé** (a série só existe com o processo respondendo à coleta) e não pulsa, e que o aluno em prova
+# está levando 503 nela: o balanceador não a tira da rotação, porque a prontidão dela não depende do pulso. Dispara com 2 min, quatro vezes o prazo da recusa, e por instância
+# (`max by (instance)`): a instância parada não se esconde atrás da que pulsa.
+#
+# Sem dado é normal: a API fora do ar, ou a que ainda não deu o primeiro pulso, não publica a série, e `noDataState: OK` mantém o alerta quieto. A API fora tem os alertas dela
+# ("Sistema fora do ar no horário letivo", taxa de 5xx). Não usa `absent()`.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: pulso-da-api-parado
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-pulso-da-api-parado
+        title: Pulso da API parado
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: prova
+        annotations:
+          summary: 'A instância {{ $labels.instance }} da API está de pé, mas não pulsa há 2 min: ela recusa as rotas de prova (503)'
+          description: A instância não consegue gravar o pulso (banco lento ou fora, conexão do pulso presa). Quem está em prova nela recebe 503 ao abrir a prova, salvar a resposta e enviar. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#pulso-da-api-parado
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'max by (instance) (api_pulso_idade_s{job="educa/api"}) >= 120'
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

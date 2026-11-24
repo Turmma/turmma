@@ -184,6 +184,18 @@ Cada escola entra com centenas de usuários, concentrados no horário de aula e 
 único IP. O modelo de carga, a topologia, os limites, a meta de disponibilidade e o portão
 da primeira escola real estão em `docs/infra.md` e na regra 80.
 
+### O pulso da API e o tempo da prova online
+
+A queda do nosso sistema não é tempo do aluno (regra 80, item 6). Cada instância **HTTP** da API (o worker e o realtime não pulsam: podem estar de pé com a API fora) grava, a cada 10 s,
+que está de pé: uma instrução só sobre a linha única de `pulso_da_api`, com o `now()` do banco, em **conexão própria** que reconecta (`apps/api/src/atividade/pulso/`). A lacuna entre dois pulsos
+**acima de 30 s** vira uma linha de `indisponibilidade`, na mesma instrução, e o limite de cada tentativa soma de volta a parte dela que cai dentro da prova (`limiteDaTentativa`, em `packages/shared`,
+por ponto fixo). A queda que ainda não terminou conta também: do último pulso até agora.
+
+A instância sobe com o **primeiro pulso antes de abrir a porta** (`ouvirDepoisDoPrimeiroPulso`, no `main.ts`), e a que **não pulsa há mais de 30 s recusa as rotas de prova com 503** (`RotasDeProvaGuard`):
+sem o pulso gravado a queda dela não entraria na conta, e cobrar a prova de quem a API não deixou responder é o que a regra proíbe. Só as rotas de prova recusam; o resto da API segue. O alerta
+"Pulso da API parado" avisa quando uma instância está de pé e não pulsa (`api.pulso.idade_s`, por instância). As duas tabelas são fatos globais, sem escola e sem pessoa
+(`docs/modelo-de-dados.md`, item 1); a `indisponibilidade` sai aos 13 meses, pelo `sistema.expurgar-acesso`.
+
 ## Tempo real (modo sala)
 
 O professor vê a turma usando o tutor ao vivo: quem está travado, quem pediu resposta

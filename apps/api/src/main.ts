@@ -1,8 +1,9 @@
 import 'reflect-metadata'
-import { createLogger, startTelemetry, RateLimiter, observeDatabasePool, observeRedis, observeInsuranceLimiter, registerProcessErrorHandlers } from '@educa/core'
+import { createLogger, startTelemetry, RateLimiter, observeDatabasePool, observePulsoDaApi, observeRedis, observeInsuranceLimiter, registerProcessErrorHandlers } from '@educa/core'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { AppModule } from './app.module.js'
+import { PulsoService, ouvirDepoisDoPrimeiroPulso } from './atividade/pulso/pulso.service.js'
 import { DB_POOL } from './database.module.js'
 import { loadConfig } from './config.js'
 import { configureApp } from './configure-app.js'
@@ -24,8 +25,10 @@ observeRedis(medidor, { cache: [app.get(REDIS_CACHE_CLIENT)], fila: [app.get(RED
 // O rate limit no Redis de cache e, no Redis de fila, os contadores e o desafio do login e os limites da sala: vale o que
 // estiver no seguro.
 observeInsuranceLimiter(medidor, app.get(RateLimiter), app.get(LoginFallbackTracker), app.get(SalaRateLimits))
+observePulsoDaApi(medidor, () => app.get(PulsoService).idadeEmSegundos())
 app.disable('x-powered-by')
 // SIGTERM drena antes de sair (GracefulShutdown, em @educa/core). `useProcessExit`: o Node é o PID 1 do
 // container e ignoraria o sinal que o Nest reenvia a si mesmo no fim.
 app.enableShutdownHooks(['SIGTERM', 'SIGINT'], { useProcessExit: true })
-await app.listen(config.porta, '0.0.0.0')
+// O primeiro pulso antes de aceitar tráfego (avaliacao-e-correcao, 2.0): a instância que sobe depois de uma queda grava a lacuna antes de a primeira prova bater nela.
+await ouvirDepoisDoPrimeiroPulso(app, config.porta, '0.0.0.0')

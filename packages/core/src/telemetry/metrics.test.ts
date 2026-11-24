@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
 import type { DatabasePool } from '../db/pool.js'
 import { loadTelemetryConfig } from './start.js'
-import { METRICS, METRICS_WITH_ESCOLA, httpMetricsMiddleware, observeDatabasePool, observeRedis, observeInsuranceLimiter, observeProvedorDeReserva, ROTA_NAO_ENCONTRADA, requestRoute } from './metrics.js'
+import { METRICS, METRICS_WITH_ESCOLA, httpMetricsMiddleware, observeDatabasePool, observeRedis, observeInsuranceLimiter, observeProvedorDeReserva, observePulsoDaApi, ROTA_NAO_ENCONTRADA, requestRoute } from './metrics.js'
 
 const ID = '0190f5a0-0000-7000-8000-0000000000c1'
 
@@ -86,6 +86,18 @@ describe('pool do banco', () => {
 
     expect((await medidor.pontos(METRICS.poolEmUso)).map((ponto) => ponto.valor)).toEqual([4])
     expect((await medidor.pontos(METRICS.conexoesDescartadas)).map((ponto) => ponto.valor)).toEqual([2])
+  })
+})
+
+describe('api.pulso.idade_s', () => {
+  it('lê a idade do pulso no momento da coleta, sem rótulo; sem pulso ainda, a série não existe', async () => {
+    let idade: number | undefined
+    observePulsoDaApi(medidor.medidor, () => idade)
+    expect(await medidor.pontos(METRICS.idadeDoPulso)).toEqual([])
+    idade = 12
+    expect(await medidor.pontos(METRICS.idadeDoPulso)).toEqual([{ atributos: {}, valor: 12 }])
+    idade = 125
+    expect(await medidor.pontos(METRICS.idadeDoPulso)).toEqual([{ atributos: {}, valor: 125 }])
   })
 })
 

@@ -25,6 +25,7 @@ import { APP_GUARD, APP_INTERCEPTOR, DiscoveryModule, DiscoveryService, Reflecto
 import { ArtefatoModule } from './artefato/artefato.module.js'
 import { AssistenteModule } from './assistente/assistente.module.js'
 import { AtividadeModule } from './atividade/atividade.module.js'
+import type { Tique } from './atividade/pulso/pulso.service.js'
 import { DB, DatabaseModule } from './database.module.js'
 import type { ApiConfig } from './config.js'
 import { EntregaModule } from './entrega/entrega.module.js'
@@ -72,6 +73,9 @@ export interface AppModuleOptions {
   readonly relogioDasLicencas?: Clock
   /** O relógio da Semana do professor (`hoje` e `agora` no fuso da escola), que o teste injeta. Nunca vem do ambiente. */
   readonly relogioDaSemana?: Clock
+  /** O relógio da instância para a recusa das rotas de prova com o pulso parado, e o tique do pulso, que o teste dispara à mão (avaliacao-e-correcao, 2.0). Nunca vêm do ambiente. */
+  readonly relogioDoPulso?: Clock
+  readonly tiqueDoPulso?: Tique
 }
 
 @Module({})
@@ -118,7 +122,11 @@ export class AppModule {
         AssistenteModule.forRoot({ chaveContador: config.login.chaveContador, instancias: config.limite.instancias, logger: opcoes.logger ?? createLogger({ servico: 'api' }) }),
         ArtefatoModule,
         EntregaModule,
-        AtividadeModule,
+        AtividadeModule.forRoot({
+          logger: opcoes.logger ?? createLogger({ servico: 'api' }),
+          ...(opcoes.relogioDoPulso === undefined ? {} : { relogioDoPulso: opcoes.relogioDoPulso }),
+          ...(opcoes.tiqueDoPulso === undefined ? {} : { tiqueDoPulso: opcoes.tiqueDoPulso }),
+        }),
         TutorModule.forRoot(),
         GovernancaModule,
         PrivacidadeModule.forRoot({
