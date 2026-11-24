@@ -21,7 +21,8 @@ encerra. A carga da manhã de segunda prova isso em escala.
 ## Subtarefas
 
 - [ ] 6.1 — `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas` (§5.6), os dois com `naoUrgente: false`
-- [ ] 6.2 — `encerrarPeloLimite`: `for update`, o pulso, o fim efetivo, a suspensão; auditoria sem aluno; sino
+- [ ] 6.2 — `encerrarPeloLimite`: `for update`, o pulso, o fim efetivo, a suspensão; auditoria sem aluno; sino; os dois
+  encerramentos gravam a vencida (§5.5)
 - [ ] 6.3 — Alertas (prova aberta 5 min além do fim **efetivo**; p95 do PUT) e runbook
 - [ ] 6.4 — `docs/aia/correcao-de-objetiva.md`, etapa 1: 1.4/1 (o gatilho) e 1.4/9 (a contagem só no lote)
 - [ ] 6.5 — `infra/k6/prova-online.js` e a corrida registrada
@@ -37,6 +38,7 @@ encerra. A carga da manhã de segunda prova isso em escala.
 | `apps/api/src/atividade/atividade-aplicada/atividade-aplicada.service.ts` | alterado |
 | `apps/api/src/atividade/atividade-aplicada/atividade-aplicada.repository.ts` | alterado |
 | `apps/worker/test/encerrar-provas.int.test.ts` | novo |
+| `apps/api/src/atividade/prova-online-aluno.int.test.ts` | alterado |
 | `infra/grafana/alertas/prova-vencida-aberta.yaml` | novo |
 | `infra/grafana/alertas/prova-put-p95.yaml` | novo |
 | `infra/k6/prova-online.js` | novo |
@@ -55,6 +57,7 @@ encerra. A carga da manhã de segunda prova isso em escala.
 | Ano encerrado | integração | não lista; o alerta não conta | a do ano em curso, na mesma escola, lista | |
 | Função suspensa em A | integração | encerra sem lote nem correção, e não volta a listar | B corrige | |
 | Vencida sem envio | integração | entra na correção com o salvo; `enviada_em` = limite, não `now()` | duas respostas corrigidas | |
+| Professora encerra uma vencida e uma com tempo | integração | a vencida: `limite`, `enviada_em` = limite; a outra, `encerramento` | gravar só na rotina | |
 | Auditoria por aplicação, sem aluno | integração | uma por aplicação | gravar por tentativa fica vermelho | |
 | (c) resposta × job; (e) job × professor; (f) job × job e o cron duplicado; (j) estender × rotina; (l) pulso × rotina | integração | as ordens forçadas da `cenarios.md` §3 | (c) também com `encerrarPeloLimite`; (e) sem lock: dois lotes; (f) sem trava: dois lotes, sem chave do minuto: dois jobs; (j) e (l): encerra | |
 | Regra do alerta da prova aberta | unidade | dispara 5 min além do fim efetivo; com aluno estendido, não | o fim pelo `fecha_em` | |

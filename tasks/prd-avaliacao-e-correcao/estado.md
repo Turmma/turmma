@@ -1,9 +1,9 @@
 # Estado da execução — avaliacao-e-correcao
 
 ## Agora
-- **Espero:** linha 1 (`Implementador` e `Mesa`) na **7.0** (porte grande, partida 23/11 depois do encontro da correção explain), 1ª tentativa. Linha 2 (`Implementador 2` e `Mesa 2`) na **5.0** (porte grande, partida 23/11 depois do encontro da 10.0), 1ª tentativa. Linha 3 (`Implementador 3` e `Mesa 3`, aberta às ~22:30) na **3.0**, 1ª tentativa.
-- **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim. No fechamento, levar também ao `TODO.md` as duas linhas de "Recomendações sem aplicar" de `tasks/correcoes/2026-11-23-explain-semana-itens.md` (regex sem `ano_letivo_id`; regra no lugar da lista de nomes); as outras duas vão para a retro.
-- **Base:** `spec/avaliacao-e-correcao` em `4876cb1f` (encontro da correção explain); esteira VERMELHA em `5e4d786` (execução 45308060223, o mesmo EXPLAIN, anterior à correção), execução nova rodando em `4876cb1`
+- **Espero:** linha 1 (`Implementador` e `Mesa`) na **7.0** (porte grande, partida 23/11 23:31), 1ª tentativa, portão rodando. Linha 2 (`Implementador 2` e `Mesa 2`) na **correção encontro-5**: o encontro da 5.0 (`82d352bc`) deu CONFLITO em `apps/api/test/contracts.test.ts`; merge da spec, portão, Mesa e commit da correção, depois o encontro de novo. Linha 3 (`Implementador 3` e `Mesa 3`) na **4.0** (porte pequeno, partida 24/11 ~02:10), 1ª tentativa.
+- **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim. No fechamento, levar também ao `TODO.md` as duas linhas de "Recomendações sem aplicar" de `tasks/correcoes/2026-11-23-explain-semana-itens.md` (regex sem `ano_letivo_id`; regra no lugar da lista de nomes); as outras duas vão para a retro. Antes da partida da 6.0: a Tech Spec precisa da escolha escrita entre encerramento e limite (pedido do Implementador 3 no relatório da 3.0); levar ao Arquiteto antes do lote. Na Validação: o caso do PUT com a extensão (B recebe TEMPO_ESGOTADO) e a fronteira do `>` do tempo esgotado são da 3.0 e ficaram em "Sem aplicar" do `5_task.md`.
+- **Base:** `spec/avaliacao-e-correcao` em `70060000` (encontro da 3.0); esteira rodando em `7006000` (execução 45329691617)
 - **Decidido (23/11), aviso fixo da coluna "Saiu da aba":** o Joaquim aprovou, nesta conversa, o texto proposto em `cenarios.md` §4, sem mudança.
 
 ## Concluídas
@@ -14,6 +14,7 @@
 | correção d55-recusa-rubrica (linha 1) | `b448df3d` → spec `84852d06`; "Resto aceito" reescrito pelo Arquiteto, itens 3 e 4 em `5ec3577d` e item 1 em `6c187bd3` | Sonnet | 3 (escalada na 2ª; diagnóstico do Arquiteto 2; alternativa A do Joaquim) | encontro 23/11 ~15:40, verificação verde; esteira verde em `b9dd235` (execução 45219624849) antes deste push |
 | 10.0 (linha 2) | `f860fc60` → spec `5e4d7867` | Sonnet | 2 (sete revisores aprovaram na 2ª) | encontro 23/11, verificação verde; seis itens da Mesa no `TODO.md`; "Mudar a janela da prova" e o painel da prova ficam para a Validação |
 | correção explain-semana-itens (linha 1) | `89884d98` → spec `4876cb1f` | Sonnet | 3 (`revisor-geral` reprovou na 2ª, aprovou na 3ª) | encontro 23/11, verificação verde; esteira vermelha de `5e4d786` é o mesmo EXPLAIN, anterior à correção |
+| 3.0 (linha 3) | `2177c7ba` → spec `70060000` | Sonnet | 2 (`test-engineer` reprovou na 1ª) | encontro 24/11 ~02:05, verificação verde; divergência já propagada ao `cenarios.md` (minhas-atividades sem ano em curso responde NAO_ENCONTRADO); dois itens no `TODO.md` |
 
 ## Esperando o Joaquim
 ## 23/11 16:25 — 1.0 (linha 2), BLOQUEIO do Arquiteto na divergência da 2ª rodada — RESPONDIDA (23/11 ~17:05, no terminal do Arquiteto): A, os dois entram na versão `coordenacao` por exceção declarada (art. 18); PRD, Tech Spec, cenarios.md e docs/lgpd.md editados pelo Arquiteto na linha 2, sem commit, vão no commit da 1.0
@@ -38,6 +39,7 @@ Segura só a correção. A F6 não depende dela: a 1.0 parte às 14:10 em outra 
 - **(23/11 13:30) Push da `develop`** — RESPONDIDA: "agora"; push feito (`23761ad6..88192a63`): a retro da F5b (`88192a63`) está na `develop` local, sem push; perguntei se faço agora ou no próximo pouso.
 
 ## O que falhou
+- 24/11 ~02:08: o encontro da linha 2 (5.0, `82d352bc`) deu CONFLITO em `apps/api/test/contracts.test.ts` com a 3.0; correção encontro-5 na linha 2.
 - 23/11 12:28: a esteira da `develop` no pouso da F5b caiu na fatia 8 do e2e sem rodar teste (timeout do runner baixando imagem do `ghcr.io`); verde na segunda tentativa, só a fatia que caiu.
 
 ## O que decidi sem perguntar

@@ -94,7 +94,13 @@ convocado.
    Sem duração nem janela, não há limite. Chamam a mesma função o PUT, a saída, `prova`, `tempo`, a rotina e
    o Tutor.
 5. **Responder.** Na transação do PUT, com o `now()` do banco: além do limite, `TEMPO_ESGOTADO`, sem gravar. Vencida sem
-   envio conta como enviada em toda leitura; a rotina grava `enviada_em = limite`, `envio = 'limite'`.
+   envio conta como enviada em toda leitura (RF5). **O encerramento grava o fato**, o da professora e o da rotina (o
+   mesmo miolo, na transação do `for update`): toda tentativa em andamento com `limiteDaTentativa ≤ now()` recebe
+   `enviada_em = limite`, `envio = 'limite'`; a que ainda tinha tempo fica sem envio, e a leitura diz `encerramento`.
+   A leitura **mantém a ordem** (enviada, encerrada, vencida): depois do encerramento, encerrada sem envio é só a que a
+   professora cortou antes do limite. Vale o que veio primeiro, gravado uma vez; comparar na leitura o limite com
+   `encerrada_em` mudaria depois (uma queda posterior anda o limite). A cortada segue convocável na segunda chamada
+   (§5.9); a vencida, não. Decidido na triagem antes da 6.0 (recomendação do revisor-geral na 3.0).
 6. **Encerrar sozinha.** `sistema.encerrar-provas-vencidas` (por minuto, fila `lote`, `naoUrgente: false`, chave do
    minuto; o job por escola também) **não roda com o pulso de mais de 30 s**, conferido de novo na transação do job; lista, `@Unscoped`, pelo índice `(fecha_em) where avaliativa and aberta`, as do ano em curso com
    `fecha_em` passado, e grava um `atividade.encerrar-vencidas` por escola. Por aplicação, numa transação: `for update`,

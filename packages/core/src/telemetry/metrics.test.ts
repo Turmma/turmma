@@ -159,7 +159,7 @@ describe('configuração da telemetria', () => {
 })
 
 describe('métricas com escola', () => {
-  it('lista fechada: `escola_id` só nas quatro de job, nas três de login (Tech Spec da identidade, 7c) nas noites sem expurgo (F3, tarefa 3.0) nas horas do incidente sem confirmação (F3, tarefa 9.0) nas do arquivo do titular em preparação (F3, tarefa 13.0) nas da eliminação agendada vencida (F3, tarefa 15.0) nos minutos da importação de planilha na fila (F2, tarefa 5.0) nas senhas provisórias geradas (acesso-e-convites, tarefa 9.0) e nas duas da IA no worker, a espera estourada e a execução interrompida (reengenharia-continuacao, tarefa 7.0)', () => {
+  it('lista fechada: `escola_id` só nas quatro de job, nas três de login (Tech Spec da identidade, 7c) nas noites sem expurgo (F3, tarefa 3.0) nas horas do incidente sem confirmação (F3, tarefa 9.0) nas do arquivo do titular em preparação (F3, tarefa 13.0) nas da eliminação agendada vencida (F3, tarefa 15.0) nos minutos da importação de planilha na fila (F2, tarefa 5.0) nas senhas provisórias geradas (acesso-e-convites, tarefa 9.0) e nas duas da IA no worker, a espera estourada e a execução interrompida (reengenharia-continuacao, tarefa 7.0) e na duração da trava do Tutor por prova (avaliacao-e-correcao, tarefa 7.0)', () => {
     // Uma métrica nova com escola precisa entrar aqui de propósito: o rótulo multiplica as séries por escola, e fora
     // desta lista o teste de cardinalidade da observabilidade (infra/test/metricas.int.test.ts) a reprova.
     expect([...METRICS_WITH_ESCOLA].sort()).toEqual(
@@ -184,6 +184,7 @@ describe('métricas com escola', () => {
         METRICS.habilidadeAnulada,
         METRICS.usoDoOrcamentoDoMes,
         METRICS.usoDoTetoDoOrcamento,
+        METRICS.duracaoDaTravaDoTutor,
       ].sort(),
     )
     expect(METRICS_WITH_ESCOLA).not.toContain(METRICS.limiteEmailIp)
