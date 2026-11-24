@@ -366,6 +366,17 @@ atividade", leva a Criados já filtrado pela turma e pelo tipo; sem atividade, o
   correção" (ou "Ver a correção", se já decidida), "Corrigir de novo" (só quando a atividade encerrou sem
   correção que valha) e "Encerrar a atividade" (só na aberta, com a confirmação que diz o que acontece). O id
   de outra turma ou inexistente não abre painel, e a lista segue (regra 10, item 6)
+- **A prova** (avaliacao-e-correcao, 10.0; RF1 a RF3). "Aplicar à turma", com "É avaliativa", pede a **janela**
+  ("Abre em", "Fecha em", no horário da escola; o navegador não decide o fuso), a "Duração (minutos)" (de 5 a 300,
+  opcional), "Embaralhar questões", "Embaralhar alternativas" e o **"Tempo adicional"** por aluno: uma lista de uma
+  coluna em qualquer largura, um seletor por aluno ("Sem tempo adicional", "+25%", "+50%", "+100%"), sem campo de
+  motivo (é adaptação, dado sensível). Cada campo tem rótulo e o erro dele (`FormField`); o tempo que não cabe é erro
+  do "Fecha em": "O tempo adicional não cabe na janela: com 40 min e +50%, a janela precisa de 60 min." A confirmação
+  traz o resumo da prova ("7ºA · abre 24/11 às 10:00 · fecha às 11:40 · 40 min · 2 alunos com tempo adicional": o
+  fim leva o dia só quando não é o da abertura, e nunca diz quais alunos). A prática não tem nenhum desses campos, e
+  a avaliativa **não aplica sem janela** (a API recusa). No painel, a prova aparece em uma frase, e **"Mudar janela"**
+  (horário e duração, com o resumo da janela nova e "Ninguém começou ainda") só existe na aberta que ninguém
+  começou; com alguém começado, o botão some e a API responde `PROVA_JA_COMECOU`
 - **Aprovar não é daqui**: é a tela de revisar, onde cada destaque se abre (seção 11.5). A aba não diz nota,
   média, conceito nem pontuação, e nada ordena por acerto
 

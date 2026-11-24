@@ -425,6 +425,50 @@ describe('as ações do painel', () => {
     expect(within(avaliativa).getByText(AVISO_DA_AVALIATIVA_ABERTA)).toBeTruthy()
   })
 
+  it('a prova aparece no painel em uma frase, no horário da escola, sem dizer quais alunos têm tempo adicional; sem janela (a de antes da F6), nada; "Mudar janela" só na que ninguém começou', async () => {
+    const janela = { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }
+    const frase = (painel: HTMLElement) => painel.querySelector('[data-prova-da-atividade]')?.textContent ?? null
+    const completa = aplicada(9, { avaliativa: true, estado: 'aberta', encerradaEm: null, entrega: null, janela, duracaoMin: 40, comTempoAdicional: 2, participacao: { alunos: 30, iniciaram: 0, enviaram: 0 } })
+    const { aberto, unmount } = await abrirPainelDe(completa)
+    expect(frase(aberto)).toBe('7º A · abre 24/11 às 10:00 · fecha às 11:40 · 40 min · 2 alunos com tempo adicional')
+    expect(within(aberto).getByRole('button', { name: 'Mudar janela' })).toBeTruthy()
+    unmount()
+
+    const { aberto: simples, unmount: desmontar } = await abrirPainelDe({ ...completa, duracaoMin: null, comTempoAdicional: 0, participacao: { alunos: 30, iniciaram: 3, enviaram: 0 } })
+    expect(frase(simples)).toBe('7º A · abre 24/11 às 10:00 · fecha às 11:40')
+    expect(within(simples).queryByRole('button', { name: 'Mudar janela' })).toBeNull()
+    desmontar()
+
+    const { aberto: antiga } = await abrirPainelDe(ABERTA)
+    expect(frase(antiga)).toBeNull()
+  })
+
+  it('se alguém começou entre abrir o painel e confirmar, a resposta é PROVA_JA_COMECOU: o diálogo diz em português, a lista é lida de novo e, fechado o diálogo, o "Mudar janela" não existe mais', async () => {
+    const usuario = userEvent.setup()
+    const janela = { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }
+    const livre = aplicada(9, { avaliativa: true, estado: 'aberta', encerradaEm: null, entrega: null, janela, duracaoMin: 40, comTempoAdicional: 0, participacao: { alunos: 30, iniciaram: 0, enviaram: 0 } })
+    let itens: AtividadeAplicada[] = [livre]
+    const montada = montar({ lista: () => ok({ itens }) }, `aba=atividades&atividade=${livre.id}`)
+    const aberto = await screen.findByRole('dialog', { name: livre.titulo })
+    // Alguém começa depois de a lista ser lida: a API recusa e, daqui em diante, devolve a prova já começada.
+    montada.rede.responderPor(`/v1/atividades-aplicadas/${livre.id}/janela`, () => {
+      itens = [{ ...livre, participacao: { alunos: 30, iniciaram: 1, enviaram: 0 } }]
+      return { status: 409, corpo: { erro: { codigo: 'PROVA_JA_COMECOU', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } }
+    })
+    const leiturasAntes = chamadasA(montada.rede, '/v1/atividades-aplicadas').filter((chamada) => chamada.metodo === 'GET').length
+    await usuario.click(within(aberto).getByRole('button', { name: 'Mudar janela' }))
+    const confirmacao = await screen.findByRole('alertdialog', { name: 'Mudar a janela da prova' })
+    await usuario.click(within(confirmacao).getByRole('button', { name: 'Mudar a janela' }))
+    expect(await within(confirmacao).findByText(/Alguém já começou esta prova/)).toBeTruthy()
+    // A lista foi lida de novo, e foi essa leitura que tirou o botão do painel.
+    await waitFor(() => expect(chamadasA(montada.rede, '/v1/atividades-aplicadas').filter((chamada) => chamada.metodo === 'GET').length).toBeGreaterThan(leiturasAntes))
+    await waitFor(() => expect(within(aberto).queryByRole('button', { name: 'Mudar janela' })).toBeNull())
+    await usuario.click(within(confirmacao).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(within(aberto).queryByRole('button', { name: 'Mudar janela' })).toBeNull()
+    expect(chamadasA(montada.rede, `/v1/atividades-aplicadas/${livre.id}/janela`)).toHaveLength(1)
+  })
+
   it('a encerrada não se encerra de novo, e a avaliativa já encerrada não fala mais do Tutor pausado', async () => {
     const { aberto } = await abrirPainelDe(aplicada(8, { avaliativa: true, entrega: PENDENTE }))
     expect(within(aberto).queryByRole('button', { name: 'Encerrar a atividade' })).toBeNull()

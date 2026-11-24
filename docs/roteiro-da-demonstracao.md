@@ -217,7 +217,11 @@ aluno e sugere uma nota" (a resposta explica que a IA não corrige redação nem
 ## 5. Passo 3: a atividade na turma e o aluno respondendo (Professora e alunos, 6 min)
 
 1. Professora → **Criados** → abra a **Atividade — Estequiometria** (a original, não a adaptada) → aba **Na turma** →
-   **Aplicar à turma** → **É avaliativa** → **Aplicar à turma**.
+   **Aplicar à turma** → **É avaliativa** → preencha **Abre em** (daqui a pouco, ou o horário que já passou, para a aluna
+   poder começar agora), **Fecha em** (umas três horas depois) e **Duração (minutos)** (40) → confira o resumo
+   ("7ºA · abre … · fecha às … · 40 min") → **Aplicar à turma**. A avaliativa sempre tem janela: sem ela, a tela diz o
+   que falta. O horário é o da escola. **Tempo adicional**, **Embaralhar questões** e **Embaralhar alternativas** são
+   opcionais e ficam para quem quiser mostrar (o tempo adicional é só um percentual, sem motivo).
    **Aparece:** "Aberta para a turma · avaliativa · 0 de 3 alunos enviaram".
 2. Perfil **Aluno** (Ana) → **Tarefas** → em "Para fazer", a atividade aparece com "Avaliação: o Tutor fica pausado até
    quem dá a aula encerrar". **Diga:** "Na avaliação o Tutor pausa sozinho, no servidor."

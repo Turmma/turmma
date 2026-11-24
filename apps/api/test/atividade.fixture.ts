@@ -136,11 +136,20 @@ export function rotasDaAtividade(api: TestApi) {
 export type RotasDaAtividade = ReturnType<typeof rotasDaAtividade>
 
 /**
+ * A janela de uma avaliativa de teste: aberta desde uma hora atrás até daqui a um dia. A avaliativa nova exige janela (avaliacao-e-correcao, 10.0),
+ * e o teste que não trata da janela só precisa de uma que não atrapalhe. O teste da janela manda a dele em `prova`.
+ */
+export function janelaAberta(): { abreEm: string; fechaEm: string } {
+  const agora = Date.now()
+  return { abreEm: new Date(agora - 60 * 60_000).toISOString(), fechaEm: new Date(agora + 24 * 60 * 60_000).toISOString() }
+}
+
+/**
  * Aplica a atividade pela rota e devolve o id da aplicação. `prova` leva o que a prova online acrescenta ao corpo (a janela, a duração, o embaralhamento e o
  * tempo adicional por aluno); sem ele, o corpo é o de antes da F6.
  */
 export async function aplicarAtividade(rotas: RotasDaAtividade, sessao: TestSessao, artefatoId: string, turmaId: string, avaliativa = false, prova: Record<string, unknown> = {}): Promise<string> {
-  const resposta = await rotas.aplicar(sessao, { artefatoId, turmaId, avaliativa, ...prova })
+  const resposta = await rotas.aplicar(sessao, { artefatoId, turmaId, avaliativa, ...(avaliativa ? { janela: janelaAberta() } : {}), ...prova })
   if (resposta.status !== 201) throw new Error(`atividade não aplicada: ${String(resposta.status)} ${resposta.corpo.erro?.codigo ?? ''}`)
   return resposta.corpo['id'] as string
 }

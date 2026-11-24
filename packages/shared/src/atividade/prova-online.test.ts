@@ -41,16 +41,17 @@ describe('a janela, a duração e o tempo adicional que cabem (RF1, RF3)', () =>
     expect(camposInvalidosDaProva({ ...prova, avaliativa: false, embaralhar: { questoes: true, alternativas: false } })).toEqual(['embaralhar'])
     expect(camposInvalidosDaProva({ ...prova, avaliativa: false, embaralhar: { questoes: false, alternativas: true } })).toEqual(['embaralhar'])
     expect(camposInvalidosDaProva({ ...prova, avaliativa: false, tempoAdicional: [{ alunoId: ANA, percentual: 25 }] })).toEqual(['tempoAdicional'])
-    expect(camposInvalidosDaProva({ ...prova, avaliativa: true, duracaoMin: 40 })).toEqual(['duracaoMin'])
-    // Duração com tempo adicional e sem janela: só a duração é apontada, e a conta da janela não se faz sem janela.
-    expect(camposInvalidosDaProva({ ...prova, avaliativa: true, duracaoMin: 40, tempoAdicional: [{ alunoId: ANA, percentual: 25 }] })).toEqual(['duracaoMin'])
+    expect(camposInvalidosDaProva({ ...prova, avaliativa: true, duracaoMin: 40 })).toEqual(['janela', 'duracaoMin'])
+    // Duração com tempo adicional e sem janela: a janela que falta e a duração sem janela são apontadas, e a conta de caber não se faz sem janela.
+    expect(camposInvalidosDaProva({ ...prova, avaliativa: true, duracaoMin: 40, tempoAdicional: [{ alunoId: ANA, percentual: 25 }] })).toEqual(['janela', 'duracaoMin'])
     expect(camposInvalidosDaProva({ ...prova, avaliativa: true, janela: janelaDe(60), tempoAdicional: [{ alunoId: ANA, percentual: 25 }] })).toEqual(['tempoAdicional'])
     expect(camposInvalidosDaProva({ ...prova, avaliativa: true, janela: janelaDe(50), duracaoMin: 40, tempoAdicional: [{ alunoId: ANA, percentual: 50 }] })).toEqual(['janela'])
     expect(camposInvalidosDaProva({ ...prova, avaliativa: true, janela: janelaDe(60), duracaoMin: 40, tempoAdicional: [{ alunoId: ANA, percentual: 50 }] })).toEqual([])
     // Com janela e sem duração (a prova aberta, sem relógio por aluno) nada se aponta: não há o que conferir.
     expect(camposInvalidosDaProva({ ...prova, avaliativa: true, janela: janelaDe(60) })).toEqual([])
-    // Até a 10.0 a avaliativa pode vir sem janela, como antes da F6.
-    expect(camposInvalidosDaProva({ ...prova, avaliativa: true })).toEqual([])
+    // A avaliativa nova exige a janela (RF1); a que não é avaliativa sem janela segue como antes.
+    expect(camposInvalidosDaProva({ ...prova, avaliativa: true })).toEqual(['janela'])
+    expect(camposInvalidosDaProva({ ...prova, avaliativa: false })).toEqual([])
   })
 })
 
@@ -60,7 +61,13 @@ describe('aplicar com prova: o corpo é estrito e sem motivo', () => {
   it('aceita a janela, a duração, o embaralhamento e o tempo adicional que cabem; o corpo antigo vale com o padrão', () => {
     const completo = { ...corpo, janela: janelaDe(90), duracaoMin: 40, embaralhar: { questoes: true, alternativas: true }, tempoAdicional }
     expect(aplicarAtividadeRequestSchema.safeParse(completo).success).toBe(true)
-    expect(aplicarAtividadeRequestSchema.parse(corpo)).toEqual({ ...corpo, embaralhar: SEM_EMBARALHAR, tempoAdicional: [] })
+    const pratica = { ...corpo, avaliativa: false }
+    expect(aplicarAtividadeRequestSchema.parse(pratica)).toEqual({ ...pratica, embaralhar: SEM_EMBARALHAR, tempoAdicional: [] })
+    // Só a avaliativa pede a janela: sem ela, `ENTRADA_INVALIDA` no campo `janela`; com ela, o corpo vale.
+    const semJanela = aplicarAtividadeRequestSchema.safeParse(corpo)
+    expect(semJanela.success).toBe(false)
+    expect(semJanela.error?.issues.map((problema) => problema.path)).toEqual([['janela']])
+    expect(aplicarAtividadeRequestSchema.safeParse({ ...corpo, janela: janelaDe(30) }).success).toBe(true)
   })
 
   it('recusa campo de motivo, percentual fora de 25, 50 e 100, aluno repetido, duração fora de 5 a 300 e janela invertida', () => {

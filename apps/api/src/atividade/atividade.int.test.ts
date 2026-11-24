@@ -16,6 +16,7 @@ import {
   encerrarAtividade,
   EXPLICACAO_DE_TESTE,
   GABARITO_DE_TESTE,
+  janelaAberta,
   responderProva,
   rotasDaAtividade,
   type RotasDaAtividade,
@@ -67,7 +68,7 @@ describe('atividade aplicada', () => {
   describe('aplicar', () => {
     it('a professora aplica a atividade objetiva à turma dela: nasce aberta, com quem aplicou na linha e na auditoria, e só contagem de participação', async () => {
       const artefatoId = await criarAtividade(bancada, a)
-      const resposta = await rotas.aplicar(a.professora, { artefatoId, turmaId: a.turma, avaliativa: true })
+      const resposta = await rotas.aplicar(a.professora, { artefatoId, turmaId: a.turma, avaliativa: true, janela: janelaAberta() })
       expect(resposta.status).toBe(201)
       const criada = atividadeAplicadaResponseSchema.parse(resposta.corpo)
       expect(criada).toMatchObject({ artefatoId, turmaId: a.turma, avaliativa: true, estado: 'aberta', questoes: 5, encerradaEm: null, entrega: null, participacao: { alunos: 2, iniciaram: 0, enviaram: 0 } })

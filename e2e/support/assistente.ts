@@ -12,6 +12,7 @@ import type {
   UsoDoTutorResponse,
   ResultadoDaExecucao,
 } from '../../packages/shared/src/index.ts'
+import { camposInvalidosDaProva } from '../../packages/shared/src/atividade/atividade-aplicada.ts'
 import type { ChaveDeFuncao } from '../../packages/shared/src/time/funcoes.ts'
 import { buildTime } from '../../packages/shared/src/time/time.ts'
 
@@ -55,6 +56,7 @@ type Rota =
   | 'materiais'
   | 'aplicadas'
   | 'aplicar'
+  | 'mudarJanela'
   | 'encerrar'
   | 'correcao'
   | 'abrirDestaque'
@@ -82,6 +84,7 @@ const ROTAS: readonly { readonly rota: Rota; readonly metodo: string; readonly c
   // A3 e A4: a atividade aplicada, a correção, o desempenho, os sinais e o uso do Tutor.
   { rota: 'aplicadas', metodo: 'GET', caminho: /^\/v1\/atividades-aplicadas$/ },
   { rota: 'aplicar', metodo: 'POST', caminho: /^\/v1\/atividades-aplicadas$/ },
+  { rota: 'mudarJanela', metodo: 'PATCH', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/janela$/ },
   { rota: 'encerrar', metodo: 'POST', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/encerrar$/ },
   { rota: 'correcao', metodo: 'GET', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/correcao$/ },
   { rota: 'abrirDestaque', metodo: 'POST', caminho: /^\/v1\/atividades-aplicadas\/([^/]+)\/correcao\/destaques\/([^/]+)\/abrir$/ },
@@ -246,10 +249,12 @@ export class AssistenteApiMock {
     }
     if (rota === 'aplicadas') return { status: 200, corpo: { itens: this.aplicadas.filter((aplicada) => aplicada.turmaId === url.searchParams.get('turmaId')) } }
     if (rota === 'aplicar') {
-      const pedido = corpo as { artefatoId: string; turmaId: string; avaliativa: boolean }
+      const pedido = corpo as { artefatoId: string; turmaId: string; avaliativa: boolean; janela?: { abreEm: string; fechaEm: string }; duracaoMin?: number; embaralhar?: { questoes: boolean; alternativas: boolean }; tempoAdicional?: unknown[] }
       const artefato = this.artefatos.find((item) => item.id === pedido.artefatoId)
       if (artefato === undefined || artefato.conteudo.tipo !== 'atividade_objetiva') return apiError(404, 'NAO_ENCONTRADO')
       if (artefato.entrega !== null && artefato.entrega.estado !== 'aprovada') return apiError(409, 'VERSAO_ADAPTADA_NAO_APROVADA')
+      // A API de verdade: a avaliativa nova exige a janela, e a prática não a tem (avaliacao-e-correcao, 10.0).
+      if (pedido.avaliativa !== (pedido.janela !== undefined)) return apiError(400, 'ENTRADA_INVALIDA')
       if (this.aplicadas.some((aplicada) => aplicada.artefatoId === artefato.id && aplicada.estado === 'aberta')) return apiError(409, 'CONFLITO')
       const aplicada: AtividadeAplicada = {
         id: randomUUID(),
@@ -261,11 +266,32 @@ export class AssistenteApiMock {
         questoes: artefato.conteudo.questoes.length,
         aplicadaEm: new Date().toISOString(),
         encerradaEm: null,
+        janela: pedido.janela ?? null,
+        duracaoMin: pedido.duracaoMin ?? null,
+        embaralhar: pedido.embaralhar ?? { questoes: false, alternativas: false },
+        segundaChamadaDe: null,
+        comTempoAdicional: pedido.tempoAdicional?.length ?? 0,
         participacao: { alunos: 30, iniciaram: 0, enviaram: 0 },
         entrega: null,
       }
       this.aplicadas = [aplicada, ...this.aplicadas]
       return { status: 201, corpo: aplicada }
+    }
+    if (rota === 'mudarJanela') {
+      const aplicada = this.aplicadas.find((item) => item.id === id)
+      if (aplicada === undefined) return apiError(404, 'NAO_ENCONTRADO')
+      // A API de verdade, na ordem dela: aplicação aberta, ninguém começou, e a prova que sai da mudança passa pela mesma conferência do aplicar
+      // (fora de avaliativa não há janela; avaliativa tem janela). O tempo adicional não é conferido aqui: o mock guarda só a contagem.
+      if (aplicada.estado !== 'aberta') return apiError(409, 'ATIVIDADE_ENCERRADA')
+      if (aplicada.participacao.iniciaram > 0) return apiError(409, 'PROVA_JA_COMECOU')
+      const pedido = corpo as { janela?: { abreEm: string; fechaEm: string }; duracaoMin?: number }
+      const janela = pedido.janela ?? aplicada.janela ?? undefined
+      const duracaoMin = pedido.duracaoMin ?? aplicada.duracaoMin ?? undefined
+      const invalidos = camposInvalidosDaProva({ avaliativa: aplicada.avaliativa, janela, duracaoMin, embaralhar: aplicada.embaralhar ?? { questoes: false, alternativas: false }, tempoAdicional: [] })
+      if (invalidos.length > 0) return apiError(400, 'ENTRADA_INVALIDA')
+      const mudada: AtividadeAplicada = { ...aplicada, janela: janela ?? null, duracaoMin: duracaoMin ?? null }
+      this.aplicadas = this.aplicadas.map((item) => (item.id === id ? mudada : item))
+      return { status: 200, corpo: mudada }
     }
     if (rota === 'encerrar') {
       const aplicada = this.aplicadas.find((item) => item.id === id)

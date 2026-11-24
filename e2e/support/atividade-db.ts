@@ -125,9 +125,14 @@ export class ProfessoraApiClient {
     return (await resposta.json()) as T
   }
 
-  /** Aplica a atividade à turma e devolve o id da aplicação. */
+  /**
+   * Aplica a atividade à turma e devolve o id da aplicação. A avaliativa nova exige janela (avaliacao-e-correcao, 10.0): a deste apoio está aberta desde
+   * uma hora atrás até daqui a um dia, sem duração, e o e2e que trata da janela usa a tela.
+   */
   async aplicar(artefatoId: string, turmaId: string, avaliativa: boolean): Promise<string> {
-    return (await this.chamar<{ id: string }>('POST', '/v1/atividades-aplicadas', { artefatoId, turmaId, avaliativa })).id
+    const agora = Date.now()
+    const janela = { abreEm: new Date(agora - 60 * 60_000).toISOString(), fechaEm: new Date(agora + 24 * 60 * 60_000).toISOString() }
+    return (await this.chamar<{ id: string }>('POST', '/v1/atividades-aplicadas', { artefatoId, turmaId, avaliativa, ...(avaliativa ? { janela } : {}) })).id
   }
 
   /** Encerra a atividade e espera a correção montar o lote, que fica pendente, esperando a professora. */

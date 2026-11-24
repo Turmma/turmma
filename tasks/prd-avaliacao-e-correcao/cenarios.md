@@ -15,7 +15,7 @@
 |---|---|---|---|
 | RF1 | Aluno começa antes de `abre_em` e depois de `fecha_em`: `PROVA_FORA_DA_JANELA`, sem tentativa | integração, `prova-online.int.test.ts` | tirar a conferência da janela |
 | RF1 | Duração 40 min, começo a 10 min do `fecha_em`: `limiteEm` = `fecha_em` | unidade, `limite-da-tentativa.test.ts`; integração | `limite_base_em` sem o `min` |
-| RF1 | Avaliativa nova sem janela (a exigência vale a partir da 10.0, com a tela; até lá a janela é opcional) e não avaliativa com janela: `ENTRADA_INVALIDA`; não avaliativa responde sem limite | integração | aceitar avaliativa sem janela |
+| RF1 | Avaliativa nova sem janela (a exigência entrou na 10.0, com a tela, na conferência compartilhada: vale no aplicar, no PATCH da janela e na segunda chamada) e não avaliativa com janela: `ENTRADA_INVALIDA`; não avaliativa responde sem limite | integração | aceitar avaliativa sem janela |
 | RF2 | Mudar janela sem tentativa: grava e audita; com uma tentativa iniciada: `PROVA_JA_COMECOU`, nada muda | integração | tirar o `not exists` da tentativa |
 | RF2 | Tempo adicional mudado pela rota `janela`: antes do primeiro começo grava; depois, `PROVA_JA_COMECOU` | integração | aceitar depois do começo |
 | RF3 | +25%, +50% e +100% sobre 40 min: 50, 60 e 80; o colega sem tempo adicional, 40 | integração | aplicar o percentual a todos |
