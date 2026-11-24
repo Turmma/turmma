@@ -75,6 +75,7 @@ interface ProvaParaConferir {
 /**
  * Os campos da prova que não fecham, juntos (a conferência única do aplicar, da mudança de janela e da segunda chamada):
  * - fora de avaliativa não existe janela, duração, embaralhamento nem tempo adicional (RF1; o banco recusa também);
+ * - a avaliativa tem janela (RF1, a exigência entrou na 10.0): sem ela, `janela` é o campo recusado;
  * - duração sem janela não tem de onde contar, e tempo adicional sem duração não tem sobre o que somar;
  * - o tempo adicional tem de caber na janela (`tempoAdicionalCabeNaJanela`), e o erro é do campo da janela.
  */
@@ -94,6 +95,9 @@ function camposDaProvaForaDeAvaliativa(prova: ProvaParaConferir): CampoDaProva[]
 
 function camposInvalidosDaAvaliativa(prova: ProvaParaConferir): CampoDaProva[] {
   const campos: CampoDaProva[] = []
+  // A avaliativa que sai de uma escrita tem janela (RF1, 10.0 da avaliacao-e-correcao): no aplicar, na mudança de janela e na segunda
+  // chamada. A de antes da F6, sem janela, segue **lida** como estava; mas, se receber um PATCH, a prova que resulta dele precisa trazer a janela.
+  if (prova.janela === undefined) campos.push('janela')
   if (prova.duracaoMin !== undefined && prova.janela === undefined) campos.push('duracaoMin')
   if (prova.tempoAdicional.length > 0 && prova.duracaoMin === undefined) campos.push('tempoAdicional')
   if (prova.janela !== undefined && prova.duracaoMin !== undefined && !tempoAdicionalCabeNaJanela(prova.janela, prova.duracaoMin, prova.tempoAdicional.map((item) => item.percentual))) campos.push('janela')
@@ -106,8 +110,8 @@ function camposInvalidosDaAvaliativa(prova: ProvaParaConferir): CampoDaProva[] {
  * `VERSAO_ADAPTADA_NAO_APROVADA`, e o banco recusa mesmo por fora da API. Com a avaliativa aberta, o Tutor da turma fica travado
  * (regra 30, item 10).
  *
- * **Estrito**: campo de motivo do tempo adicional, de escola, de ano ou de pessoa é `ENTRADA_INVALIDA`. A janela é opcional até a 10.0 da
- * funcionalidade (a tela passa a mandá-la); `camposInvalidosDaProva` é a conferência de que os campos da prova fecham.
+ * **Estrito**: campo de motivo do tempo adicional, de escola, de ano ou de pessoa é `ENTRADA_INVALIDA`. **A avaliativa nova exige a janela**
+ * (a atividade que não é avaliativa não a tem); `camposInvalidosDaProva` é a conferência de que os campos da prova fecham.
  *
  * A versão adaptada vai para a turma como qualquer atividade: **não existe vínculo entre aluno e adaptação** (D35). O tempo adicional é
  * por prova, escolhido pelo professor ao aplicar, e não vira o registro de adaptação do aluno.

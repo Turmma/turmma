@@ -12,6 +12,7 @@ import {
   type AtividadeEncerradaResponse,
   type DestaqueAbertoResponse,
   type LoteAprovadoResponse,
+  type MudarJanelaRequest,
 } from '@educa/shared'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { CORRECAO_QUERY_KEY, ATIVIDADES_QUERY_KEY, ENTREGAS_QUERY_KEY, DESEMPENHO_QUERY_KEY, ARTEFATOS_QUERY_KEY } from '../../../../api/chaves-do-professor'
@@ -31,6 +32,14 @@ const CAMINHO = '/v1/atividades-aplicadas'
  */
 export function aplicarAtividade(pedido: AplicarAtividadeRequest): Promise<AtividadeAplicadaResponse> {
   return authedRequest(CAMINHO, atividadeAplicadaResponseSchema, { metodo: 'POST', corpo: pedido })
+}
+
+/**
+ * `PATCH /v1/atividades-aplicadas/:id/janela` (RF2): muda a janela e a duração **antes de alguém começar**; com uma tentativa iniciada a API responde
+ * `PROVA_JA_COMECOU` e nada muda. Parcial: o que não vai no corpo fica como está, inclusive o tempo adicional, que a tela não lê nem reescreve.
+ */
+export function mudarJanela(id: string, pedido: MudarJanelaRequest): Promise<AtividadeAplicadaResponse> {
+  return authedRequest(`${CAMINHO}/${encodeURIComponent(id)}/janela`, atividadeAplicadaResponseSchema, { metodo: 'PATCH', corpo: pedido })
 }
 
 /** As atividades aplicadas à turma, com quantos alunos começaram e enviaram, e a entrega do lote quando já foi corrigida. */

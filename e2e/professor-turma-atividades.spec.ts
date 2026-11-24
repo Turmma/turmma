@@ -35,6 +35,7 @@ async function abrirJaEntrando(page: Page, professora: EquipeDeTeste, endereco: 
 }
 
 const TITULO = 'Atividade de estequiometria'
+const JANELA_DA_PROVA = { abreEm: '2030-03-12T13:00:00.000Z', fechaEm: '2030-03-12T14:40:00.000Z' }
 const lista = (page: Page) => page.getByRole('region', { name: 'Atividades da turma' })
 const painelDa = (page: Page, titulo = TITULO) => page.getByRole('dialog', { name: titulo })
 
@@ -148,6 +149,46 @@ test.describe('Atividades da turma: a linha, o painel e encerrar (X3, 11.0)', ()
 })
 
 test.describe('Atividades da turma: a lista (X3, 11.0)', () => {
+  test('com alguém começado, o painel diz a prova e não oferece mudar a janela', async ({ page }) => {
+    const { api, professora, turmaId, turmaNome } = await preparar(page)
+    const comecada = atividade(turmaId, { titulo: 'Prova que já começou', avaliativa: true, janela: JANELA_DA_PROVA, duracaoMin: 40, comTempoAdicional: 0, participacao: { alunos: 30, iniciaram: 2, enviaram: 0 } })
+    api.aplicadas = [comecada]
+    await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}?aba=atividades&atividade=${comecada.id}`)
+    await expect(painelDa(page, 'Prova que já começou')).toContainText(`${turmaNome} · abre 12/03 às 10:00 · fecha às 11:40 · 40 min`, { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(painelDa(page, 'Prova que já começou').getByRole('button', { name: 'Mudar janela' })).toHaveCount(0)
+    // O painel com a frase da prova, sem diálogo por cima.
+    expect(await seriousViolations(page)).toEqual([])
+  })
+
+  test('a prova que ninguém começou muda a janela pelo painel, com o resumo antes e um pedido só', async ({ page, hasTouch }) => {
+    const { api, professora, turmaId, turmaNome } = await preparar(page)
+    const livre = atividade(turmaId, { avaliativa: true, janela: JANELA_DA_PROVA, duracaoMin: 40, comTempoAdicional: 0, participacao: { alunos: 30, iniciaram: 0, enviaram: 0 } })
+    api.aplicadas = [livre]
+    await abrirJaEntrando(page, professora, `/professor/turmas/${turmaId}?aba=atividades&atividade=${livre.id}`)
+    const painel = painelDa(page)
+    await activate(painel.getByRole('button', { name: 'Mudar janela' }), hasTouch)
+    const mudar = page.getByRole('alertdialog', { name: 'Mudar a janela da prova' })
+    await expect(mudar).toContainText('Ninguém começou ainda', { timeout: SIGN_IN_TIMEOUT_MS })
+    await expect(mudar.getByLabel('Abre em')).toHaveValue('2030-03-12T10:00')
+    await expect(mudar.getByLabel('Fecha em')).toHaveValue('2030-03-12T11:40')
+    await expect(mudar.getByLabel('Duração (minutos)')).toHaveValue('40')
+    expect(await larguraExcedenteDoDialogo(page)).toBe(0)
+    expect(await seriousViolations(page)).toEqual([])
+    // O resumo mostra a janela nova antes de gravar, e nada sai até confirmar.
+    await mudar.getByLabel('Abre em').fill('2030-03-13T10:00')
+    await mudar.getByLabel('Fecha em').fill('2030-03-13T12:00')
+    await mudar.getByLabel('Duração (minutos)').fill('60')
+    await expect(mudar).toContainText(`${turmaNome} · abre 13/03 às 10:00 · fecha às 12:00 · 60 min`)
+    expect(api.pedidosEm(/janela$/)).toHaveLength(0)
+    expect((await mudar.getByRole('button', { name: 'Mudar a janela' }).boundingBox())?.height).toBeGreaterThanOrEqual(44)
+    // Dois cliques em confirmar mandam um pedido só (regra 80, item 7).
+    await mudar.getByRole('button', { name: 'Mudar a janela' }).dblclick()
+    await expect(mudar).toBeHidden({ timeout: SCREEN_TIMEOUT_MS })
+    expect(api.pedidosEm(/janela$/).map((pedido) => pedido.corpo)).toEqual([{ janela: { abreEm: '2030-03-13T13:00:00.000Z', fechaEm: '2030-03-13T15:00:00.000Z' }, duracaoMin: 60 }])
+    await expect(painel).toContainText('abre 13/03 às 10:00 · fecha às 12:00 · 60 min', { timeout: SCREEN_TIMEOUT_MS })
+    expect(await horizontalOverflow(page)).toBe(0)
+  })
+
   test('360 px: a lista e o painel em folha de baixo não rolam de lado e não têm violação grave', async ({ page, hasTouch }) => {
     await page.setViewportSize({ width: 360, height: 740 })
     const { api, professora, turmaId } = await preparar(page)

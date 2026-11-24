@@ -133,8 +133,8 @@ describe('o diagnóstico do aluno (D46): por habilidade, sem nota e sem a turma'
 
 describe('aplicar e encerrar', () => {
   it('aplicar pede o artefato, a turma e se é avaliativa; quem aplica vem da sessão, e os corpos vazios são estritos', () => {
-    const corpo = { artefatoId: UM_ID, turmaId: OUTRO_ID, avaliativa: true }
-    // Sem prova, o corpo de antes vale, com o padrão: sem embaralhar e sem tempo adicional.
+    const corpo = { artefatoId: UM_ID, turmaId: OUTRO_ID, avaliativa: false }
+    // Sem prova, o corpo de antes vale, com o padrão: sem embaralhar e sem tempo adicional. A avaliativa pede a janela (prova-online.test.ts).
     expect(aplicarAtividadeRequestSchema.parse(corpo)).toEqual({ ...corpo, embaralhar: { questoes: false, alternativas: false }, tempoAdicional: [] })
     for (const campo of [{ aplicadaPor: UM_ID }, { escolaId: UM_ID }, { alunos: [UM_ID] }]) expect(aplicarAtividadeRequestSchema.safeParse({ ...corpo, ...campo }).success, Object.keys(campo)[0]).toBe(false)
     expect(aplicarAtividadeRequestSchema.safeParse({ artefatoId: UM_ID, turmaId: OUTRO_ID }).success).toBe(false)

@@ -8,6 +8,7 @@ import { linhasDaTabela, paginaNaoRola } from './support/coordenacao.ts'
 import { horizontalOverflow, seriousViolations } from './support/checks.ts'
 import { entrarComoAlunoPelaApi, responderPelaApi } from './support/aluno-api.ts'
 import { ProfessoraApiClient } from './support/atividade-db.ts'
+import { preencherAJanelaDaProva } from './support/professor-flow.ts'
 import { criarCapitulosNoBanco, criarMaterialNoBanco, criarSecoesNoBanco, definirComponenteNoBanco, habilidadesDoRecorteNoBanco, secoesNoBanco, vincularMaterialAUmaSerieNoBanco } from './support/material.ts'
 import { abrirPelaApiSemMedirAPrimeiraCarga } from './support/mfa.ts'
 import { expect, loadUnthrottled, test } from './support/profiles.ts'
@@ -190,6 +191,7 @@ test.describe('o fluxo da classificação pela BNCC, do material à turma', () =
     await activate(naTurma.getByRole('button', { name: 'Aplicar à turma' }), hasTouch)
     const aplicar = page.getByRole('alertdialog', { name: 'Aplicar à turma' })
     await aplicar.getByRole('radio', { name: /^É avaliativa/ }).check()
+    await preencherAJanelaDaProva(aplicar)
     await activate(aplicar.getByRole('button', { name: 'Aplicar à turma' }), hasTouch)
     await expect(naTurma.locator('[data-atividade-aplicada="aberta"]')).toContainText('Aberta para a turma · avaliativa', { timeout: SCREEN_TIMEOUT_MS })
     cena.aplicadaId = await aplicacaoDoArtefato(cena.professora.escolaId, cena.artefatoId)
