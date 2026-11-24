@@ -32,9 +32,9 @@
   - [ ] 4.1 Sorteador injetável; `ordem` gravada no começo; a prova na ordem do aluno
   - [ ] 4.2 Testes: RF8
 
-- [ ] **5.0 — O professor estende o tempo e acompanha quem está fazendo**
-  - [ ] 5.1 `extensoes` com chave; `acompanhamento` numa consulta
-  - [ ] 5.2 Testes: RF4, corrida (d), §1b do professor
+- [x] **5.0 — O professor estende o tempo e acompanha quem está fazendo**
+  - [x] 5.1 `extensoes` com chave; `acompanhamento` numa consulta
+  - [x] 5.2 Testes: RF4, corrida (d), §1b do professor
 
 - [ ] **6.0 — A rotina encerra a prova vencida no fim efetivo, e não durante uma queda**
   - [ ] 6.1 `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas`

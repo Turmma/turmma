@@ -71,6 +71,8 @@ indisponibilidade    id, inicio, fim timestamptz      (sem escola, sem pessoa)
 | POST | `…/saidas-da-aba` | aluno | `chave` | 204; `NAO_ENCONTRADO` fora de prova em andamento |
 | GET | `…/:id/correcao` | professor | — | + `saidasDaAba` por aluno, só em avaliativa (opcional no contrato; a 5.0 o preenche) |
 
+O **acompanhamento** lê a aplicação, os alunos da turma (vínculo `confirmado`, conta ativa), as tentativas, as extensões, as indisponibilidades e o pulso **numa consulta só**, e calcula o `limiteDaTentativa` de cada aluno em memória. A situação sai assim: sem tentativa, `nao_comecou`; enviada, `enviou`, salvo a fechada pela rotina no limite (`envio = 'limite'`), que é `tempo_esgotado`; sem envio e com o limite passado, `tempo_esgotado`; sem envio, com a aplicação encerrada pelo professor e o limite adiante, `enviou` (foi com o salvo); o resto, `fazendo`. O `limiteEm` só vem em `fazendo` (nos demais é nulo). `POST …/extensoes` responde 200, com o acompanhamento, também no pedido repetido (a mesma `chave`: não grava outra linha nem outra auditoria), e a auditoria `atividade.tempo_estendido` leva só o escopo, `aluno` ou `turma`. O pedido repetido **depois** do encerramento recebe `ATIVIDADE_ENCERRADA`, e não o gravado (a prova encerrada não se estende, nem de novo); a mesma `chave` com outro corpo (outro aluno ou outros minutos), com a prova aberta, é o mesmo pedido e devolve o gravado, sem gravar nada.
+
 `minhas-atividades` traz janela e duração (com o tempo adicional, sem dizer que é adicional); a segunda chamada, só ao
 convocado.
 

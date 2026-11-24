@@ -6,6 +6,7 @@ import { FuncaoSuspensionCheck } from '../ia/funcao-suspension-check.js'
 import { REDIS_LOGIN_CLIENT } from '../credencial/index.js'
 import { AtividadeAplicadaController } from './atividade-aplicada/atividade-aplicada.controller.js'
 import { AtividadeAplicadaService } from './atividade-aplicada/atividade-aplicada.service.js'
+import { ExtensaoService } from './atividade-aplicada/extensao.service.js'
 import { CorrecaoService } from './correcao/correcao.service.js'
 import { DesempenhoController } from './desempenho/desempenho.controller.js'
 import { DesempenhoService } from './desempenho/desempenho.service.js'
@@ -41,6 +42,7 @@ export interface AtividadeModuleOpcoes {
   providers: [
     { provide: LoteReadMarker, useFactory: (cliente: Redis) => new LoteReadMarker(cliente), inject: [REDIS_LOGIN_CLIENT] },
     { provide: AtividadeAplicadaService, useFactory: (banco: Database, conferencia: FuncaoSuspensionCheck) => new AtividadeAplicadaService(banco, conferencia), inject: [DB, FuncaoSuspensionCheck] },
+    { provide: ExtensaoService, useFactory: (banco: Database) => new ExtensaoService(banco), inject: [DB] },
     { provide: CorrecaoService, useFactory: (banco: Database, leitura: LoteReadMarker) => new CorrecaoService(banco, leitura), inject: [DB, LoteReadMarker] },
     { provide: MinhaAtividadeService, useFactory: (banco: Database) => new MinhaAtividadeService(banco), inject: [DB] },
     { provide: DesempenhoService, useFactory: (banco: Database) => new DesempenhoService(banco), inject: [DB] },

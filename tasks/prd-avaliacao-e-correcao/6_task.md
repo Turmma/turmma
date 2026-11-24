@@ -16,6 +16,7 @@ encerra. A carga da manhã de segunda prova isso em escala.
 - `cenarios.md` §2 (a rotina, as auditorias), §3 (c), (e), (f), (j), (l), §5 (carga)
 - `apps/api/src/atividade/atividade-aplicada/atividade-aplicada.service.ts` (`encerrar`, `exigirAtiva`)
 - `apps/worker/src/processors/agendar-classificacao.ts`: a rotina `sistema.*` que grava um job por escola
+- Da rodada da 5.0 (`5_task.md`, "Recomendações sem aplicar"): confirmar que a corrida estender × rotina (j) cobre também a extensão **da turma** (aluno nulo) no fim efetivo da janela
 
 ## Subtarefas
 

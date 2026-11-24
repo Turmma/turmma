@@ -24,8 +24,9 @@
 | RF3 | Tempo adicional sem duração, e duração sem janela: `ENTRADA_INVALIDA` (a mesma conferência, `camposInvalidosDaProva`, no aplicar, no PATCH e na segunda chamada: sem duração não há sobre o que somar o percentual, e sem janela não há de onde contá-la) | unidade, `packages/shared`; integração | aceitar tempo adicional sem duração |
 | RF3 | O contrato de aplicar não tem campo de motivo; chave a mais é `ENTRADA_INVALIDA` | unidade, `packages/shared` | schema sem `.strict()` |
 | RF3 | O aluno com +50% lê `duracaoMin = 60` em `prova` e em `minhas-atividades`, e nenhuma resposta dele diz "tempo adicional" nem o percentual | integração; unidade web, `AntesDeComecar.test.tsx` | expor o percentual |
-| RF4 | Estender 10 min só para A: A grava depois do limite antigo; B recebe `TEMPO_ESGOTADO` | integração | somar a extensão de aluno a todos |
+| RF4 | Estender 10 min só para A: o `limiteEm` do acompanhamento de A anda 10 min e o de B não (5.0, `extensao.int.test.ts`); A grava depois do limite antigo e B recebe `TEMPO_ESGOTADO` (o PUT é da 3.0, que o lê pela mesma `limiteDaTentativa`) | integração | somar a extensão de aluno a todos |
 | RF4 | Estender a turma: todos andam, e o fim efetivo da janela também | unidade e integração | só nas tentativas iniciadas |
+| RF4 | Acompanhamento: sem tentativa é `nao_comecou`; enviada é `enviou`, e a fechada pela rotina (`envio = 'limite'`) é `tempo_esgotado`; sem envio e com o limite passado é `tempo_esgotado`; sem envio, com a prova encerrada pelo professor e o limite adiante, `enviou` (foi com o salvo); o resto é `fazendo`. O `limiteEm` só vem em `fazendo`, e o contrato não tem saídas da aba nem percentual | integração, `extensao.int.test.ts`; unidade, `contracts.test.ts` | `limiteEm` fora de `fazendo`; ignorar o `envio = 'limite'`; `fazendo` na encerrada pelo professor |
 | RF4 | Estender com 0 ou 121 minutos: `ENTRADA_INVALIDA`; prova encerrada: `ATIVIDADE_ENCERRADA` | integração | aceitar sem olhar estado e faixa |
 | RF4 | A mesma `chave` em outra aplicação é outra extensão (a chave é por aplicação) | integração | chave única por escola |
 | RF5 | PUT depois do limite: `TEMPO_ESGOTADO`, sem linha; a leitura diz `envio = 'limite'`; o envio pelo aluno depois do limite também é recusado | integração | comparar com o relógio do cliente; gravar antes de conferir |
@@ -112,7 +113,7 @@
 | (a) começar × começar | a primeira insere e segura com `WriteBlockTrigger` na tentativa; a segunda chega | recalcular `ordem` ou `limite_base_em` na segunda |
 | (b) mudar janela × começar | começar segura `for share`; a janela espera e recebe `PROVA_JA_COMECOU` | leitura sem trava |
 | (c) resposta × encerrar e resposta × job | o teste de hoje (`atividade.int.test.ts`, encerramento) roda também com `encerrarPeloLimite` | — |
-| (d) estender × estender | a primeira insere e segura com `WriteBlockTrigger` na extensão; a segunda, mesma chave, cai no 23505 e devolve o gravado | tirar o índice único |
+| (d) estender × estender | a primeira insere e segura com `WriteBlockTrigger` na extensão; a segunda, mesma chave, espera (o `on conflict do nothing` não falha) e devolve o gravado | tirar o `on conflict do nothing` (o 23505 vira 500) |
 | (e) job × professor encerrando | o professor segura a trava da aplicação; o job espera e encontra o lote vigente | `encerrar` sem `lock` |
 | (f) job × job | duas execuções do job por escola, a primeira segura com `WriteBlockTrigger` na entrega: um lote, uma auditoria; e o cron duplicado do mesmo minuto grava um job por escola | tirar a trava; tirar a chave do minuto |
 | (g) pulso × pulso | pulso de partida com 40 s; a primeira segura `for update`; a segunda lê o `ultimo_em` novo e não grava lacuna | ler sem trava (grava duas) |
