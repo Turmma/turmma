@@ -1,14 +1,15 @@
 # Estado da execução — avaliacao-e-correcao
 
 ## Agora
-- **Espero (23/11 20:16):** linha 1 (`Implementador` e `Mesa`) na **2.0** (porte grande) e linha 2 (`Implementador 2` e `Mesa 2`) na **10.0** (porte grande), 1ª tentativa das duas. Paralelo: 3.0, 5.0 e 7.0 depois da 2.0; 11.0 ao lado da 12.0.
+- **Espero:** linha 1 (`Implementador` e `Mesa`) na **correção `2026-11-23-explain-semana-itens`** (esteira VERMELHA em `8778bdd`, execução 45287313249: `apps/api/test/semana-itens.int.test.ts`, o `EXPLAIN` das aplicadas escolhe outro índice depois da 1.0), 1ª tentativa. Linha 2 (`Implementador 2` e `Mesa 2`) na **10.0** (porte grande), 1ª tentativa. Linha 3 (`Implementador 3` e `Mesa 3`, aberta às ~22:30) na **3.0**, 1ª tentativa.
 - **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim.
-- **Base:** `spec/avaliacao-e-correcao` em `8778bddb` (encontro da 1.0); esteira verde em `6c187bd` (execução 45251286725)
+- **Base:** `spec/avaliacao-e-correcao` em `bdd0936d` (encontro da 2.0); esteira vermelha em `8778bdd` (execução 45287313249), verde antes em `6c187bd`
 - **Decidido (23/11), aviso fixo da coluna "Saiu da aba":** o Joaquim aprovou, nesta conversa, o texto proposto em `cenarios.md` §4, sem mudança.
 
 ## Concluídas
 | Tarefa | Commit | Modelo | Rodadas | Observação |
 |---|---|---|---|---|
+| 2.0 (linha 1) | `aee849ff` → spec `bdd0936d` | Sonnet | 2 (`test-engineer` reprovou na 1ª) | encontro 23/11, verificação verde |
 | 1.0 (linha 2) | `cb79a2c2` → spec `8778bddb` | Sonnet | 3 (divergência de desenho na 2ª; BLOQUEIO do Arquiteto; o Joaquim escolheu A, a exceção do art. 18 no arquivo do titular) | encontro 23/11 ~17:35, verificação verde |
 | correção d55-recusa-rubrica (linha 1) | `b448df3d` → spec `84852d06`; "Resto aceito" reescrito pelo Arquiteto, itens 3 e 4 em `5ec3577d` e item 1 em `6c187bd3` | Sonnet | 3 (escalada na 2ª; diagnóstico do Arquiteto 2; alternativa A do Joaquim) | encontro 23/11 ~15:40, verificação verde; esteira verde em `b9dd235` (execução 45219624849) antes deste push |
 

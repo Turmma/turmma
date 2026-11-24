@@ -1,18 +1,24 @@
-import { ErrorCode, type AtividadeAplicada, type ArtefatoResponse } from '@educa/shared'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ErrorCode, PERCENTUAIS_DE_TEMPO_ADICIONAL, type AplicarAtividadeRequest, type AtividadeAplicada, type ArtefatoResponse } from '@educa/shared'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState } from 'react'
 import { Link } from 'wouter'
+import { alunosDaTurmaQueryOptions } from '../../../api/alunos-da-turma'
 import { aplicarAtividade, atividadesAplicadasQueryOptions, recarregarAtividades } from './api/atividades'
 import { errorText } from '../../../components/error-text'
 import { caminhoDaCorrecaoDoProfessor } from '../../../paths'
 import { Button } from '../../../components/ui/Button'
-import { ConfirmDialog } from '../../../components/ui/overlays/ConfirmDialog'
+import { ConfirmDialog, type ConfirmDialogRow } from '../../../components/ui/overlays/ConfirmDialog'
+import { FormField } from '../../../components/ui/fields/FormField'
+import { OptionCard } from '../../../components/ui/fields/OptionCard'
+import { Select } from '../../../components/ui/fields/Select'
 import { LoadingState } from '../../../components/states/index'
 import { SectionHeader } from '../../../components/ui/Page'
 import { formatDateTime } from '../../../format'
+import { ordemDeNome } from '../turmas/alunos-da-turma'
 import { AVISO_DA_AVALIATIVA_ABERTA, EFEITO_DE_APLICAR, ESCOLHA_DE_AVALIATIVA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
+import { conferirAProva, FORMULARIO_VAZIO_DA_PROVA, resumoDaProva, type CamposDaJanela, type ErrosDaProva, type FormularioDaProva, type PedidoDaProva } from './prova-online'
 
 /** O que a tela diz quando a API recusa aplicar: a que já está aberta, e a versão adaptada que ainda não foi aprovada. */
 const TEXTOS_DA_APLICACAO: Partial<Record<ErrorCode, string>> = {
@@ -36,6 +42,170 @@ interface PropsDaAplicacao {
   readonly nomeDaTurma: string | undefined
 }
 
+/** O que o professor escolhe de tempo adicional por aluno: o texto de cada opção, sem dizer por quê (RF3; não há campo de motivo). */
+const OPCOES_DE_TEMPO_ADICIONAL = [
+  { valor: '0', rotulo: 'Sem tempo adicional' },
+  ...PERCENTUAIS_DE_TEMPO_ADICIONAL.map((percentual) => ({ valor: String(percentual), rotulo: `+${String(percentual)}%` })),
+]
+
+interface PropsDosCamposDaJanela {
+  readonly valor: CamposDaJanela
+  readonly aoMudar: (campos: CamposDaJanela) => void
+  readonly erros: ErrosDaProva
+  readonly desligados?: boolean
+}
+
+/**
+ * O horário em que a prova abre e fecha e a duração (RF1): cada campo com rótulo e erro (`FormField`). O horário é o da escola. Serve ao aplicar e à
+ * mudança de janela (`MudarJanela`), que escrevem os mesmos três campos.
+ */
+export function CamposDaJanela({ valor, aoMudar, erros, desligados = false }: PropsDosCamposDaJanela) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <FormField rotulo="Abre em" type="datetime-local" value={valor.abre} onChange={(evento) => aoMudar({ ...valor, abre: evento.target.value })} erro={erros.abre} dica="No horário da escola." disabled={desligados} />
+      <FormField rotulo="Fecha em" type="datetime-local" value={valor.fecha} onChange={(evento) => aoMudar({ ...valor, fecha: evento.target.value })} erro={erros.fecha} disabled={desligados} />
+      <FormField
+        rotulo="Duração (minutos)"
+        type="number"
+        inputMode="numeric"
+        min={5}
+        max={300}
+        step={1}
+        value={valor.duracao}
+        onChange={(evento) => aoMudar({ ...valor, duracao: evento.target.value })}
+        erro={erros.duracao}
+        dica="Conta do começo de cada aluno. Sem duração, vale a janela."
+        disabled={desligados}
+      />
+    </div>
+  )
+}
+
+interface PropsDoTempoAdicional {
+  readonly turmaId: string
+  readonly valor: FormularioDaProva['tempoAdicional']
+  readonly aoMudar: (valor: FormularioDaProva['tempoAdicional']) => void
+  readonly erro: string | undefined
+  readonly desligado: boolean
+}
+
+/**
+ * **Tempo adicional por aluno** (RF3): a lista da turma, uma coluna em qualquer largura, com um seletor por aluno (sem tempo adicional, +25%, +50%, +100%). É
+ * adaptação, dado sensível (D35): só o percentual, **sem campo de motivo**, e a lista só existe nesta janela. Os nomes vêm de `GET /v1/turmas/:id/alunos`, lida
+ * de cem em cem como na aba Alunos.
+ */
+function TempoAdicionalPorAluno({ turmaId, valor, aoMudar, erro, desligado }: PropsDoTempoAdicional) {
+  const idDoTitulo = useId()
+  const idDoErro = useId()
+  return (
+    <div role="group" aria-labelledby={idDoTitulo} {...(erro === undefined ? {} : { 'aria-describedby': idDoErro })} className="flex min-w-0 flex-col gap-2">
+      <p id={idDoTitulo} className="font-medium">
+        Tempo adicional
+      </p>
+      <p className="text-sm break-words text-apoio">Só para quem tem direito. Vale para esta prova e fica registrado com o seu nome.</p>
+      <ListaDoTempoAdicional turmaId={turmaId} valor={valor} aoMudar={aoMudar} desligado={desligado} />
+      {erro !== undefined && (
+        <p id={idDoErro} className="text-sm font-bold break-words text-vermelho-texto">
+          {erro}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Os alunos da turma, lidos de cem em cem, cada um com o seu seletor; carregando, com falha e vazio dizem o que é. */
+function ListaDoTempoAdicional({ turmaId, valor, aoMudar, desligado }: Omit<PropsDoTempoAdicional, 'erro'>) {
+  const alunos = useInfiniteQuery(alunosDaTurmaQueryOptions(turmaId))
+  const lidos = (alunos.data?.pages.flatMap((pagina) => pagina.itens) ?? []).sort(ordemDeNome)
+
+  function escolher(alunoId: string, texto: string): void {
+    const { [alunoId]: _anterior, ...resto } = valor
+    const percentual = PERCENTUAIS_DE_TEMPO_ADICIONAL.find((opcao) => String(opcao) === texto)
+    aoMudar(percentual === undefined ? resto : { ...resto, [alunoId]: percentual })
+  }
+
+  if (alunos.isPending) return <LoadingState rotulo="Carregando os alunos da turma…" />
+  if (alunos.isError) {
+    return (
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <p role="alert" className="min-w-0 flex-1 basis-56 rounded-controle bg-erro-cx p-3 break-words text-erro">
+          {errorText(alunos.error)}
+        </p>
+        <Button variante="secundario" onClick={() => void alunos.refetch({ cancelRefetch: false })}>
+          Tentar de novo
+        </Button>
+      </div>
+    )
+  }
+  if (lidos.length === 0) return <p className="text-sm text-sutil">Esta turma ainda não tem alunos.</p>
+  return (
+    <>
+      <ul className="flex min-w-0 flex-col gap-2">
+        {lidos.map((aluno) => (
+          <li key={aluno.usuarioId} className="min-w-0">
+            <Select rotulo={aluno.nome} opcoes={OPCOES_DE_TEMPO_ADICIONAL} valor={String(valor[aluno.usuarioId] ?? 0)} aoMudar={(texto) => escolher(aluno.usuarioId, texto)} desligada={desligado} />
+          </li>
+        ))}
+      </ul>
+      {alunos.hasNextPage && (
+        <Button variante="secundario" disabled={alunos.isFetchingNextPage} onClick={() => void alunos.fetchNextPage()}>
+          {alunos.isFetchingNextPage ? 'Carregando…' : 'Ver mais alunos'}
+        </Button>
+      )}
+    </>
+  )
+}
+
+interface PropsDosCamposDaProva {
+  readonly turmaId: string
+  readonly formulario: FormularioDaProva
+  readonly aoMudar: (formulario: FormularioDaProva) => void
+  readonly erros: ErrosDaProva
+  readonly desligados: boolean
+}
+
+/** Os campos que só a atividade **avaliativa** tem (RF1 a RF3, RF8): a janela, a duração, o embaralhamento e o tempo adicional por aluno. */
+function CamposDaProva({ turmaId, formulario, aoMudar, erros, desligados }: PropsDosCamposDaProva) {
+  return (
+    <div data-campos-da-prova="" className="flex min-w-0 flex-col gap-4">
+      <p className="text-sm break-words text-apoio">Os alunos começam a prova dentro da janela, e a duração conta do começo de cada um.</p>
+      <CamposDaJanela valor={formulario} aoMudar={(campos) => aoMudar({ ...formulario, ...campos })} erros={erros} desligados={desligados} />
+      <div className="grid min-w-0 grid-cols-1 gap-2">
+        <OptionCard
+          tipo="checkbox"
+          nome="embaralhar-questoes"
+          valor="questoes"
+          rotulo="Embaralhar questões"
+          marcada={formulario.embaralhar.questoes}
+          desligada={desligados}
+          aoMudar={(marcada) => aoMudar({ ...formulario, embaralhar: { ...formulario.embaralhar, questoes: marcada } })}
+        />
+        <OptionCard
+          tipo="checkbox"
+          nome="embaralhar-alternativas"
+          valor="alternativas"
+          rotulo="Embaralhar alternativas"
+          marcada={formulario.embaralhar.alternativas}
+          desligada={desligados}
+          aoMudar={(marcada) => aoMudar({ ...formulario, embaralhar: { ...formulario.embaralhar, alternativas: marcada } })}
+        />
+      </div>
+      <TempoAdicionalPorAluno turmaId={turmaId} valor={formulario.tempoAdicional} aoMudar={(tempoAdicional) => aoMudar({ ...formulario, tempoAdicional })} erro={erros.tempoAdicional} desligado={desligados} />
+    </div>
+  )
+}
+
+/** O resumo do diálogo: a atividade, a turma, as questões e, na avaliativa com a prova conferida, a frase da prova (janela no fuso da escola, duração e tempo adicional). */
+function resumoDaAplicacao(artefato: ArtefatoResponse, turma: string, prova: PedidoDaProva | undefined): [ConfirmDialogRow, ...ConfirmDialogRow[]] {
+  const resumo: [ConfirmDialogRow, ...ConfirmDialogRow[]] = [
+    { rotulo: 'Atividade', valor: artefato.titulo },
+    { rotulo: 'Turma', valor: turma },
+    { rotulo: 'Questões', valor: artefato.conteudo.tipo === 'atividade_objetiva' ? String(artefato.conteudo.questoes.length) : '—' },
+  ]
+  if (prova !== undefined) resumo.push({ rotulo: 'Prova', valor: resumoDaProva({ turma, janela: prova.janela, duracaoMin: prova.duracaoMin, comTempoAdicional: prova.tempoAdicional.length }) })
+  return resumo
+}
+
 /**
  * **Aplicar à turma e encerrar** (A3; `docs/mvp-contratos.md`, "Atividade e correção"): a atividade objetiva vai para a
  * turma com a escolha "é avaliativa?", que diz o que acontece com o Tutor; depois ela aparece como "Atribuída à turma",
@@ -55,15 +225,18 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
   const [aplicando, definirAplicando] = useState(false)
   const [escolha, definirEscolha] = useState<Escolha | undefined>(undefined)
   const [tentou, definirTentou] = useState(false)
+  const [formulario, definirFormulario] = useState<FormularioDaProva>(FORMULARIO_VAZIO_DA_PROVA)
   const decidindo = useRef(false)
   const secao = useRef<HTMLElement>(null)
   const idDoTitulo = useId()
   const idDaEscolha = useId()
 
   const aplicadas = (atividades.data?.itens ?? []).filter((aplicada) => aplicada.artefatoId === artefato.id)
+  const ehAvaliativa = escolha === 'avaliativa'
+  const conferida = conferirAProva(formulario)
   const close = () => definirAplicando(false)
   const aplicar = useMutation({
-    mutationFn: (avaliativa: boolean) => aplicarAtividade({ artefatoId: artefato.id, turmaId: artefato.turmaId, avaliativa }),
+    mutationFn: (prova: Pick<AplicarAtividadeRequest, 'avaliativa' | 'janela' | 'duracaoMin' | 'embaralhar' | 'tempoAdicional'>) => aplicarAtividade({ artefatoId: artefato.id, turmaId: artefato.turmaId, ...prova }),
     onSuccess: async () => {
       recarregarAtividades(cliente)
       await cliente.invalidateQueries({ queryKey: atividadesAplicadasQueryOptions(artefato.turmaId).queryKey })
@@ -78,6 +251,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
     aplicar.reset()
     definirEscolha(undefined)
     definirTentou(false)
+    definirFormulario(FORMULARIO_VAZIO_DA_PROVA)
     definirAplicando(true)
   }
 
@@ -85,8 +259,10 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
     definirTentou(true)
     const escolhida = ESCOLHA_DE_AVALIATIVA.find((opcao) => opcao.valor === escolha)
     if (escolhida === undefined || decidindo.current) return
+    // A avaliativa leva a prova (RF1 a RF3), conferida antes de sair; a prática vai como sempre foi, sem janela.
+    if (escolhida.avaliativa && conferida.pedido === undefined) return
     decidindo.current = true
-    aplicar.mutate(escolhida.avaliativa)
+    aplicar.mutate(escolhida.avaliativa && conferida.pedido !== undefined ? { avaliativa: true, ...conferida.pedido } : { avaliativa: false })
   }
 
   const turma = nomeDaTurma ?? 'Turma da atividade'
@@ -173,11 +349,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
         <ConfirmDialog
           titulo="Aplicar à turma"
           familia="oficial"
-          resumo={[
-            { rotulo: 'Atividade', valor: artefato.titulo },
-            { rotulo: 'Turma', valor: turma },
-            { rotulo: 'Questões', valor: artefato.conteudo.tipo === 'atividade_objetiva' ? String(artefato.conteudo.questoes.length) : '—' },
-          ]}
+          resumo={resumoDaAplicacao(artefato, turma, ehAvaliativa ? conferida.pedido : undefined)}
           efeito={EFEITO_DE_APLICAR}
           rotuloDeConfirmar="Aplicar à turma"
           rotuloConfirmando="Aplicando…"
@@ -202,6 +374,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
               {tentou && escolha === undefined ? 'Escolha se a atividade é prática ou avaliativa.' : ''}
             </p>
           </fieldset>
+          {ehAvaliativa && <CamposDaProva turmaId={artefato.turmaId} formulario={formulario} aoMudar={definirFormulario} erros={tentou ? conferida.erros : {}} desligados={aplicar.isPending} />}
         </ConfirmDialog>
       )}
     </section>

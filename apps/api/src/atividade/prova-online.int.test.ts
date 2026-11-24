@@ -107,17 +107,35 @@ describe('prova online: aplicar e mudar a janela', () => {
       expect(new Set(linhas.map((linha) => linha.concedido_por))).toEqual(new Set([a.professora.usuarioId]))
       expect(await contar('tempo_adicional', 'atividade_aplicada_id = $1 and aluno_id = $2', [criada.id, colega.usuarioId])).toBe(0)
 
-      const auditorias = await sql<{ depois: Record<string, unknown> }>(`select depois from auditoria where acao = 'atividade.aplicada' and entidade_id = $1`, [criada.id])
-      expect(auditorias).toEqual([{ depois: { artefatoId, turmaId: a.turma, avaliativa: true, versaoAdaptada: false, comTempoAdicional: 3 } }])
-      const texto = JSON.stringify(auditorias)
+      // A tela diz que o tempo adicional "fica registrado com o seu nome": o autor da auditoria do aplicar é a professora, e só a contagem vai nela.
+      const auditorias = await sql<{ autor_usuario_id: string; depois: Record<string, unknown> }>(`select autor_usuario_id, depois from auditoria where acao = 'atividade.aplicada' and entidade_id = $1`, [criada.id])
+      expect(auditorias).toEqual([{ autor_usuario_id: a.professora.usuarioId, depois: { artefatoId, turmaId: a.turma, avaliativa: true, versaoAdaptada: false, comTempoAdicional: 3 } }])
+      const texto = JSON.stringify(auditorias.map((linha) => linha.depois))
       for (const aluno of [ana, bia, caio]) expect(texto).not.toContain(aluno.usuarioId)
       expect(texto).not.toMatch(/percentual/)
     })
 
-    it('a atividade sem prova continua como antes: sem janela, sem duração, sem tempo adicional e sem embaralhar', async () => {
-      const resposta = await rotas.aplicar(a.professora, { artefatoId: await criarAtividade(bancada, a), turmaId: a.turma, avaliativa: true })
-      expect(resposta.status).toBe(201)
-      expect(atividadeAplicadaResponseSchema.parse(resposta.corpo)).toMatchObject({ janela: null, duracaoMin: null, embaralhar: { questoes: false, alternativas: false }, comTempoAdicional: 0 })
+    it('a avaliativa nova sem janela é ENTRADA_INVALIDA e nada se grava; a que não é avaliativa segue sem janela, e a avaliativa de antes da F6 segue lida como estava', async () => {
+      const artefatoId = await criarAtividade(bancada, a)
+      expect(erro(await rotas.aplicar(a.professora, { artefatoId, turmaId: a.turma, avaliativa: true }))).toEqual(ENTRADA_INVALIDA)
+      // A duração e o embaralhamento também não substituem a janela.
+      expect(erro(await rotas.aplicar(a.professora, { artefatoId, turmaId: a.turma, avaliativa: true, embaralhar: { questoes: true, alternativas: false } }))).toEqual(ENTRADA_INVALIDA)
+      expect(await contar('atividade_aplicada', 'artefato_id = $1', [artefatoId])).toBe(0)
+      expect(await contar('auditoria', `acao = 'atividade.aplicada' and depois ->> 'artefatoId' = $1`, [artefatoId])).toBe(0)
+
+      const pratica = await rotas.aplicar(a.professora, { artefatoId, turmaId: a.turma, avaliativa: false })
+      expect(pratica.status).toBe(201)
+      expect(atividadeAplicadaResponseSchema.parse(pratica.corpo)).toMatchObject({ janela: null, duracaoMin: null, embaralhar: { questoes: false, alternativas: false }, comTempoAdicional: 0 })
+
+      // A avaliativa que já existia sem janela (gravada antes da F6) continua na lista, sem janela.
+      const [aplicacaoAntiga] = await sql<{ id: string }>(
+        `insert into atividade_aplicada (escola_id, ano_letivo_id, turma_id, artefato_id, avaliativa, estado, aplicada_por, encerrada_em) values ($1, $2, $3, $4, true, 'encerrada', $5, now()) returning id`,
+        [a.escolaId, a.anoLetivoId, a.turma, await criarAtividade(bancada, a), a.professora.usuarioId],
+      )
+      const antiga = aplicacaoAntiga?.id
+      const lista = await rotas.listar(a.professora, `?turmaId=${a.turma}&limite=100`)
+      expect(lista.status).toBe(200)
+      expect((lista.corpo['itens'] as { id: string; avaliativa: boolean; janela: unknown }[]).find((item) => item.id === antiga)).toMatchObject({ avaliativa: true, janela: null })
     })
 
     it('janela de 50 min com duração 40 e um aluno com +50% é ENTRADA_INVALIDA, sem gravar nada; a janela de 60 min passa', async () => {
@@ -130,7 +148,7 @@ describe('prova online: aplicar e mudar a janela', () => {
       expect(passa.status).toBe(201)
       expect(atividadeAplicadaResponseSchema.parse(passa.corpo)).toMatchObject({ embaralhar: { questoes: false, alternativas: true } })
       // O outro lado do embaralhamento, em outra aplicação: cada um dos dois vai para a sua coluna.
-      const soQuestoes = await rotas.aplicar(a.professora, { artefatoId: await criarAtividade(bancada, a), turmaId: a.turma, avaliativa: true, embaralhar: { questoes: true, alternativas: false } })
+      const soQuestoes = await rotas.aplicar(a.professora, { artefatoId: await criarAtividade(bancada, a), turmaId: a.turma, avaliativa: true, janela: janelaDe(30), embaralhar: { questoes: true, alternativas: false } })
       expect(soQuestoes.status).toBe(201)
       expect(atividadeAplicadaResponseSchema.parse(soQuestoes.corpo)).toMatchObject({ embaralhar: { questoes: true, alternativas: false } })
     })
@@ -219,19 +237,23 @@ describe('prova online: aplicar e mudar a janela', () => {
       expect(await retratoDa(vizinha)).toEqual(daVizinha)
     })
 
-    it('a avaliativa sem prova ganha a janela pelo PATCH: a auditoria guarda nulo no que ainda não havia', async () => {
-      const id = await aplicarProva({})
-      expect((await rotas.mudarJanela(a.professora, id, { tempoAdicional: [] })).status).toBe(200)
+    it('a avaliativa de antes da F6, aberta e sem janela, ganha a janela pelo PATCH: a auditoria guarda nulo no que ainda não havia', async () => {
+      // Aplicar já não gera avaliativa sem janela (10.0): a de antes da F6 entra por SQL, como estava gravada. A escola, o ano e a turma são os da bancada `a`,
+      // a mesma da sessão que muda a janela: o caso prova a conferência da prova, e não a travessia entre escolas (essa é a do caso do isolamento, abaixo).
+      const [antiga] = await sql<{ id: string }>(
+        `insert into atividade_aplicada (escola_id, ano_letivo_id, turma_id, artefato_id, avaliativa, aplicada_por) values ($1, $2, $3, $4, true, $5) returning id`,
+        [a.escolaId, a.anoLetivoId, a.turma, await criarAtividade(bancada, a), a.professora.usuarioId],
+      )
+      const id = antiga?.id ?? ''
+      // A prova que sairia da mudança precisa ser válida: sem trazer a janela, a avaliativa continuaria sem ela, e nada muda nem se audita.
+      expect(erro(await rotas.mudarJanela(a.professora, id, { tempoAdicional: [] }))).toEqual({ status: 400, codigo: 'ENTRADA_INVALIDA' })
       const nova = janelaDe(60)
       const mudada = await rotas.mudarJanela(a.professora, id, { janela: nova })
       expect(mudada.status).toBe(200)
       expect(atividadeAplicadaResponseSchema.parse(mudada.corpo)).toMatchObject({ janela: nova, duracaoMin: null, comTempoAdicional: 0 })
       const semProva = { janela: null, duracaoMin: null, comTempoAdicional: 0 }
       const auditorias = await sql(`select antes, depois from auditoria where acao = 'atividade.janela_alterada' and entidade_id = $1 order by em`, [id])
-      expect(auditorias).toEqual([
-        { antes: semProva, depois: semProva },
-        { antes: semProva, depois: { janela: nova, duracaoMin: null, comTempoAdicional: 0 } },
-      ])
+      expect(auditorias).toEqual([{ antes: semProva, depois: { janela: nova, duracaoMin: null, comTempoAdicional: 0 } }])
     })
 
     it('a resposta do PATCH não se guarda em cache, e o id que não é uuid responde como o inexistente', async () => {

@@ -44,8 +44,10 @@ indisponibilidade    id, inicio, fim timestamptz      (sem escola, sem pessoa)
 ```
 
 - Ids uuidv7; checks de janela, duração e embaralhar só em `avaliativa`, `abre_em < fecha_em`. A **API exige janela** na
-  avaliativa nova; a antiga segue como hoje, sem backfill. **Até a 10.0 a janela é opcional** no `aplicar` e na resposta
-  (a tela de hoje, A3, manda `{artefatoId, turmaId, avaliativa}`); a exigência entra com a tela, na 10.0.
+  avaliativa nova; a antiga segue **lida** como hoje, sem backfill. A exigência mora na conferência compartilhada
+  (`camposInvalidosDaProva`), e por isso vale no `aplicar`, no PATCH da janela e na segunda chamada: a prova que sai de uma
+  escrita precisa ter janela, e o PATCH de uma avaliativa de antes da F6 só passa se trouxer a janela. Entrou na 10.0, com a
+  tela (a 1.0 a deixou opcional porque a tela de A3 mandava `{artefatoId, turmaId, avaliativa}`).
 - O índice das abertas exclui a segunda chamada (o novo antes de derrubar o antigo); outro: uma segunda chamada aberta
   por original. Checks em tabela existente com `NOT VALID` e `VALIDATE`.
 - FKs compostas com escola e ano; aluno `on delete cascade`; autor pelo gatilho `exigir_equipe_da_escola`.

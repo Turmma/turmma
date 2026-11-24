@@ -19,6 +19,8 @@ import { AVISO_DA_AVALIATIVA_ABERTA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM
 import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { enderecoComFiltros } from '../artefatos/criados'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
+import { MudarJanela } from './MudarJanela'
+import { resumoDaProva } from './prova-online'
 import { IconeDeFerramenta } from '../ferramentas/icones-de-ferramenta'
 
 /**
@@ -226,6 +228,16 @@ function AbaDeAtividades({ turmaId }: { turmaId: string }) {
   )
 }
 
+/** A prova da atividade em uma frase, no fuso da escola: a janela, a duração e quantos têm tempo adicional. Sem janela (a atividade de antes), nada. */
+function ProvaDaAtividade({ aplicada, nomeDaTurma }: { readonly aplicada: AtividadeAplicada; readonly nomeDaTurma: string }) {
+  if (aplicada.janela == null) return null
+  return (
+    <p data-prova-da-atividade="" className="min-w-0 text-sm break-words text-sutil">
+      {resumoDaProva({ turma: nomeDaTurma, janela: aplicada.janela, duracaoMin: aplicada.duracaoMin ?? undefined, comTempoAdicional: aplicada.comTempoAdicional ?? 0 })}
+    </p>
+  )
+}
+
 interface PropsDoPainel {
   readonly aplicada: AtividadeAplicada
   readonly nomeDaTurma: string
@@ -280,6 +292,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
               {corrigindo === aplicada.id ? 'Corrigindo…' : 'Corrigir de novo'}
             </Button>
           )}
+          <MudarJanela aplicada={aplicada} nomeDaTurma={nomeDaTurma} focoDeReserva={() => reserva.current?.focus()} />
           <EncerramentoDaAtividade aplicada={aplicada} nomeDaTurma={nomeDaTurma} focoDeReserva={() => reserva.current?.focus()} />
         </>
       }
@@ -297,6 +310,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
           {aplicada.encerradaEm !== null && ` · encerrada em ${formatDateTime(aplicada.encerradaEm)}`}
         </p>
         {aplicada.avaliativa && aplicada.estado === 'aberta' && <p className="min-w-0 rounded-controle bg-info-cx p-3 break-words text-info">{AVISO_DA_AVALIATIVA_ABERTA}</p>}
+        <ProvaDaAtividade aplicada={aplicada} nomeDaTurma={nomeDaTurma} />
         <section ref={reserva} tabIndex={-1} aria-label="O que fazer" className="flex min-w-0 flex-col gap-3 rounded-cartao outline-offset-4">
           <p data-o-que-fazer={estado} className="min-w-0 break-words text-tinta">
             {oQueFazer(aplicada)}

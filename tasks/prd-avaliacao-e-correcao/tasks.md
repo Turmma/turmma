@@ -57,10 +57,10 @@
   - [ ] 9.1 `segunda-chamada`; convocados; `minhas-atividades` e alcance pelo convocado
   - [ ] 9.2 Testes: RF10, corrida (h)
 
-- [ ] **10.0 — Tela de aplicar a prova; a API passa a exigir a janela**
-  - [ ] 10.1 `AplicacaoDoArtefato.tsx` com janela, duração, embaralhar, tempo adicional e resumo; "Mudar janela"
-  - [ ] 10.2 A janela obrigatória na avaliativa nova; roteiro da demonstração
-  - [ ] 10.3 Testes: §4 Aplicar e Mudar janela
+- [x] **10.0 — Tela de aplicar a prova; a API passa a exigir a janela**
+  - [x] 10.1 `AplicacaoDoArtefato.tsx` com janela, duração, embaralhar, tempo adicional e resumo; "Mudar janela"
+  - [x] 10.2 A janela obrigatória na avaliativa nova; roteiro da demonstração
+  - [x] 10.3 Testes: §4 Aplicar e Mudar janela
 
 - [ ] **11.0 — Painel "Acompanhar" e o e2e do professor**
   - [ ] 11.1 Acompanhar, Estender, Segunda chamada e Encerrar com quantos fazem

@@ -7,7 +7,7 @@ import { respostasNoBanco } from './support/atividade-db.ts'
 import { entrarComoAlunoPelaApi, responderPelaApi } from './support/aluno-api.ts'
 import { abrirAbaAlunos, passarPelaIntroducaoDaCoordenacao, passarPelaIntroducaoDoAluno, passarPelaIntroducaoDoProfessor, irPelaNavegacao, SIGN_IN_TIMEOUT_MS } from './support/casca.ts'
 import { irPelaCoordenacao, linhasDaTabela, painelDoAno } from './support/coordenacao.ts'
-import { caixa, conversa, DISCIPLINA, gerarAtividade, AI_TIMEOUT_MS, TITULO_DO_MATERIAL } from './support/professor-flow.ts'
+import { caixa, conversa, DISCIPLINA, gerarAtividade, preencherAJanelaDaProva, AI_TIMEOUT_MS, TITULO_DO_MATERIAL } from './support/professor-flow.ts'
 import { auditoriasNoBanco, suspensoesNoBanco } from './support/governanca.ts'
 import { CAMINHO_DO_PDF_DE_DEMONSTRACAO, materiaisNoBanco, recusasNaAuditoria, secoesNoBanco } from './support/material.ts'
 import { criarOperadorComSegundoFator, removerOperador } from './support/operacao.ts'
@@ -468,6 +468,9 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       await naTurma.getByRole('button', { name: 'Aplicar à turma' }).click()
       const aplicar = professora.getByRole('alertdialog', { name: 'Aplicar à turma' })
       await aplicar.getByRole('radio', { name: /^É avaliativa/ }).check()
+      // A avaliativa tem janela (avaliacao-e-correcao, 10.0): aberta desde já, com duração, e o resumo diz a prova antes de confirmar.
+      await preencherAJanelaDaProva(aplicar, { duracao: '40' })
+      await expect(aplicar).toContainText(/ · abre \d{2}\/\d{2} às \d{2}:\d{2} · fecha .*às \d{2}:\d{2} · 40 min/)
       await aplicar.getByRole('button', { name: 'Aplicar à turma' }).click()
       await expect(naTurma.locator('[data-atividade-aplicada="aberta"]')).toContainText('Aberta para a turma · avaliativa · 0 de 3 alunos enviaram', { timeout: SIGN_IN_TIMEOUT_MS })
       const aplicadaId = await aplicacaoDoArtefato(escolaId, primeira.id)

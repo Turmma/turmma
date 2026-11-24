@@ -81,3 +81,25 @@ export async function gerarAtividade(cartao: Locator, hasTouch: boolean, questoe
   await expect(cartao.locator('[data-motor="pronto"]').getByText(`Atividade — ${tema}`)).toBeVisible({ timeout: AI_TIMEOUT_MS })
 }
 
+
+/**
+ * `AAAA-MM-DDTHH:mm`, o que o campo `datetime-local` aceita, na parede da escola (São Paulo), a `minutos` de agora. É o horário que o professor escreve
+ * ao aplicar a prova: o instante que a API grava é o desse texto lido no fuso da escola.
+ */
+export function horarioDaEscola(minutosAPartirDeAgora: number): string {
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(
+    new Date(Date.now() + minutosAPartirDeAgora * 60_000),
+  )
+  const valor = (tipo: string) => partes.find((parte) => parte.type === tipo)?.value ?? ''
+  return `${valor('year')}-${valor('month')}-${valor('day')}T${valor('hour')}:${valor('minute')}`
+}
+
+/**
+ * Preenche a janela da prova no diálogo "Aplicar à turma" depois de escolher "É avaliativa" (avaliacao-e-correcao, 10.0): a avaliativa nova exige janela.
+ * Sem argumentos, a prova está aberta desde uma hora atrás até daqui a três horas e não tem duração, e o aluno pode começar agora.
+ */
+export async function preencherAJanelaDaProva(dialogo: Locator, { abre = horarioDaEscola(-60), fecha = horarioDaEscola(180), duracao }: { abre?: string; fecha?: string; duracao?: string } = {}): Promise<void> {
+  await dialogo.getByLabel('Abre em').fill(abre)
+  await dialogo.getByLabel('Fecha em').fill(fecha)
+  if (duracao !== undefined) await dialogo.getByLabel('Duração (minutos)').fill(duracao)
+}
