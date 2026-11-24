@@ -69,7 +69,7 @@ describe('a prova que o aluno recebe: sem gabarito e sem explicação', () => {
   it('a prova adaptada leva só os tipos da adaptação, e a lista do aluno não traz acerto nem colega', () => {
     expect(provaResponseSchema.safeParse({ ...prova, adaptacao: { tipos: ['fonte_ampliada', 'tempo_adicional'], tempoExtraPercentual: 50 } }).success).toBe(true)
     expect(provaResponseSchema.safeParse({ ...prova, adaptacao: { tipos: ['fonte_ampliada'], motivo: 'baixa visão' } }).success).toBe(false)
-    const minha = { id: UM_ID, titulo: 'Lista', disciplina: { id: OUTRO_ID, nome: 'Química' }, avaliativa: true, situacao: 'enviada', questoes: 8, respondidas: 8, aplicadaEm: AGORA, enviadaEm: AGORA }
+    const minha = { id: UM_ID, titulo: 'Lista', disciplina: { id: OUTRO_ID, nome: 'Química' }, avaliativa: true, situacao: 'enviada', questoes: 8, respondidas: 8, aplicadaEm: AGORA, enviadaEm: AGORA, janela: null, duracaoMin: null }
     expect(minhaAtividadeSchema.safeParse(minha).success).toBe(true)
     for (const campo of [{ acertos: 6 }, { mediaDaTurma: 5.2 }, { colegas: [UM_ID] }, { nota: 7.5 }]) expect(minhaAtividadeSchema.safeParse({ ...minha, ...campo }).success, Object.keys(campo)[0]).toBe(false)
   })

@@ -21,12 +21,12 @@
   - [x] 2.5 Expurgo da indisponibilidade aos 13 meses; alerta e runbook
   - [x] 2.6 Testes: RF6 do pulso, corrida (g)
 
-- [ ] **3.0 — O aluno começa e responde dentro do limite**
-  - [ ] 3.1 Alcance, janela e limite, nessa ordem
-  - [ ] 3.2 `comecar`; `prova` sem gravar; `tempo`
-  - [ ] 3.3 PUT e envio no limite; `minhas-atividades` com janela
-  - [ ] 3.4 A tela de atividade de hoje chama `comecar`
-  - [ ] 3.5 Testes: RF1, RF5, RF6 por chamador, RF7 (API), corridas (a) e (b), §1b do aluno
+- [x] **3.0 — O aluno começa e responde dentro do limite**
+  - [x] 3.1 Alcance, janela e limite, nessa ordem
+  - [x] 3.2 `comecar`; `prova` sem gravar; `tempo`
+  - [x] 3.3 PUT e envio no limite; `minhas-atividades` com janela
+  - [x] 3.4 A tela de atividade de hoje chama `comecar`
+  - [x] 3.5 Testes: RF1, RF5, RF6 por chamador, RF7 (API), corridas (a) e (b), §1b do aluno
 
 - [ ] **4.0 — Embaralhamento por aluno, mantido na retomada, corrigido pela ordem original**
   - [ ] 4.1 Sorteador injetável; `ordem` gravada no começo; a prova na ordem do aluno

@@ -65,8 +65,27 @@ const questao = (numero: number) => ({ numero, enunciado: `Enunciado sintético 
 function prova(atividadeAplicadaId: string, respostas: readonly { questao: number; alternativa: number; sequencia: number }[] = [], campos: Record<string, unknown> = {}): FakeResponse {
   return {
     status: 200,
-    corpo: { atividadeAplicadaId, titulo: 'Lista sintética', avaliativa: false, estado: 'aberta', adaptacao: null, questoes: [questao(1), questao(2), questao(3)], respostas, enviadaEm: null, ...campos },
+    corpo: {
+      comecou: true,
+      atividadeAplicadaId,
+      titulo: 'Lista sintética',
+      avaliativa: false,
+      estado: 'aberta',
+      adaptacao: null,
+      questoes: [questao(1), questao(2), questao(3)],
+      respostas,
+      enviadaEm: null,
+      tempo: { limiteEm: null, agora: '2026-10-22T13:00:00.000Z', envio: null },
+      ...campos,
+    },
   }
+}
+
+/** A rede falsa da tela da atividade: o `comecar` que a tela chama antes de ler a prova responde com a prova da atividade do caminho (o que ele devolve não é lido: quem manda é o `GET`). */
+function redeDaProva(): FakeNetwork {
+  const rede = fakeNetwork()
+  rede.responderPor(/\/atividades-aplicadas\/[^/]+\/comecar$/, (caminho) => prova(/atividades-aplicadas\/([^/]+)\/comecar$/.exec(caminho)?.[1] ?? ''))
+  return rede
 }
 
 const gravada = (alternativa: number, sequencia: number): FakeResponse => ({ status: 200, corpo: { questao: 1, alternativa, sequencia, respondidaEm: '2026-10-22T13:10:00.000Z' } })
@@ -92,11 +111,43 @@ const envios = (rede: FakeNetwork) =>
 const regiaoDeStatus = () => screen.getByRole('status')
 const marcada = () => screen.getAllByRole('radio').findIndex((radio) => (radio as HTMLInputElement).checked)
 
+describe('a atividade na tela: a prova começa antes de ser lida (avaliacao-e-correcao, 3.0)', () => {
+  it('a tela chama `comecar` (POST) e só depois lê a prova (GET): a leitura não cria a tentativa', async () => {
+    const id = idDaAtividade(90)
+    const rede = redeDaProva()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
+    montar(id)
+
+    expect(await screen.findByRole('radio', { name: /^B\./ })).toBeTruthy()
+    expect(rede.chamadas.map(({ metodo, caminho }) => `${metodo} ${caminho.replace(/^.*\/v1/, '/v1')}`)).toEqual([`POST /v1/atividades-aplicadas/${id}/comecar`, `GET /v1/atividades-aplicadas/${id}/prova`])
+  })
+
+  it('a leitura que ainda diz que a prova não começou não vira prova: a tela diz que a atividade não está disponível, sem questão', async () => {
+    const id = idDaAtividade(92)
+    const rede = redeDaProva()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, { status: 200, corpo: { comecou: false, atividadeAplicadaId: id, titulo: 'Lista sintética', janela: null, duracaoMin: null } })
+    montar(id)
+
+    expect(await screen.findByText('Esta atividade não está disponível')).toBeTruthy()
+    expect(screen.queryAllByRole('radio')).toHaveLength(0)
+  })
+
+  it('a janela fechada (`PROVA_FORA_DA_JANELA` no `comecar`) é dita pela tela, e a prova nem é lida', async () => {
+    const id = idDaAtividade(91)
+    const rede = fakeNetwork()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/comecar`, erroDaApi(409, ErrorCode.PROVA_FORA_DA_JANELA))
+    montar(id)
+
+    expect(await screen.findByText(MENSAGENS_DE_ERRO.PROVA_FORA_DA_JANELA)).toBeTruthy()
+    expect(rede.chamadas.map(({ metodo }) => metodo)).toEqual(['POST'])
+  })
+})
+
 describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
   it('a aba que perde adota a alternativa gravada, não reenvia, e avisa dentro da região de status', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(1)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     // O servidor já tinha, de outra janela, a alternativa C com a sequência 8: a escolha desta janela perde.
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(2, 8))
@@ -116,7 +167,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
   it('o clique seguinte da aba que perdeu sai com servidor + 1, vence, e o aviso some', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(2)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     let chamada = 0
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, () => (++chamada === 1 ? gravada(2, 8) : gravada(0, 9)))
@@ -139,7 +190,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
   it('a aba que venceu mostra a sua até a leitura seguinte, e então adota a do servidor com o mesmo aviso', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(3)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(1, 1))
     montar(id)
@@ -152,7 +203,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
 
     // A prova é lida de novo (a tela é aberta outra vez, sem F5): a outra janela gravou D, com a sequência 5.
     cleanup()
-    const redeDaLeitura = fakeNetwork()
+    const redeDaLeitura = redeDaProva()
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [{ questao: 1, alternativa: 3, sequencia: 5 }]))
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(2, 6))
     montar(id)
@@ -167,7 +218,7 @@ describe('a atividade na tela: a escolha mais nova vale (51.0, RF21)', () => {
 
   it('a primeira abertura da atividade, com respostas já gravadas, não avisa nada: nesta janela não havia o que alterar', async () => {
     const id = idDaAtividade(4)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [{ questao: 1, alternativa: 2, sequencia: 4 }]))
     montar(id)
 
@@ -202,7 +253,7 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
   it('o F5 com a escolha ainda não salva: ela volta marcada, sai com a mesma sequência, e some do espelho quando o servidor confirma', async () => {
     const id = idDaAtividade(5)
     guardar(id, ALUNA)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     // O servidor só confirma quando o teste diz: até lá a escolha está na tela, marcada, e no espelho.
     let confirmar: (resposta: FakeResponse) => void = () => undefined
@@ -223,7 +274,7 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
   it('o aluno da sessão só se sabe depois de a tela abrir: a escolha guardada volta e sai assim que ele chega', async () => {
     const id = idDaAtividade(6)
     guardar(id, ALUNA)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/1`, gravada(2, 3))
     const cliente = montarComSessao(id, undefined)
@@ -239,7 +290,7 @@ describe('a atividade na tela: a escolha pendente sobrevive ao F5 (53.0, RF21)',
   it('o espelho de outra pessoa no mesmo Chromebook não volta: nada é mandado, nada aparece marcado, e ele sai do armazenamento', async () => {
     const id = idDaAtividade(7)
     guardar(id, OUTRO_ALUNO)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montarComSessao(id, ALUNA)
 
@@ -290,7 +341,7 @@ async function enviarPelaTela(usuario: ReturnType<typeof userEvent.setup>) {
 /** A tela da tarefa de uma aluna que respondeu duas de três, com a rede pronta para o envio dar certo. */
 function prepararEnvio(n: number, diagnostico: FakeResponse = NAO_ACHADA) {
   const id = idDaAtividade(n)
-  const rede = fakeNetwork()
+  const rede = redeDaProva()
   rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
   rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, enviadaAgora)
   rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnostico)
@@ -353,7 +404,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
     // O F5, ou abrir a tarefa pela lista: outra abertura, outro cache, e o servidor já tem o envio.
     cleanup()
-    const redeDaLeitura = fakeNetwork()
+    const redeDaLeitura = redeDaProva()
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
     redeDaLeitura.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
@@ -365,7 +416,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
   it('a tarefa que tem resultado abre sem comemoração', async () => {
     const id = idDaAtividade(13)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id))
     montar(id)
@@ -375,7 +426,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
   it('a questão sem habilidade (classificacao-bncc, 10.0) entra no resultado da aluna como "Sem habilidade", sem texto de habilidade inventado', async () => {
     const id = idDaAtividade(15)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
     // Duas linhas: a com código e a sem habilidade, para a explicação ser provada como só da segunda.
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id, undefined, [
@@ -396,7 +447,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
   it('a lista "Questão por questão" rola por dentro e ganha foco só a partir de 1024 px; abaixo disso a página é que rola', async () => {
     const id = idDaAtividade(14)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { enviadaEm: ENVIADA_EM }))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id))
     montar(id)
@@ -420,7 +471,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 
   it('a tarefa que a professora encerrou abre sem comemoração', async () => {
     const id = idDaAtividade(14)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS, { estado: 'encerrada' }))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, NAO_ACHADA)
     montar(id)
@@ -431,7 +482,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('o resultado aprovado que já está à vista na hora do envio tira a comemoração: ela nunca divide a tela com acerto', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(15)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, enviadaAgora)
     rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, diagnosticoDe(id))
@@ -446,7 +497,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('a professora encerra com o diálogo aberto (ATIVIDADE_ENCERRADA): a tela passa a dizer isso, sem comemoração', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(16)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     let encerrou = false
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => prova(id, DUAS_RESPONDIDAS, encerrou ? { estado: 'encerrada' } : {}))
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => {
@@ -466,7 +517,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('a queda de rede no envio deixa o diálogo aberto e sem comemoração; ela só vem quando o envio, de fato, passa', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(17)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
     let tentativas = 0
     rede.responderPor(`/v1/atividades-aplicadas/${id}/enviar`, () => (++tentativas === 1 ? erroDaApi(503, ErrorCode.INDISPONIVEL_TENTE_DE_NOVO) : enviadaAgora))
@@ -489,7 +540,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('o envio que falha com a tarefa já enviada em outra janela não comemora: a comemoração é só do `onSuccess`', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(18)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     // Outra janela enviou a mesma tarefa: este envio é recusado, e a leitura que a tela refaz já traz o envio.
     let enviadaEmOutraJanela = false
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => prova(id, DUAS_RESPONDIDAS, enviadaEmOutraJanela ? { enviadaEm: ENVIADA_EM } : {}))
@@ -512,7 +563,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
   it('o clique duplo em "Enviar a atividade" manda um envio só e comemora uma vez', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(19)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, DUAS_RESPONDIDAS))
     // O servidor só responde quando o teste libera: o segundo clique chega com o primeiro envio ainda no ar.
     let liberar: (resposta: FakeResponse) => void = () => undefined
@@ -537,7 +588,7 @@ describe('a comemoração do envio (X4, 6.0; RF8; D59)', () => {
 describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
   it('é a `Tela` na largura de leitura, e o "Voltar" diz Tarefas', async () => {
     const id = idDaAtividade(20)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -551,7 +602,7 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
   it('"Anterior" e "Próxima" estão na barra presa, e param nas pontas; "Enviar a atividade" não fica dentro dela', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(21)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -575,7 +626,7 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
 
   it('"Enviar a atividade", o ponto de parada e a navegação são uma linha só em janela larga; a barra presa embaixo é do celular', async () => {
     const id = idDaAtividade(23)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -600,7 +651,7 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
 
   it('o mapa distingue a questão aberta e a respondida da que está em branco, sem depender só da cor', async () => {
     const id = idDaAtividade(22)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [respostaDe(2, 1)]))
     montar(id)
     await screen.findByRole('radio', { name: /^A\./ })
@@ -619,7 +670,7 @@ describe('a tarefa aberta: a moldura (X4, 6.1; RF7)', () => {
 describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
   it('carregando: o texto, o "Voltar" à vista e nenhuma questão', async () => {
     const id = idDaAtividade(30)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     const segurada = rede.segurar()
     montar(id)
 
@@ -632,7 +683,7 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
 
   it('não disponível: a de outra turma responde como a que não existe, e aponta para Tarefas, sem "Tentar de novo"', async () => {
     const id = idDaAtividade(31)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, NAO_ACHADA)
     montar(id)
 
@@ -646,7 +697,7 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
   it('erro: diz o que fazer, sem código, e "Tentar de novo" traz a tarefa', async () => {
     const usuario = userEvent.setup()
     const id = idDaAtividade(32)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     let tentativas = 0
     // Limite excedido não é repetido sozinho (`shouldRetry`): o erro aparece na hora, sem esperar a nova tentativa de 1 s.
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, () => (++tentativas === 1 ? erroDaApi(429, ErrorCode.LIMITE_EXCEDIDO) : prova(id)))
@@ -661,7 +712,7 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
 
   it('com dado: o título da tarefa, a questão, as alternativas e o ponto de parada dito', async () => {
     const id = idDaAtividade(33)
-    const rede = fakeNetwork()
+    const rede = redeDaProva()
     rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id))
     montar(id)
 

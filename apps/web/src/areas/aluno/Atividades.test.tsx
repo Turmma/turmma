@@ -28,6 +28,8 @@ const atividade = (final: string, campos: Record<string, unknown> = {}) => ({
   respondidas: 0,
   aplicadaEm: '2026-10-05T13:00:00.000Z',
   enviadaEm: null,
+  janela: null,
+  duracaoMin: null,
   ...campos,
 })
 

@@ -1,13 +1,17 @@
 import {
+  ErrorCode,
   atividadeEnviadaResponseSchema,
   meuDiagnosticoResponseSchema,
   minhasAtividadesResponseSchema,
+  provaOnlineResponseSchema,
   provaResponseSchema,
+  type ProvaResponse,
   questaoSalvaResponseSchema,
   type AtividadeEnviadaResponse,
   type QuestaoSalvaResponse,
 } from '@educa/shared'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
+import { ApiError } from './client'
 import { PROVA_QUERY_KEY, MINHAS_ATIVIDADES_QUERY_KEY, MEU_DIAGNOSTICO_QUERY_KEY } from './chaves-do-aluno'
 import { authedGet, authedRequest } from './sessao'
 
@@ -34,7 +38,15 @@ export const minhasAtividadesInfiniteQueryOptions = infiniteQueryOptions({
 })
 
 /**
- * `GET /v1/atividades-aplicadas/:id/prova`: a atividade como o aluno a faz, com o que ele já respondeu. Sem gabarito nem
+ * `POST /v1/atividades-aplicadas/:id/comecar`: começa a prova, ou devolve a que já começou (avaliacao-e-correcao, 3.0). É o que cria a tentativa; **a tela de hoje o chama
+ * antes de ler a prova**, e a janela e o limite que a 3.0 passou a conferir chegam como erro tipado (`PROVA_FORA_DA_JANELA`, `ATIVIDADE_ENCERRADA`), que a tela mostra como qualquer outro.
+ */
+function comecarProva(atividadeAplicadaId: string) {
+  return authedRequest(`${caminhoDaAtividade(atividadeAplicadaId)}/comecar`, provaOnlineResponseSchema, { metodo: 'POST', corpo: {} })
+}
+
+/**
+ * `GET /v1/atividades-aplicadas/:id/prova`, **depois de `comecar`**: a atividade como o aluno a faz, com o que ele já respondeu. Sem gabarito nem
  * explicação: o contrato é estrito. **Não envelhece sozinha**: enquanto o aluno responde, quem muda as respostas é ele,
  * e a tela as acerta no cache a cada "Resposta salva"; reler no meio (ao voltar para a aba) trocaria a escolha que ainda
  * está sendo salva pela anterior.
@@ -42,7 +54,15 @@ export const minhasAtividadesInfiniteQueryOptions = infiniteQueryOptions({
 export function provaQueryOptions(atividadeAplicadaId: string) {
   return queryOptions({
     queryKey: [...PROVA_QUERY_KEY, atividadeAplicadaId],
-    queryFn: ({ signal }) => authedGet(`${caminhoDaAtividade(atividadeAplicadaId)}/prova`, provaResponseSchema, signal),
+    queryFn: async ({ signal }): Promise<ProvaResponse> => {
+      await comecarProva(atividadeAplicadaId)
+      const lida = await authedGet(`${caminhoDaAtividade(atividadeAplicadaId)}/prova`, provaOnlineResponseSchema, signal)
+      // Depois do `comecar` a leitura traz a prova; a que ainda não começou (ramo `comecou: false`) é a que a 12.0 mostra antes do aviso, e não chega a esta tela.
+      if (!lida.comecou) throw new ApiError(ErrorCode.NAO_ENCONTRADO)
+      // O tempo (`tempo`) é da tela de foco (12.0): a tela de hoje lê a prova como sempre leu.
+      const { comecou: _comecou, tempo: _tempo, ...prova } = lida
+      return provaResponseSchema.parse(prova)
+    },
     staleTime: Number.POSITIVE_INFINITY,
   })
 }

@@ -4,19 +4,20 @@ import {
   correcao,
   disciplina,
   entrega,
+  extensaoDeTempo,
   requireAnoEmCurso,
   requireEscolaId,
   respostaAtividade,
   requestSessao,
+  tempoAdicional,
   tentativaAtividade,
   usuario,
   vinculo,
   type Database,
   type DatabaseTransaction,
 } from '@educa/core'
-import type { PaginationQuery, DiagnosticoGravado, EstadoDeAtividadeAplicada } from '@educa/shared'
-import { and, asc, desc, eq, exists, isNull, lt, sql, type SQL } from 'drizzle-orm'
-import { InvariantException } from '@educa/shared'
+import { InvariantException, type PaginationQuery, type DiagnosticoGravado, type EnvioDaTentativa, type EstadoDeAtividadeAplicada, type ExtensaoDoLimite, type PercentualDeTempoAdicional } from '@educa/shared'
+import { and, asc, desc, eq, exists, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm'
 
 /** Uma atividade da turma do aluno, na lista dele: sem acerto, sem gabarito, sem colega. */
 export interface MinhaAtividadeLida {
@@ -31,7 +32,18 @@ export interface MinhaAtividadeLida {
   readonly aplicadaEm: Date
   readonly iniciadaEm: Date | null
   readonly enviadaEm: Date | null
+  /** O aluno da tentativa (o da sessão), quando há tentativa: é o que a conta do limite da página pede. */
+  readonly alunoId: string | null
   readonly comDiagnostico: boolean
+  /** A janela e a duração da prova online, como estão na aplicação; nulas na atividade sem prova. A duração do aluno (com o tempo adicional) é conta do service. */
+  readonly abreEm: Date | null
+  readonly fechaEm: Date | null
+  readonly duracaoMin: number | null
+  /** O percentual de tempo adicional **do aluno da sessão**, ou nulo. Só serve à conta da duração dele: nunca sai daqui para a tela. */
+  readonly percentual: PercentualDeTempoAdicional | null
+  readonly limiteBaseEm: Date | null
+  /** O `now()` do banco, o mesmo em todas as linhas da página: com ele o service decide se a tentativa em andamento já venceu. */
+  readonly agora: Date
 }
 
 /** A atividade como o aluno a abre. `conteudo` é o do artefato, com o gabarito: o service só tira dele a prova. */
@@ -41,11 +53,27 @@ export interface ProvaLida {
   readonly avaliativa: boolean
   readonly estado: EstadoDeAtividadeAplicada
   readonly conteudo: unknown
+  /** A janela e a duração da aplicação (nulas fora da prova online) e o `now()` do banco, que decide se o aluno pode começar. */
+  readonly abreEm: Date | null
+  readonly fechaEm: Date | null
+  readonly duracaoMin: number | null
+  readonly agora: Date
 }
 
+/** A tentativa do aluno da sessão, com o que o limite pede (`limiteDaTentativa`) e o `now()` do banco na mesma leitura. */
 export interface TentativaLida {
+  readonly alunoId: string
   readonly iniciadaEm: Date
   readonly enviadaEm: Date | null
+  readonly limiteBaseEm: Date | null
+  readonly envio: EnvioDaTentativa | null
+  readonly agora: Date
+}
+
+/** A atividade para a resposta e o envio: o estado e quantas questões tem. */
+export interface AtividadeParaGravar {
+  readonly estado: EstadoDeAtividadeAplicada
+  readonly questoes: number
 }
 
 export interface RespostaLida {
@@ -65,6 +93,19 @@ export interface DiagnosticoLido {
   readonly porHabilidade: DiagnosticoGravado
   readonly nomeDeQuemAprovou: string | null
   readonly aprovadoEm: Date
+}
+
+/** O `now()` do banco como `Date`: o relógio da prova é o dele, e a transação o mantém o mesmo até o fim (regra 80, item 6). */
+const agoraDoBanco = sql`now()`.mapWith(tentativaAtividade.iniciadaEm)
+
+/** As colunas da tentativa que `TentativaLida` pede. */
+const COLUNAS_DA_TENTATIVA = {
+  alunoId: tentativaAtividade.alunoId,
+  iniciadaEm: tentativaAtividade.iniciadaEm,
+  enviadaEm: tentativaAtividade.enviadaEm,
+  limiteBaseEm: tentativaAtividade.limiteBaseEm,
+  envio: tentativaAtividade.envio,
+  agora: agoraDoBanco,
 }
 
 const artefatoDaAplicacao = and(eq(artefato.escolaId, atividadeAplicada.escolaId), eq(artefato.anoLetivoId, atividadeAplicada.anoLetivoId), eq(artefato.id, atividadeAplicada.artefatoId))
@@ -108,7 +149,7 @@ export class MinhaAtividadeRepository {
   }
 
   /** As colunas que prendem uma linha de tentativa, resposta ou correção ao aluno da sessão, na escola e no ano do contexto. */
-  #minha<Tabela extends typeof tentativaAtividade | typeof respostaAtividade | typeof correcao>(tabela: Tabela, atividadeAplicadaId: string): SQL | undefined {
+  #minha<Tabela extends typeof tentativaAtividade | typeof respostaAtividade | typeof correcao | typeof tempoAdicional>(tabela: Tabela, atividadeAplicadaId: string): SQL | undefined {
     return and(eq(tabela.escolaId, requireEscolaId()), eq(tabela.anoLetivoId, requireAnoEmCurso()), eq(tabela.atividadeAplicadaId, atividadeAplicadaId), eq(tabela.alunoId, requestSessao().usuarioId))
   }
 
@@ -131,6 +172,13 @@ export class MinhaAtividadeRepository {
         aplicadaEm: atividadeAplicada.aplicadaEm,
         iniciadaEm: tentativaAtividade.iniciadaEm,
         enviadaEm: tentativaAtividade.enviadaEm,
+        alunoId: tentativaAtividade.alunoId,
+        abreEm: atividadeAplicada.abreEm,
+        fechaEm: atividadeAplicada.fechaEm,
+        duracaoMin: atividadeAplicada.duracaoMin,
+        percentual: sql<PercentualDeTempoAdicional | null>`(select ${tempoAdicional.percentual} from ${tempoAdicional} where ${tempoAdicional.escolaId} = ${atividadeAplicada.escolaId} and ${tempoAdicional.anoLetivoId} = ${atividadeAplicada.anoLetivoId} and ${tempoAdicional.atividadeAplicadaId} = ${atividadeAplicada.id} and ${tempoAdicional.alunoId} = ${usuarioId})`,
+        limiteBaseEm: tentativaAtividade.limiteBaseEm,
+        agora: agoraDoBanco,
         comDiagnostico: sql<boolean>`exists (select 1 from ${correcao} inner join ${entrega} on ${entrega.escolaId} = ${correcao.escolaId} and ${entrega.id} = ${correcao.entregaId} where ${correcao.escolaId} = ${atividadeAplicada.escolaId} and ${correcao.anoLetivoId} = ${atividadeAplicada.anoLetivoId} and ${correcao.atividadeAplicadaId} = ${atividadeAplicada.id} and ${correcao.alunoId} = ${usuarioId} and ${entrega.estado} = 'aprovada')`,
       })
       .from(atividadeAplicada)
@@ -158,7 +206,17 @@ export class MinhaAtividadeRepository {
    */
   async prova(id: string, travar = false): Promise<ProvaLida | undefined> {
     const consulta = this.banco
-      .select({ id: atividadeAplicada.id, titulo: artefato.titulo, avaliativa: atividadeAplicada.avaliativa, estado: atividadeAplicada.estado, conteudo: artefato.conteudo })
+      .select({
+        id: atividadeAplicada.id,
+        titulo: artefato.titulo,
+        avaliativa: atividadeAplicada.avaliativa,
+        estado: atividadeAplicada.estado,
+        conteudo: artefato.conteudo,
+        abreEm: atividadeAplicada.abreEm,
+        fechaEm: atividadeAplicada.fechaEm,
+        duracaoMin: atividadeAplicada.duracaoMin,
+        agora: agoraDoBanco,
+      })
       .from(atividadeAplicada)
       .innerJoin(artefato, artefatoDaAplicacao)
       .where(and(this.#daMinhaTurma(), eq(atividadeAplicada.id, id)))
@@ -166,43 +224,90 @@ export class MinhaAtividadeRepository {
     return linha
   }
 
-  /** O mesmo alcance e a mesma trava de `prova`, só com o estado e o número de questões: é o que o `PUT` da resposta e o envio leem, sem carregar o conteúdo. */
-  async lockParaGravar(id: string): Promise<{ estado: EstadoDeAtividadeAplicada; questoes: number } | undefined> {
-    const [linha] = await this.banco
+  /** O mesmo alcance de `prova`, só com o estado e o número de questões, e a **trava**: é o que o `PUT` da resposta e o envio leem, sem carregar o conteúdo. */
+  async lockParaGravar(id: string): Promise<AtividadeParaGravar | undefined> {
+    const [linha] = await this.#paraGravar(id).for('share', { of: atividadeAplicada })
+    return linha
+  }
+
+  /** O mesmo que `lockParaGravar`, **sem trava**: o que `tempo` lê a cada 30 s de cada aluno, e não pode esperar o encerramento. */
+  async leitura(id: string): Promise<AtividadeParaGravar | undefined> {
+    const [linha] = await this.#paraGravar(id)
+    return linha
+  }
+
+  #paraGravar(id: string) {
+    return this.banco
       .select({ estado: atividadeAplicada.estado, questoes: sql<number>`jsonb_array_length(${artefato.conteudo} -> 'questoes')` })
       .from(atividadeAplicada)
       .innerJoin(artefato, artefatoDaAplicacao)
       .where(and(this.#daMinhaTurma(), eq(atividadeAplicada.id, id)))
-      .for('share', { of: atividadeAplicada })
+  }
+
+  /**
+   * Começa a prova: cria a tentativa do aluno da sessão com o `limite_base_em` já calculado, **uma só** (`on conflict do nothing`: o clique duplo, a outra aba e a retomada não
+   * criam outra; regra 80, item 7). Quando a tentativa já existia, nada muda, e quem chama lê a gravada, com o limite da primeira. O `iniciada_em` é o `now()` do banco, o mesmo com que `limiteBaseEm` foi calculado (a transação é a mesma). Só se chama depois de `prova` achar a atividade na turma do aluno.
+   */
+  async comecar(atividadeAplicadaId: string, limiteBaseEm: Date | null): Promise<void> {
+    await this.banco
+      .insert(tentativaAtividade)
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId: requestSessao().usuarioId, limiteBaseEm })
+      .onConflictDoNothing({ target: [tentativaAtividade.escolaId, tentativaAtividade.anoLetivoId, tentativaAtividade.atividadeAplicadaId, tentativaAtividade.alunoId] })
+  }
+
+  /** A tentativa do aluno da sessão, se ele já começou a atividade. */
+  async tentativa(atividadeAplicadaId: string): Promise<TentativaLida | undefined> {
+    const [linha] = await this.banco.select(COLUNAS_DA_TENTATIVA).from(tentativaAtividade).where(this.#minha(tentativaAtividade, atividadeAplicadaId))
     return linha
   }
 
   /**
-   * A tentativa do aluno da sessão, criada se ainda não existe, numa instrução só: abrir a prova em duas abas cria uma
-   * (regra 80, item 7). O `do update` não muda nada, mas trava a linha e devolve o estado dela: a resposta que chega
-   * junto com o envio espera por ele e lê a tentativa já enviada. Só se chama depois de `prova` ou `lockParaGravar`
-   * achar a atividade na turma do aluno.
+   * A mesma tentativa, **travada até o fim da transação** (`for update`): a resposta que chega junto com o envio espera por ele e lê a tentativa já enviada, e duas respostas do
+   * mesmo aluno se enfileiram (regra 80, item 7). A tentativa não nasce aqui: sem ela, o aluno não começou (só o `comecar` a cria).
    */
-  async openTentativa(atividadeAplicadaId: string): Promise<TentativaLida> {
-    const [linha] = await this.banco
-      .insert(tentativaAtividade)
-      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId: requestSessao().usuarioId })
-      .onConflictDoUpdate({
-        target: [tentativaAtividade.escolaId, tentativaAtividade.anoLetivoId, tentativaAtividade.atividadeAplicadaId, tentativaAtividade.alunoId],
-        set: { iniciadaEm: sql`${tentativaAtividade.iniciadaEm}` },
-      })
-      .returning({ iniciadaEm: tentativaAtividade.iniciadaEm, enviadaEm: tentativaAtividade.enviadaEm })
-    if (linha === undefined) throw new InvariantException('tentativa não aberta')
+  async tentativaTravada(atividadeAplicadaId: string): Promise<TentativaLida | undefined> {
+    const [linha] = await this.banco.select(COLUNAS_DA_TENTATIVA).from(tentativaAtividade).where(this.#minha(tentativaAtividade, atividadeAplicadaId)).for('update')
     return linha
   }
 
-  /** A tentativa do aluno da sessão, se ele já abriu a atividade. */
-  async tentativa(atividadeAplicadaId: string): Promise<TentativaLida | undefined> {
-    const [linha] = await this.banco
-      .select({ iniciadaEm: tentativaAtividade.iniciadaEm, enviadaEm: tentativaAtividade.enviadaEm })
-      .from(tentativaAtividade)
-      .where(this.#minha(tentativaAtividade, atividadeAplicadaId))
-    return linha
+  /** O percentual de tempo adicional do aluno da sessão nesta aplicação, ou nulo. É dado sensível (D35): só serve à conta do limite e da duração dele, e nunca sai de `service`. */
+  async percentualDoAluno(atividadeAplicadaId: string): Promise<PercentualDeTempoAdicional | null> {
+    const [linha] = await this.banco.select({ percentual: tempoAdicional.percentual }).from(tempoAdicional).where(this.#minha(tempoAdicional, atividadeAplicadaId))
+    return (linha?.percentual as PercentualDeTempoAdicional | undefined) ?? null
+  }
+
+  /** As extensões que valem para o aluno da sessão nesta aplicação: as dele e as da turma (`aluno_id` nulo). A de outro aluno não volta. */
+  async extensoes(atividadeAplicadaId: string): Promise<ExtensaoDoLimite[]> {
+    return this.banco
+      .select({ alunoId: extensaoDeTempo.alunoId, minutos: extensaoDeTempo.minutos })
+      .from(extensaoDeTempo)
+      .where(
+        and(
+          eq(extensaoDeTempo.escolaId, requireEscolaId()),
+          eq(extensaoDeTempo.anoLetivoId, requireAnoEmCurso()),
+          eq(extensaoDeTempo.atividadeAplicadaId, atividadeAplicadaId),
+          or(isNull(extensaoDeTempo.alunoId), eq(extensaoDeTempo.alunoId, requestSessao().usuarioId)),
+        ),
+      )
+  }
+
+  /** As extensões de várias aplicações de uma vez, para a lista: o mesmo filtro de `extensoes`, por aplicação. */
+  async extensoesDas(atividadeAplicadaIds: readonly string[]): Promise<Map<string, ExtensaoDoLimite[]>> {
+    const porAplicacao = new Map<string, ExtensaoDoLimite[]>()
+    if (atividadeAplicadaIds.length === 0) return porAplicacao
+    const linhas = await this.banco
+      .select({ atividadeAplicadaId: extensaoDeTempo.atividadeAplicadaId, alunoId: extensaoDeTempo.alunoId, minutos: extensaoDeTempo.minutos })
+      .from(extensaoDeTempo)
+      .where(
+        and(
+          eq(extensaoDeTempo.escolaId, requireEscolaId()),
+          eq(extensaoDeTempo.anoLetivoId, requireAnoEmCurso()),
+          inArray(extensaoDeTempo.atividadeAplicadaId, [...atividadeAplicadaIds]),
+          or(isNull(extensaoDeTempo.alunoId), eq(extensaoDeTempo.alunoId, requestSessao().usuarioId)),
+        ),
+      )
+    for (const { atividadeAplicadaId, ...extensao } of linhas) porAplicacao.set(atividadeAplicadaId, [...(porAplicacao.get(atividadeAplicadaId) ?? []), extensao])
+    return porAplicacao
   }
 
   /** As respostas do aluno da sessão na atividade, em ordem de questão. */
@@ -246,11 +351,11 @@ export class MinhaAtividadeRepository {
     return lida
   }
 
-  /** Marca o envio da tentativa do aluno da sessão, com a hora do banco, uma vez só: a já enviada fica com a primeira hora. */
+  /** Marca o envio da tentativa do aluno da sessão, com a hora do banco e `envio = 'aluno'`, uma vez só: a já enviada fica com a primeira hora. */
   async send(atividadeAplicadaId: string): Promise<void> {
     await this.banco
       .update(tentativaAtividade)
-      .set({ enviadaEm: sql`now()` })
+      .set({ enviadaEm: sql`now()`, envio: 'aluno' })
       .where(and(this.#minha(tentativaAtividade, atividadeAplicadaId), isNull(tentativaAtividade.enviadaEm)))
   }
 

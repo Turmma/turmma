@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LIMIAR_DA_LACUNA_MS, limiteDaTentativa, type EntradaDoLimite } from './limite-da-tentativa.js'
+import { duracaoDoAlunoEmMinutos, LIMIAR_DA_LACUNA_MS, limiteBaseDaTentativa, limiteDaTentativa, type EntradaDoLimite } from './limite-da-tentativa.js'
 
 // Instantes fixos e sintéticos: a função é pura, e nenhum teste lê o relógio. A tentativa começa às 10:00 e a prova vai até as 10:40.
 const ANA = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5d'
@@ -109,5 +109,41 @@ describe('limiteDaTentativa: a lacuna aberta e o limiar de 30 s (§5.7)', () => 
 
   it('trabalha em segundos: a lacuna aberta de 61 s anda o limite 61 s', () => {
     expect(limite({ pulso: { ultimoEm: segundos(600), agora: segundos(661) } })).toBe(minutos(40).getTime() + 61_000)
+  })
+})
+
+describe('limiteBaseDaTentativa: o que vier antes, o começo mais a duração do aluno ou o fim da janela', () => {
+  const FECHA = minutos(60)
+
+  it('começando cedo, o limite é o começo mais a duração', () => {
+    expect(limiteBaseDaTentativa({ agora: minutos(0), fechaEm: FECHA, duracaoMin: 40, percentual: null })?.getTime()).toBe(minutos(40).getTime())
+  })
+
+  it('começando a 10 min do fim com duração 40, o limite é o fim da janela', () => {
+    expect(limiteBaseDaTentativa({ agora: minutos(50), fechaEm: FECHA, duracaoMin: 40, percentual: null })?.getTime()).toBe(FECHA.getTime())
+  })
+
+  it('o tempo adicional soma à duração do aluno: +50% sobre 40 é 60, e o fim da janela ainda corta', () => {
+    expect(limiteBaseDaTentativa({ agora: minutos(0), fechaEm: minutos(120), duracaoMin: 40, percentual: 50 })?.getTime()).toBe(minutos(60).getTime())
+    expect(limiteBaseDaTentativa({ agora: minutos(30), fechaEm: FECHA, duracaoMin: 40, percentual: 50 })?.getTime()).toBe(FECHA.getTime())
+  })
+
+  it('sem duração o limite é o fim da janela, e sem janela não há limite', () => {
+    expect(limiteBaseDaTentativa({ agora: minutos(0), fechaEm: FECHA, duracaoMin: null, percentual: null })?.getTime()).toBe(FECHA.getTime())
+    expect(limiteBaseDaTentativa({ agora: minutos(0), fechaEm: null, duracaoMin: 40, percentual: 50 })).toBeNull()
+  })
+})
+
+describe('duracaoDoAlunoEmMinutos: a duração que o aluno lê, arredondada para cima', () => {
+  it('sem tempo adicional é a da prova; com ele, a soma, sem dizer o percentual', () => {
+    expect(duracaoDoAlunoEmMinutos(40, null)).toBe(40)
+    expect(duracaoDoAlunoEmMinutos(40, 25)).toBe(50)
+    expect(duracaoDoAlunoEmMinutos(40, 50)).toBe(60)
+    expect(duracaoDoAlunoEmMinutos(40, 100)).toBe(80)
+  })
+
+  it('arredonda para cima, nunca para baixo: 45 min com +25% é 56,25, e o aluno lê 57', () => {
+    expect(duracaoDoAlunoEmMinutos(45, 25)).toBe(57)
+    expect(duracaoDoAlunoEmMinutos(5, 25)).toBe(7)
   })
 })
