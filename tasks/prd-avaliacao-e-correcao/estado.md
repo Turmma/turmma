@@ -1,9 +1,10 @@
 # Estado da execução — avaliacao-e-correcao
 
 ## Agora
-- **Espero:** linha 1 ociosa (a 6.0, próxima, espera a 5.0). Linha 2: correção encontro-5 concluída (`0639304b`, `tasks/correcoes/2026-11-24-encontro-5.md`, todos aprovaram na 1ª); o encontro de novo espera o relatório do `Arquiteto`, para não correr junto com a edição dele no andar. `Arquiteto` (reiniciado no andar) escreve na `techspec.md` a escolha encerrada × limite pedida pela 3.0, antes da 6.0. Linha 3 (`Implementador 3` e `Mesa 3`) na **4.0** (porte pequeno, partida 24/11 ~02:10), 1ª tentativa.
+- **Retomado (26/11 15:30), pelo `/seguir` do Joaquim:** o limite semanal voltou; par da linha 3 reiniciado em sessão nova (o Implementador 3 estava a 1% da compactação) com `PEDIDO de retomada` da 4.0 apontando `.processo/ordens/4_task-r1.md`. Vigia segue desligada.
+- **Espero:** linhas 1 e 2 ociosas: a 6.0 não corre junto com a 4.0 (`tasks.md`), e parte quando a 4.0 se encontrar. Linha 3 (`Implementador 3` e `Mesa 3`) na **4.0** (porte pequeno, partida 24/11 ~02:10), 1ª tentativa, retomada na ordem da 1ª rodada (`infra-guardian`).
 - **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim. No fechamento, levar também ao `TODO.md` as duas linhas de "Recomendações sem aplicar" de `tasks/correcoes/2026-11-23-explain-semana-itens.md` (regex sem `ano_letivo_id`; regra no lugar da lista de nomes); as outras duas vão para a retro. Na Validação: o caso do PUT com a extensão (B recebe TEMPO_ESGOTADO) e a fronteira do `>` do tempo esgotado são da 3.0 e ficaram em "Sem aplicar" do `5_task.md`.
-- **Base:** `spec/avaliacao-e-correcao` em `b7354925` (encontro da 7.0); esteira verde em `4876cb1f` (execução 45312919077); rodando em `7006000` (45329691617) e `b735492` (45330952907)
+- **Base:** `spec/avaliacao-e-correcao` em `56ffc73f` (encontro da 5.0, depois da escolha encerrada × limite do Arquiteto em `e5db786e`); esteira verde em `4876cb1f`; as de `7006000` e `b735492` canceladas por pushes novos; rodando em `e5db786` e `56ffc73`
 - **Decidido (23/11), aviso fixo da coluna "Saiu da aba":** o Joaquim aprovou, nesta conversa, o texto proposto em `cenarios.md` §4, sem mudança.
 
 ## Concluídas
@@ -16,6 +17,7 @@
 | correção explain-semana-itens (linha 1) | `89884d98` → spec `4876cb1f` | Sonnet | 3 (`revisor-geral` reprovou na 2ª, aprovou na 3ª) | encontro 23/11, verificação verde; esteira vermelha de `5e4d786` é o mesmo EXPLAIN, anterior à correção |
 | 3.0 (linha 3) | `2177c7ba` → spec `70060000` | Sonnet | 2 (`test-engineer` reprovou na 1ª) | encontro 24/11 ~02:05, verificação verde; divergência já propagada ao `cenarios.md` (minhas-atividades sem ano em curso responde NAO_ENCONTRADO); dois itens no `TODO.md` |
 | 7.0 (linha 1) | `c0563400` → spec `b7354925` | Sonnet | 2 (`infra-guardian` e `test-engineer` reprovaram na 1ª) | encontro 24/11, verificação verde; métrica `tutor.trava.duracao` com painel e sem alerta (decisão escrita na tarefa); fora do pedido, a lista fechada de `infra/test/metricas.int.test.ts` e as quedas do teste de infra; destinos 6.0, 6.5 e 11.0 nas tarefas |
+| 5.0 (linha 2) | `82d352bc` + correção encontro-5 `0639304b` → spec `56ffc73f` | Sonnet | 2 (`test-engineer` e `revisor-geral` reprovaram na 1ª); a correção do conflito com a 3.0 em `contracts.test.ts` aprovada na 1ª | encontro 24/11, verificação verde; 14 itens no `TODO.md`; linhas no "Contexto necessário" de 6.0 e 11.0 |
 
 ## Esperando o Joaquim
 ## 23/11 16:25 — 1.0 (linha 2), BLOQUEIO do Arquiteto na divergência da 2ª rodada — RESPONDIDA (23/11 ~17:05, no terminal do Arquiteto): A, os dois entram na versão `coordenacao` por exceção declarada (art. 18); PRD, Tech Spec, cenarios.md e docs/lgpd.md editados pelo Arquiteto na linha 2, sem commit, vão no commit da 1.0
@@ -44,5 +46,6 @@ Segura só a correção. A F6 não depende dela: a 1.0 parte às 14:10 em outra 
 - 23/11 12:28: a esteira da `develop` no pouso da F5b caiu na fatia 8 do e2e sem rodar teste (timeout do runner baixando imagem do `ghcr.io`); verde na segunda tentativa, só a fatia que caiu.
 
 ## O que decidi sem perguntar
+- 24/11: pedi ao `Arquiteto` a escolha encerrada × limite (da 3.0) antes da 6.0, com a linha 1 ociosa; ele julgou detalhe (RF5), manteve a ordem e escreveu a §5.5 e o `6_task.md` (`e5db786e`). Segurei o encontro da linha 2 até o commit dele, para não correr junto no andar.
 - 23/11 15:40: a correção d55 começou às 12:28, antes do quadro das linhas, e por isso ficou fora dele; registrei-a à mão em `.processo/linhas.json` (linha 1, `correcao`, desde 12:28) e o encontro passou.
 - 23/11 12:28: a correção da D55 (decisão do Joaquim, 22/11 12:55, "corrige a D55 depois da F5b"; `tasks/prd-reserva-e-avaliacao/achado-d55-recusa-rubrica.md`) corre na linha 1 desta spec, durante o PRD, e não em andar próprio: a rubrica antes da aplicação é escopo da F6, uma correção avulsa seguraria a spec até o pouso dela (uma por vez, passo 3), e o par da linha estava ocioso. Seguinte: a F6, primeira pendente do `ROADMAP.md`; a F18, antes dela na ordem da fatia, depende do provedor da VPS, em aberto.
