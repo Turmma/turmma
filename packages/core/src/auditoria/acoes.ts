@@ -796,6 +796,17 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * O professor deu minutos a mais a um aluno ou à turma durante a prova (avaliacao-e-correcao, 5.0; RF4; Tech Spec, seção 7). `entidadeId` é a atividade aplicada; `depois` leva só o **escopo** (`aluno` ou
+   * `turma`): nunca os minutos nem o `alunoId`, porque tempo a mais é adaptação, dado sensível (regra 20, item 3; D35), e a auditoria da escola não pode virar a lista de quem o recebeu. Quem deu e quando está na
+   * linha da extensão. O pedido repetido (a mesma `chave`) não grava outra.
+   */
+  'atividade.tempo_estendido': {
+    entidade: 'atividade_aplicada',
+    antes: null,
+    depois: z.strictObject({ escopo: z.enum(['aluno', 'turma']) }),
+    finalidade: null,
+  },
+  /**
    * O professor da turma aprovou ou rejeitou uma entrega da IA (MVP; regra 70, itens 3 e 6; regra 20, item 10).
    * `entidadeId` é a entrega; o autor do registro é quem decidiu. A aprovação do lote de correção não vem por aqui: é
    * `lote.aprovado`, com a validação. **Nunca a justificativa da rejeição**, que é texto do professor e fica só na entrega.

@@ -137,7 +137,8 @@ item 7): o schema é estrito e recusa esses campos. Troca é a mensagem do aluno
 aluno manda quando sabe. Nesta fatia o professor não lê o texto da conversa: nenhuma rota o entrega.
 
 **A ordem das conferências do `POST /tutor/mensagens`**, todas no servidor: (1) o aluno alcança a atividade e o material
-que referencia, senão `NAO_ENCONTRADO`; (2) **assunto pessoal delicado** (D36); (3) atividade avaliativa aberta na turma,
+que referencia, senão `NAO_ENCONTRADO`; (2) **assunto pessoal delicado** (D36); (3) atividade avaliativa aberta que trava **este aluno**
+(a turma toda no MVP; depois da prova online, por aluno: do `abre_em` até o fim da janela ou o limite dele, e só o convocado na segunda chamada),
 `TUTOR_PAUSADO_EM_AVALIACAO`; (4) o freio do dia e o pacote do mês; (5) função suspensa. As recusas de 3, 4 e 5 não
 gravam mensagem nem contam troca. **O assunto delicado passa na frente de tudo: da avaliação aberta, do freio, do pacote
 e da suspensão.** O aluno em prova, o aluno no limite do dia, a turma com o pacote esgotado e a escola com o Tutor ou os

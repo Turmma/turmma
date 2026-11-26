@@ -141,6 +141,15 @@ describe('mapa de ações da auditoria', () => {
     }
   })
 
+  it('avaliacao-e-correcao 5.0: `atividade.tempo_estendido` leva só o escopo (aluno ou turma): nunca os minutos nem o aluno, que é adaptação, dado sensível', () => {
+    const estendido = ACOES_DE_AUDITORIA['atividade.tempo_estendido']
+    expect([estendido.entidade, estendido.antes, estendido.finalidade]).toEqual(['atividade_aplicada', null, null])
+    for (const escopo of ['aluno', 'turma']) expect(estendido.depois.safeParse({ escopo }).success, escopo).toBe(true)
+    expect(estendido.depois.safeParse({ escopo: 'escola' }).success, 'escopo fora da lista').toBe(false)
+    expect(estendido.depois.safeParse({ escopo: 'aluno', minutos: 17 }).success, 'os minutos não entram').toBe(false)
+    expect(estendido.depois.safeParse({ escopo: 'aluno', alunoId: UM_ID }).success, 'o aluno não entra').toBe(false)
+  })
+
   it('`material.atualizado` leva as séries antes e depois e só se o título mudou: nunca o título, que é texto livre (ingestao-do-material, 12.0)', () => {
     const { antes, depois, finalidade, entidade } = ACOES_DE_AUDITORIA['material.atualizado']
     expect([entidade, finalidade]).toEqual(['material', null])

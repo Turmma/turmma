@@ -32,9 +32,9 @@
   - [x] 4.1 Sorteador injetável; `ordem` gravada no começo; a prova na ordem do aluno
   - [x] 4.2 Testes: RF8
 
-- [ ] **5.0 — O professor estende o tempo e acompanha quem está fazendo**
-  - [ ] 5.1 `extensoes` com chave; `acompanhamento` numa consulta
-  - [ ] 5.2 Testes: RF4, corrida (d), §1b do professor
+- [x] **5.0 — O professor estende o tempo e acompanha quem está fazendo**
+  - [x] 5.1 `extensoes` com chave; `acompanhamento` numa consulta
+  - [x] 5.2 Testes: RF4, corrida (d), §1b do professor
 
 - [ ] **6.0 — A rotina encerra a prova vencida no fim efetivo, e não durante uma queda**
   - [ ] 6.1 `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas`
@@ -44,9 +44,9 @@
   - [ ] 6.5 Carga `prova-online.js`
   - [ ] 6.6 Testes: §2 da rotina, corridas (c), (e), (f), (j), (l)
 
-- [ ] **7.0 — Tutor travado por aluno até o fim da janela ou o limite dele**
-  - [ ] 7.1 `avaliativaAberta` por aluno, com `limiteDaTentativa`, e o convocado
-  - [ ] 7.2 Testes: §2 do Tutor, RF6 do Tutor
+- [x] **7.0 — Tutor travado por aluno até o fim da janela ou o limite dele**
+  - [x] 7.1 `avaliativaAberta` por aluno, com `limiteDaTentativa`, e o convocado
+  - [x] 7.2 Testes: §2 do Tutor, RF6 do Tutor
 
 - [ ] **8.0 — Saída da aba registrada sem contar duas vezes, e mostrada só no lote**
   - [ ] 8.1 `saidas-da-aba`; `saidasDaAba` na correção; a marca na validação

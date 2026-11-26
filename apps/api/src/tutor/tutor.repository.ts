@@ -2,14 +2,17 @@ import {
   artefato,
   atividadeAplicada,
   configuracaoOperacionalEscola,
+  convocadoDaSegundaChamada,
   correcao,
   diaDeUso,
   disciplina,
   entrega,
   execucaoAgente,
+  extensaoDeTempo,
   requireAnoEmCurso,
   requireEscolaId,
   FUSO_DO_USO,
+  globalMeter,
   material,
   mensagemTutor,
   systemClock,
@@ -21,11 +24,14 @@ import {
   vinculo,
   type Database,
   type Clock,
+  type Meter,
   type DatabaseTransaction,
 } from '@educa/core'
-import { InvariantException, TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type Citacao, type Etapa, type EstadoDeAtividadeAplicada, type TipoDeMensagemDoTutor, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
-import { and, asc, count, desc, eq, exists, gte, inArray, isNull, lt, notExists, sql, type SQL } from 'drizzle-orm'
+import { InvariantException, limiteDaTentativa, TIPOS_DE_SINAL_DE_TRABALHO, TROCAS_POR_DIA_PADRAO_DO_TUTOR, type Citacao, type Etapa, type EstadoDeAtividadeAplicada, type TipoDeMensagemDoTutor, type TipoDeSinal, type TipoDeSinalDeTrabalho } from '@educa/shared'
+import { and, asc, count, desc, eq, exists, gte, inArray, isNotNull, isNull, lt, lte, notExists, or, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
+import { medirATrava } from './trava-duration.js'
+import { QuedasDaApiRepository } from '../atividade/pulso/pulso.repository.js'
 import { declaradoParaASerie, proprioOuComLicencaVigente } from '../material/material.repository.js'
 import type { TurnoDoAluno } from './sinais-do-turno.js'
 
@@ -107,6 +113,8 @@ export interface SinalDoAluno {
   readonly criadoEm: Date
 }
 
+const MS_POR_MINUTO = 60_000
+
 const respostaDoTurno = alias(mensagemTutor, 'resposta_do_turno')
 
 /**
@@ -123,6 +131,7 @@ export class TutorDoAlunoRepository {
   constructor(
     private readonly banco: Database | DatabaseTransaction,
     private readonly relogio: Clock = systemClock,
+    private readonly medidor: Meter = globalMeter(),
   ) {}
 
   #aluno(): { escolaId: string; anoLetivoId: string; alunoId: string } {
@@ -224,17 +233,78 @@ export class TutorDoAlunoRepository {
     return linha
   }
 
-  /** A atividade **avaliativa aberta** da turma, se há: é o que trava o Tutor para os alunos dela (regra 30, item 10). Só o título, para a tela dizer qual. */
-  async avaliativaAberta(turmaId: string): Promise<{ titulo: string } | undefined> {
-    const { escolaId, anoLetivoId } = this.#aluno()
-    const [linha] = await this.banco
-      .select({ titulo: artefato.titulo })
+  /**
+   * As avaliativas abertas da turma que **o aluno do contexto** pode ter à frente agora, cada uma com a tentativa dele (se começou) e o convocado (se é a
+   * segunda chamada). É a consulta do caminho quente do Tutor (roda a cada turno): desce pela turma, no índice `(escola_id, turma_id, id)`, e a tentativa e o
+   * convocado entram pela chave única de cada um. A prova que ainda não abriu (`abre_em` no futuro, pelo `now()` do banco) não entra; a sem janela entra sempre; a
+   * segunda chamada só entra para o convocado. Separada para o `EXPLAIN` do teste ler o `.toSQL()` desta mesma consulta.
+   */
+  consultaDasAvaliativasAbertas(turmaId: string) {
+    const { escolaId, anoLetivoId, alunoId } = this.#aluno()
+    return this.banco
+      .select({
+        id: atividadeAplicada.id,
+        titulo: artefato.titulo,
+        fechaEm: atividadeAplicada.fechaEm,
+        iniciadaEm: tentativaAtividade.iniciadaEm,
+        limiteBaseEm: tentativaAtividade.limiteBaseEm,
+        agora: sql<Date>`now()`.mapWith(atividadeAplicada.aplicadaEm),
+      })
       .from(atividadeAplicada)
       .innerJoin(artefato, and(eq(artefato.escolaId, atividadeAplicada.escolaId), eq(artefato.anoLetivoId, atividadeAplicada.anoLetivoId), eq(artefato.id, atividadeAplicada.artefatoId)))
-      .where(and(eq(atividadeAplicada.escolaId, escolaId), eq(atividadeAplicada.anoLetivoId, anoLetivoId), eq(atividadeAplicada.turmaId, turmaId), eq(atividadeAplicada.avaliativa, true), eq(atividadeAplicada.estado, 'aberta')))
+      .leftJoin(
+        tentativaAtividade,
+        and(eq(tentativaAtividade.escolaId, atividadeAplicada.escolaId), eq(tentativaAtividade.anoLetivoId, atividadeAplicada.anoLetivoId), eq(tentativaAtividade.atividadeAplicadaId, atividadeAplicada.id), eq(tentativaAtividade.alunoId, alunoId)),
+      )
+      .leftJoin(convocadoDaSegundaChamada, and(eq(convocadoDaSegundaChamada.escolaId, atividadeAplicada.escolaId), eq(convocadoDaSegundaChamada.atividadeAplicadaId, atividadeAplicada.id), eq(convocadoDaSegundaChamada.alunoId, alunoId)))
+      .where(
+        and(
+          eq(atividadeAplicada.escolaId, escolaId),
+          eq(atividadeAplicada.anoLetivoId, anoLetivoId),
+          eq(atividadeAplicada.turmaId, turmaId),
+          eq(atividadeAplicada.avaliativa, true),
+          eq(atividadeAplicada.estado, 'aberta'),
+          or(isNull(atividadeAplicada.abreEm), lte(atividadeAplicada.abreEm, sql`now()`)),
+          or(isNull(atividadeAplicada.segundaChamadaDe), isNotNull(convocadoDaSegundaChamada.id)),
+        ),
+      )
       .orderBy(asc(atividadeAplicada.id))
-      .limit(1)
-    return linha
+  }
+
+  /**
+   * A avaliativa que **trava o Tutor para este aluno**, se há (regra 30, item 10; Tech Spec §5.10). Por aluno, e não pela turma: do `abre_em` até o fim da janela
+   * (com as extensões da turma) **ou o limite dele, o que vier depois**. O aluno estendido segue travado depois do `fecha_em`, e o colega sem extensão destrava;
+   * a segunda chamada trava só o convocado. A avaliativa sem janela (a de antes da F6) trava enquanto está aberta. O limite é o `limiteDaTentativa`, com as
+   * indisponibilidades e a lacuna aberta, a mesma função do PUT: a queda da API não destrava o Tutor no meio da prova. Só o título sai, para a tela dizer qual.
+   *
+   * **O limite, a extensão e o tempo adicional servem só a esta conferência e nunca entram no contexto do modelo** (D66; regra 70, item 4d): a memória do Tutor é o trabalho do
+   * aluno, e o tempo que ele teve é adaptação (regra 20, item 3). Quem reaproveitar esta consulta para outra coisa não leva estes campos para a memória nem para o pedido ao provedor.
+   *
+   * A duração sai em `tutor.trava.duracao{escola_id}`, com qualquer desfecho: roda a cada turno, três vezes.
+   */
+  async avaliativaAberta(turmaId: string): Promise<{ titulo: string } | undefined> {
+    return medirATrava(this.medidor, this.#aluno().escolaId, () => this.#quemTrava(turmaId))
+  }
+
+  async #quemTrava(turmaId: string): Promise<{ titulo: string } | undefined> {
+    const { escolaId, anoLetivoId, alunoId } = this.#aluno()
+    const quedas = new QuedasDaApiRepository(this.banco)
+    for (const candidata of await this.consultaDasAvaliativasAbertas(turmaId)) {
+      if (candidata.fechaEm === null) return { titulo: candidata.titulo }
+      // Só as extensões que alcançam este aluno: a da turma e as dele, desta prova. A função do limite e a soma abaixo repetem o filtro; o do banco poupa ler a dos colegas.
+      const extensoes = await this.banco
+        .select({ alunoId: extensaoDeTempo.alunoId, minutos: extensaoDeTempo.minutos })
+        .from(extensaoDeTempo)
+        .where(and(eq(extensaoDeTempo.escolaId, escolaId), eq(extensaoDeTempo.anoLetivoId, anoLetivoId), eq(extensaoDeTempo.atividadeAplicadaId, candidata.id), or(isNull(extensaoDeTempo.alunoId), eq(extensaoDeTempo.alunoId, alunoId))))
+      const daTurmaEmMs = extensoes.filter((extensao) => extensao.alunoId === null).reduce((soma, extensao) => soma + extensao.minutos * MS_POR_MINUTO, 0)
+      const fimDaJanela = candidata.fechaEm.getTime() + daTurmaEmMs
+      const limite =
+        candidata.iniciadaEm === null
+          ? null
+          : limiteDaTentativa({ alunoId, iniciadaEm: candidata.iniciadaEm, limiteBase: candidata.limiteBaseEm, extensoes, ...(await quedas.leituraDesde(candidata.iniciadaEm)) })
+      if (candidata.agora.getTime() < Math.max(fimDaJanela, limite?.getTime() ?? 0)) return { titulo: candidata.titulo }
+    }
+    return undefined
   }
 
   /**

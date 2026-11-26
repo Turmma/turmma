@@ -316,6 +316,19 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(shared.usoDoAlunoSchema.safeParse({ ...aluno, erro: 'IA_INDISPONIVEL' }).success).toBe(false)
   })
 
+  it('avaliacao-e-correcao 5.0: `GET …/acompanhamento` entra na varredura e traz, por aluno, só o id, o nome, a situação e o `limiteEm`: nunca saída da aba, tempo adicional, percentual nem quem deu a extensão (D70, D88)', () => {
+    expect(esquemasDeResposta.map(([nome]) => nome)).toContain('acompanhamentoResponseSchema')
+    const campos = camposDoEsquema(shared.acompanhamentoResponseSchema)
+    expect(campos).toEqual(['atividadeAplicadaId', 'agora', 'alunos', 'alunos[].alunoId', 'alunos[].nome', 'alunos[].situacao', 'alunos[].limiteEm'])
+    expect(campos.filter((campo) => /saida|tempoAdicional|percentual|concedid|adicional/i.test(campo))).toEqual([])
+    expect(problemasDoContrato('acompanhamentoResponseSchema', shared.acompanhamentoResponseSchema)).toEqual([])
+    // O aluno é estrito: a contagem de saídas, posta no acompanhamento, é recusada.
+    const aluno = { alunoId: randomUUID(), nome: 'Aluno Sintético', situacao: 'fazendo', limiteEm: new Date().toISOString() }
+    expect(shared.acompanhamentoDoAlunoSchema.safeParse(aluno).success).toBe(true)
+    expect(shared.acompanhamentoDoAlunoSchema.safeParse({ ...aluno, saidas: 2 }).success).toBe(false)
+    expect(shared.acompanhamentoDoAlunoSchema.safeParse({ ...aluno, saidasDaAba: 2 }).success).toBe(false)
+  })
+
   it('avaliacao-e-correcao 3.0: o que o aluno lê da prova (`comecar`, `prova`, `tempo`, `minhas-atividades`) leva só o `limiteEm` dele, e nunca a saída da aba, o tempo adicional nem o percentual', () => {
     const doAluno = {
       provaOnlineResponseSchema: shared.provaOnlineResponseSchema,

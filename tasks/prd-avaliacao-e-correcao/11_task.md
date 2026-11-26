@@ -17,6 +17,7 @@ quantos ainda fazem; o e2e prova a prova online do lado dele, de aplicar a aprov
   (`professor-prova.spec.ts`)
 - `docs/interface.md` §1.7; `.claude/rules/50`
 - `apps/web/src/areas/professor/atividades/AtividadesDaTurma.tsx` e `EncerramentoDaAtividade.tsx`
+- Da rodada da 5.0 (`5_task.md`, "Recomendações sem aplicar"): o diálogo de estender gera a `chave` **uma vez por abertura** e a reaproveita no reenvio do mesmo pedido (a repetição devolve o gravado, 200); o acompanhamento mostra só a situação e o "termina às" (`limiteEm`), sem "parado há X min" (regra 70, item 7); e `tempo_esgotado` sai sem texto que sugira falta ou consequência
 
 ## Subtarefas
 

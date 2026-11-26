@@ -2935,6 +2935,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 62,
+      "type": "timeseries",
+      "title": "Trava do Tutor por prova: p95 da conferência",
+      "description": "Duração da conferência que diz se o Tutor está travado para o aluno (a consulta das provas abertas da turma, e as das extensões e das quedas quando há prova com janela). Roda três vezes por turno do Tutor. Sem alerta (decisão da 7.0): o painel mostra o p95 por escola.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 195
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, escola_id) (rate(tutor_trava_duracao_seconds_bucket[1m])))",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }
