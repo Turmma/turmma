@@ -20,12 +20,14 @@ export async function entrarComoAlunoPelaApi(request: APIRequestContext, aluno: 
 const comToken = (token: string) => ({ Authorization: `Bearer ${token}` })
 
 /**
- * O aluno abre a atividade (o que cria a tentativa dele) e responde as questões dadas: `null` deixa a questão em branco.
- * Com `enviar`, ele envia; sem, a tentativa fica aberta até a professora encerrar.
+ * O aluno começa a atividade (`POST .../comecar`, que cria a tentativa dele) e responde as questões dadas: `null` deixa a
+ * questão em branco. Com `enviar`, ele envia; sem, a tentativa fica aberta até a professora encerrar.
+ * Só para aplicação sem embaralhar: as alternativas vão para as questões na ordem original, e numa prova embaralhada a ordem
+ * de apresentação do aluno é outra.
  */
 export async function responderPelaApi(request: APIRequestContext, token: string, atividadeAplicadaId: string, alternativas: readonly (number | null)[], { enviar = true }: { enviar?: boolean } = {}): Promise<void> {
-  const prova = await request.get(`/v1/atividades-aplicadas/${atividadeAplicadaId}/prova`, { headers: comToken(token) })
-  expect(prova.status(), 'o aluno abre a atividade').toBe(200)
+  const comecou = await request.post(`/v1/atividades-aplicadas/${atividadeAplicadaId}/comecar`, { headers: comToken(token), data: {} })
+  expect(comecou.status(), 'o aluno começa a atividade').toBe(200)
   for (const [indice, alternativa] of alternativas.entries()) {
     if (alternativa === null) continue
     const salva = await request.put(`/v1/atividades-aplicadas/${atividadeAplicadaId}/respostas/${String(indice + 1)}`, { headers: comToken(token), data: { alternativa } })
