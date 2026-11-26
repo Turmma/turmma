@@ -76,6 +76,11 @@ export const MAXIMO_DE_ALUNOS_NO_LOTE = 200
 export const loteApresentadoSchema = z.strictObject({
   resumo: resumoDoLoteSchema,
   destaques: z.array(z.strictObject({ alunoId: z.uuid(), motivos: z.array(z.enum(MOTIVOS_DE_DESTAQUE)).min(1).max(MOTIVOS_DE_DESTAQUE.length) })).max(MAXIMO_DE_ALUNOS_NO_LOTE),
+  /**
+   * Presente, e verdadeira, só no lote de avaliativa: a coluna "Saiu da aba" foi mostrada à professora (D70, D88). **Não leva a contagem**: o registro da validação não vira linha do tempo
+   * nem perfil do aluno. A validação anterior à F6 não a tem.
+   */
+  saidaDaAbaMostrada: z.literal(true).optional(),
 })
 export type LoteApresentado = z.infer<typeof loteApresentadoSchema>
 

@@ -29,6 +29,7 @@ import { paginar } from '../../http/pagination.js'
 import { habilidadesDaAtividade } from '../correcao/lote.js'
 import { QuedasDaApiRepository } from '../pulso/pulso.repository.js'
 import { MinhaAtividadeRepository, type MinhaAtividadeLida, type TentativaLida } from './minha-atividade.repository.js'
+import { SaidaDaAbaRepository } from './saida-da-aba.repository.js'
 import { readOrdem, naOrdemDoAluno, sortearOrdem, type OrdemDaProva, type Sorteador } from './ordem-da-prova.js'
 
 /**
@@ -297,6 +298,25 @@ export class MinhaAtividadeService {
     })
     if (enviada.enviadaEm === null) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
     return atividadeEnviadaResponseSchema.parse({ ...enviada, enviadaEm: enviada.enviadaEm.toISOString() })
+  }
+
+  /**
+   * Conta uma saída da aba **numa prova em andamento** (D70; Tech Spec §5.8): alcance primeiro, e depois o estado. Prova que não é avaliativa, aplicação encerrada, tentativa que não existe, já
+   * enviada ou **vencida** (o limite é o `limiteDaTentativa`, com a extensão e a queda) respondem o mesmo `NAO_ENCONTRADO`, sem gravar nada: a saída não confirma que a prova existe nem em que estado
+   * está. A aplicação **não é travada**: a saída não disputa nada com a resposta, e a soma é do banco (`SaidaDaAbaRepository.registrar`). **Por isso há uma janela**: o `enviadaEm` e o limite são
+   * lidos sem trava, e a saída que passou da leitura pode somar 1 depois de o `enviar` gravar. O efeito é de uma contagem a mais, de uma saída que aconteceu durante a prova, e nada mais muda (a
+   * correção, os destaques e a aprovação não leem a contagem); a validação decide se isso se fecha.
+   */
+  async registrarSaida(id: string, chave: string): Promise<void> {
+    await this.banco.transaction(async (tx) => {
+      const atividades = new MinhaAtividadeRepository(tx)
+      const atividade = await atividades.leitura(id)
+      if (atividade === undefined || !atividade.avaliativa || atividade.estado !== 'aberta') throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      const tentativa = await atividades.tentativa(id)
+      if (tentativa === undefined || tentativa.enviadaEm !== null) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      if (venceu(await limiteDaTentativaDoAluno(tx, id, tentativa), tentativa.agora)) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      await new SaidaDaAbaRepository(tx).registrar(id, chave)
+    })
   }
 
   async meuDiagnostico(id: string): Promise<MeuDiagnosticoResponse> {

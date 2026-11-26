@@ -125,6 +125,7 @@ export function rotasDaAtividade(api: TestApi) {
     tempo: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/tempo`),
     responder: (sessao: TestSessao, id: string, questao: number | string, alternativa: number) => pedir(sessao, 'PUT', `/v1/atividades-aplicadas/${id}/respostas/${String(questao)}`, { alternativa }),
     enviar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/enviar`, {}),
+    saidaDaAba: (sessao: TestSessao, id: string, corpo: unknown) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/saidas-da-aba`, corpo),
     diagnostico: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/meu-diagnostico`),
     correcao: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/correcao`),
     abrirDestaque: (sessao: TestSessao, id: string, alunoId: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/correcao/destaques/${alunoId}/abrir`, {}),

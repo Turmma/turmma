@@ -18,6 +18,9 @@ O que trava o projeto e não se resolve programando. Vários têm prazo externo.
 - [ ] (avaliacao-e-correcao, 3.0, infra-guardian, 2ª) **Estreitar o filtro do caso do `tempo` sem trava** (`prova-online-aluno.int.test.ts`): `query ilike '%atividade_aplicada%'`
       também pega consultas de tabelas que citam `atividade_aplicada_id`; restringir a `'%from "atividade_aplicada"%for%'` ou filtrar pelo id. Só falha por motivo errado,
       nunca passa por engano
+- [ ] (avaliacao-e-correcao, 8.0, privacy-guardian, revisor-geral e infra-guardian, 1ª) **Nota de deploy da F6: a marca `saidaDaAbaMostrada` no `apresentado`** faz o lote de uma
+      prova avaliativa lido antes do deploy pedir nova leitura (`CONFLITO` uma vez) ao ser aprovado depois dele. Passageiro, e hoje não há lote de avaliativa em produção; uma linha
+      nas notas do deploy da F6 (dono: quem fechar a F6)
 - [ ] Contrato de tratamento de dados escola↔nós, com advogado (escola controladora)
 - [ ] Contrato com provedor de IA vedando treinamento com nosso dado
 - [ ] Política de privacidade e termos, com seção de menor de idade

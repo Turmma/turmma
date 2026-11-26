@@ -113,3 +113,18 @@ describe('o que a validação guarda como apresentado', () => {
     expect(marcaDoApresentado(loteApresentado(aberto))).toBe(marcaDoApresentado(loteApresentado(lote)))
   })
 })
+
+describe('a marca de que a coluna "Saiu da aba" foi mostrada (D70, D88)', () => {
+  const lote = dados({ [ANA]: [0, 1, 2], [BIA]: [3, 3, 3] })
+
+  it('no lote da avaliativa o apresentado leva `saidaDaAbaMostrada: true`, e nenhuma contagem; sem ela, o campo não existe', () => {
+    const comColuna = loteApresentado({ ...lote, saidaDaAbaMostrada: true })
+    expect(loteApresentadoSchema.parse(comColuna).saidaDaAbaMostrada).toBe(true)
+    expect(JSON.stringify(comColuna)).not.toMatch(/saidas/i)
+    for (const semColuna of [loteApresentado(lote), loteApresentado({ ...lote, saidaDaAbaMostrada: false })]) {
+      expect(Object.keys(semColuna).sort()).toEqual(['destaques', 'resumo'])
+    }
+    // A marca entra na do que foi apresentado: a leitura de quem não viu a coluna não vale para a aprovação de quem a viu.
+    expect(marcaDoApresentado(comColuna)).not.toBe(marcaDoApresentado(loteApresentado(lote)))
+  })
+})

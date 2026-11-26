@@ -160,6 +160,7 @@ export {
   PREFIXO_LIMITE_BUSCA_TITULAR,
   PREFIXO_LIMITE_COMECAR_PROVA,
   PREFIXO_LIMITE_IMPORTACAO,
+  PREFIXO_LIMITE_SAIDA_DA_ABA,
   PREFIXO_VAGAS_DA_IMPORTACAO,
   PREFIXO_LIMITE_ESCOLA,
   PREFIXO_LIMITE_IP,
@@ -177,6 +178,7 @@ export type { RateLimitConfig, RateLimitResult } from './rate-limit/rate-limiter
 export { TrustedProxies } from './rate-limit/trusted-proxies.js'
 export { AcceptsChallenge, DowngradeRateLimit, IS_PUBLIC_KEY, Public, SkipRateLimit } from './rate-limit/route-markers.decorator.js'
 export { ComecarProvaRateLimit, COMECAR_PROVA_RATE_LIMIT_KEY } from './rate-limit/comecar-prova-rate-limit.decorator.js'
+export { SaidaDaAbaRateLimit, SAIDA_DA_ABA_RATE_LIMIT_KEY } from './rate-limit/saida-da-aba-rate-limit.decorator.js'
 export { ImportacaoRateLimit, IMPORTACAO_RATE_LIMIT_KEY } from './rate-limit/importacao-rate-limit.decorator.js'
 export { SchoolSemaphore, VALIDADE_DA_VAGA_DA_PLANILHA_MS } from './rate-limit/school-semaphore.js'
 export type { Vaga, SchoolSemaphoreOptions } from './rate-limit/school-semaphore.js'

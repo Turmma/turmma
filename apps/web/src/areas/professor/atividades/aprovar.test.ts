@@ -19,6 +19,9 @@ import {
   rotuloDaFaixa,
   rotuloDeAprovar,
   situacaoDaAplicacao,
+  AVISO_DA_SAIDA_DA_ABA,
+  hasSaidaDaAba,
+  textoDasSaidas,
   textoDaMedia,
   textoDosCorrigidos,
   tituloDasOutras,
@@ -241,5 +244,25 @@ describe('Hoje (X3, 10.0): é diagnóstico, não nota — nenhum texto da aba fa
 
   it('a lista de palavras proibidas pega cada uma delas, o pódio inclusive', () => {
     for (const palavra of ['nota', 'conceito', 'pontuação', 'média', 'ranking', 'pódio']) expect(palavra).toMatch(VOCABULARIO_PROIBIDO)
+  })
+})
+
+describe('a coluna "Saiu da aba" (D70, D88)', () => {
+  const aluno = { alunoId: 'a', nome: 'Aluno', acertos: 1, total: 2, emBranco: 0 }
+
+  it('só o lote em que a API devolveu `saidasDaAba` (a avaliativa) tem a coluna, nos destaques ou nas outras', () => {
+    expect(hasSaidaDaAba({ destaques: [], outras: [aluno] })).toBe(false)
+    expect(hasSaidaDaAba({ destaques: [{ ...aluno, motivos: ['em_branco'], abertoEm: null }], outras: [aluno] })).toBe(false)
+    expect(hasSaidaDaAba({ destaques: [], outras: [{ ...aluno, saidasDaAba: 0 }] })).toBe(true)
+    expect(hasSaidaDaAba({ destaques: [{ ...aluno, motivos: ['em_branco'], abertoEm: null, saidasDaAba: 2 }], outras: [] })).toBe(true)
+    expect(hasSaidaDaAba({ destaques: [], outras: [] })).toBe(false)
+  })
+
+  it('a contagem sai como número, e o aviso fixo é a frase aprovada, sem acusar o aluno', () => {
+    expect(textoDasSaidas({ saidasDaAba: 9 })).toBe('9')
+    expect(textoDasSaidas({ saidasDaAba: 0 })).toBe('0')
+    // Sem o campo (a API não o mandou), a contagem é 0: nunca "undefined" na célula.
+    expect(textoDasSaidas({})).toBe('0')
+    expect(AVISO_DA_SAIDA_DA_ABA).toBe('Conta as vezes em que a aba da prova perdeu o foco. Leitor de tela, teclado virtual e avisos do sistema também contam. Sozinho, não indica cola.')
   })
 })

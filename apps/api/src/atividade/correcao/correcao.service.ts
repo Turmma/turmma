@@ -28,10 +28,20 @@ interface LoteMontado {
   readonly apresentado: LoteApresentado
 }
 
-/** A correção de um aluno como a professora da turma a vê (D34): o nome e as contagens. Nenhuma nota (D46). */
-const correcaoDoAluno = (lida: CorrecaoLida) => ({ alunoId: lida.alunoId, nome: lida.nome, acertos: lida.acertos, total: lida.total, emBranco: lida.emBranco })
+/**
+ * A correção de um aluno como a professora da turma a vê (D34): o nome e as contagens. Nenhuma nota (D46). **As saídas da aba vão só no lote da avaliativa** (`comSaidas`; D70, D88): na atividade
+ * sem prova o campo nem existe. É a contagem da tentativa daquele aluno **naquela prova**, nunca somada entre provas, e não entra em destaque, em ordem nem em decisão.
+ */
+const correcaoDoAluno = (lida: CorrecaoLida, comSaidas: boolean) => ({
+  alunoId: lida.alunoId,
+  nome: lida.nome,
+  acertos: lida.acertos,
+  total: lida.total,
+  emBranco: lida.emBranco,
+  ...(comSaidas ? { saidasDaAba: lida.saidasDaAba } : {}),
+})
 
-const destaqueParaATela = (lida: CorrecaoLida) => ({ ...correcaoDoAluno(lida), motivos: lida.destaques, abertoEm: lida.destaqueAbertoEm?.toISOString() ?? null })
+const destaqueParaATela = (lida: CorrecaoLida, comSaidas: boolean) => ({ ...correcaoDoAluno(lida, comSaidas), motivos: lida.destaques, abertoEm: lida.destaqueAbertoEm?.toISOString() ?? null })
 
 /** O registro da validação como a tela o recebe: a cópia do que foi apresentado e aberto. Quem confirmou e já foi eliminado sai sem nome. */
 function validacaoParaATela(lida: ValidacaoLida): unknown {
@@ -95,7 +105,7 @@ export class CorrecaoService {
     const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
     const doLote = await correcoes.correcoesDoLote(lote.entregaId)
     const respostas = await correcoes.respostasPorAluno(lote.atividadeAplicadaId)
-    return { questoes, correcoes: doLote, apresentado: loteApresentado({ questoes, alunosDaTurma: lote.alunosDaTurma, correcoes: doLote, respostas }) }
+    return { questoes, correcoes: doLote, apresentado: loteApresentado({ questoes, alunosDaTurma: lote.alunosDaTurma, correcoes: doLote, respostas, saidaDaAbaMostrada: lote.avaliativa }) }
   }
 
   async read(atividadeAplicadaId: string): Promise<CorrecaoDoLoteResponse> {
@@ -111,8 +121,8 @@ export class CorrecaoService {
       titulo: lote.titulo,
       entrega: { id: lote.entregaId, estado: lote.estado },
       resumo: montado.apresentado.resumo,
-      destaques: destaques.map(destaqueParaATela),
-      outras: montado.correcoes.filter((correcao) => correcao.destaques.length === 0).map(correcaoDoAluno),
+      destaques: destaques.map((destaque) => destaqueParaATela(destaque, lote.avaliativa)),
+      outras: montado.correcoes.filter((correcao) => correcao.destaques.length === 0).map((correcao) => correcaoDoAluno(correcao, lote.avaliativa)),
       destaquesAbertos,
       podeAprovar: lote.estado === 'pendente' && destaquesAbertos === destaques.length,
       validacao: validacao === undefined ? null : validacaoParaATela(validacao),
@@ -142,9 +152,9 @@ export class CorrecaoService {
       const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
       const respostas = (await correcoes.respostasPorAluno(lote.atividadeAplicadaId, alunoId)).get(alunoId) ?? new Map<number, number>()
       const historico = await correcoes.historicoAprovado([alunoId], lote.disciplinaId, lote.criadaEm)
-      return { destaque, respostas: respostasCorrigidas(questoes, respostas), historico: historico.map(({ titulo, acertos, total }) => ({ titulo, acertos, total })) }
+      return { destaque, avaliativa: lote.avaliativa, respostas: respostasCorrigidas(questoes, respostas), historico: historico.map(({ titulo, acertos, total }) => ({ titulo, acertos, total })) }
     })
-    return destaqueAbertoResponseSchema.parse({ ...aberto, destaque: destaqueParaATela(aberto.destaque) })
+    return destaqueAbertoResponseSchema.parse({ respostas: aberto.respostas, historico: aberto.historico, destaque: destaqueParaATela(aberto.destaque, aberto.avaliativa) })
   }
 
   async aprovarLote(entregaId: string): Promise<LoteAprovadoResponse> {

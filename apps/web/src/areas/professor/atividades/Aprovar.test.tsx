@@ -26,10 +26,12 @@ const HABILIDADE = { codigo: 'QUI.EM.04', descricao: 'Usar a proporção da equa
 const ABERTO_EM = '2026-10-05T13:38:00.000Z'
 
 /** O lote como a API o devolve: dois destaques (Ana em branco, Bruno fora do histórico) e três outras correções, fora da ordem de nome. */
-function lote(mudanca: Partial<{ abertos: readonly string[]; podeAprovar: boolean; estado: 'pendente' | 'aprovada' }> = {}) {
-  const { abertos = [], podeAprovar = false, estado = 'pendente' } = mudanca
+function lote(mudanca: Partial<{ abertos: readonly string[]; podeAprovar: boolean; estado: 'pendente' | 'aprovada'; saidas: Readonly<Record<string, number>> }> = {}) {
+  const { abertos = [], podeAprovar = false, estado = 'pendente', saidas } = mudanca
   const abertoEm = (alunoId: string) => (abertos.includes(alunoId) ? ABERTO_EM : null)
-  return {
+  // O lote da avaliativa traz `saidasDaAba` de todo aluno (0 para quem não saiu); o da atividade sem prova não traz o campo.
+  const comSaidas = <A extends { readonly alunoId: string }>(aluno: A) => (saidas === undefined ? aluno : { ...aluno, saidasDaAba: saidas[aluno.alunoId] ?? 0 })
+  const doLote = {
     atividadeAplicadaId: ATIVIDADE,
     titulo: 'Atividade de estequiometria',
     entrega: { id: ENTREGA, estado },
@@ -55,6 +57,7 @@ function lote(mudanca: Partial<{ abertos: readonly string[]; podeAprovar: boolea
     podeAprovar,
     validacao: null,
   }
+  return { ...doLote, destaques: doLote.destaques.map(comSaidas), outras: doLote.outras.map(comSaidas) }
 }
 
 const abertura = (alunoId: string, nome: string) => ({
@@ -483,5 +486,106 @@ describe('Revisar a correção: a decisão que o prazo do cliente interrompe (RF
     expect(document.body.textContent).not.toContain('TEMPO_ESGOTADO')
     await waitFor(() => expect(leituras()).toBeGreaterThan(lidasAntes))
     expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+})
+
+/** A frase do aviso fixo da D88 (`cenarios.md` §4), inteira: a coluna não existe sem ela. */
+const AVISO_DA_SAIDA = 'Conta as vezes em que a aba da prova perdeu o foco. Leitor de tela, teclado virtual e avisos do sistema também contam. Sozinho, não indica cola.'
+const SAIDAS = { [BRUNO]: 3, [id(21)]: 5, [id(23)]: 9 }
+
+describe('Revisar a correção: a coluna "Saiu da aba" (D70, D88; RF9)', () => {
+  it('na avaliativa, a tabela das outras ganha a coluna "Saiu da aba" com a contagem de cada aluno, e o aviso fixo vem acima dela, pela frase inteira', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, () => ok(lote({ saidas: SAIDAS })))
+    montar('aba=outras')
+    const tabela = await screen.findByRole('table', { name: 'As outras correções' })
+    expect(within(tabela).getByRole('columnheader', { name: 'Saiu da aba' })).toBeTruthy()
+    const contagens = Object.fromEntries(
+      within(tabela)
+        .getAllByRole('row')
+        .slice(1)
+        .map((linha) => [within(linha).getByRole('rowheader').textContent, within(linha).getAllByRole('cell').at(-1)?.textContent]),
+    )
+    expect(contagens).toEqual({ 'Caio Sintético': '9', 'Clara Sintética': '5', 'Dora Sintética': '0' })
+    const aviso = screen.getByText(AVISO_DA_SAIDA)
+    // O aviso vem acima da tabela, no documento.
+    expect(aviso.compareDocumentPosition(tabela) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // A coluna não muda a ordem: segue a de nome, e não a de contagem (Caio, com 9, continua primeiro só pelo nome).
+    expect(Object.keys(contagens)).toEqual(['Caio Sintético', 'Clara Sintética', 'Dora Sintética'])
+  })
+
+  it('na aba Destaques, a contagem vem na linha de cada destaque, com o aviso acima da lista; a saída não vira destaque nem muda o contador', async () => {
+    const rede = fakeNetwork()
+    // Clara e Caio saem muitas vezes e seguem fora dos destaques: a saída não destaca ninguém.
+    instalar(rede, () => ok(lote({ saidas: SAIDAS })))
+    montar()
+    const destaques = await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
+    expect(within(destaques).getByText(AVISO_DA_SAIDA)).toBeTruthy()
+    const linhas = within(destaques).getAllByRole('listitem')
+    expect(linhas.map((linha) => linha.textContent)).toEqual([expect.stringContaining('Saiu da aba: 0'), expect.stringContaining('Saiu da aba: 3')])
+    expect(screen.queryByText(/Clara Sintética/)).toBeNull()
+    // O contador fala só dos destaques por abrir: nunca de saída da aba.
+    expect(document.querySelector('[data-contador-dos-destaques]')?.textContent).not.toMatch(/saiu|saída/i)
+  })
+
+  it('com 9 saídas e nenhum destaque por abrir, o botão de aprovar liga como sempre: a saída não trava a aprovação', async () => {
+    const rede = fakeNetwork()
+    instalar(rede, () => ok(lote({ abertos: [ANA, BRUNO], podeAprovar: true, saidas: { ...SAIDAS, [ANA]: 9 } })))
+    montar()
+    await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
+    expect(botaoDeAprovar().hasAttribute('disabled')).toBe(false)
+  })
+
+  it('o aviso só vem com lista abaixo dele: sem destaque, a aba Destaques mostra o vazio sem o aviso; sem outras, a aba Outras também', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const doLote = lote({ saidas: SAIDAS })
+    // Só as outras correções, nenhum destaque; e depois só os destaques, nenhuma outra.
+    instalar(rede, () => ok({ ...doLote, destaques: [], destaquesAbertos: 0, podeAprovar: true }))
+    montar()
+    const semDestaques = await screen.findByRole('region', { name: 'Nenhuma correção para abrir antes de aprovar' })
+    expect(within(semDestaques).queryByText(AVISO_DA_SAIDA)).toBeNull()
+    await usuario.click(screen.getByRole('tab', { name: 'Outras' }))
+    expect(await screen.findByText(AVISO_DA_SAIDA)).toBeTruthy()
+  })
+
+  it('só com destaques, a aba Outras, vazia, não mostra o aviso, e a de Destaques mostra', async () => {
+    const usuario = userEvent.setup()
+    const rede = fakeNetwork()
+    const doLote = lote({ saidas: SAIDAS })
+    instalar(rede, () => ok({ ...doLote, outras: [] }))
+    montar('aba=outras')
+    expect(await screen.findByRole('region', { name: 'As outras 0 correções' })).toBeTruthy()
+    expect(screen.queryByText(AVISO_DA_SAIDA)).toBeNull()
+    await usuario.click(screen.getByRole('tab', { name: 'Destaques' }))
+    expect(await screen.findByText(AVISO_DA_SAIDA)).toBeTruthy()
+  })
+
+  it('a atividade sem prova não tem a coluna nem o aviso, em nenhuma das duas abas', async () => {
+    const rede = fakeNetwork()
+    instalar(rede)
+    montar('aba=outras')
+    const tabela = await screen.findByRole('table', { name: 'As outras correções' })
+    expect(within(tabela).queryByRole('columnheader', { name: 'Saiu da aba' })).toBeNull()
+    expect(screen.queryByText(AVISO_DA_SAIDA)).toBeNull()
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Destaques' }))
+    const destaques = await screen.findByRole('region', { name: 'Abra estes 2 antes de aprovar' })
+    expect(within(destaques).queryByText(AVISO_DA_SAIDA)).toBeNull()
+    expect(destaques.textContent).not.toContain('Saiu da aba')
+  })
+
+  it('a 360 px (a tabela vira lista), a contagem vai dentro do cartão do aluno, com o rótulo, e o aviso segue acima', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }))
+    const rede = fakeNetwork()
+    instalar(rede, () => ok(lote({ saidas: SAIDAS })))
+    montar('aba=outras')
+    const lista = await screen.findByRole('list', { name: 'As outras correções' })
+    const cartoes = within(lista).getAllByRole('listitem')
+    const doCaio = cartoes.find((cartao) => cartao.textContent?.includes('Caio Sintético'))
+    expect(doCaio).toBeTruthy()
+    expect(within(doCaio as HTMLElement).getByText('Saiu da aba')).toBeTruthy()
+    expect((doCaio as HTMLElement).textContent).toContain('9')
+    const aviso = screen.getByText(AVISO_DA_SAIDA)
+    expect(aviso.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

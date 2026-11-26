@@ -329,6 +329,23 @@ describe('contratos de saída: nenhuma resposta traz credencial, segredo ou iden
     expect(shared.acompanhamentoDoAlunoSchema.safeParse({ ...aluno, saidasDaAba: 2 }).success).toBe(false)
   })
 
+  it('avaliacao-e-correcao 8.0: só a `correcao` do professor (o lote e a abertura do destaque) traz `saidasDaAba`, e opcional; nenhum outro contrato, do aluno, da coordenação nem da rede, tem campo de saída da aba (D70, D88)', () => {
+    const comSaida = esquemasDeResposta.filter(([, esquema]) => camposDoEsquema(esquema).some((campo) => /saidas?(daaba)?$/i.test(campo))).map(([nome]) => nome)
+    expect(comSaida.sort()).toEqual(['correcaoDoLoteResponseSchema', 'destaqueAbertoResponseSchema'])
+    // No lote, a contagem é por aluno (`destaques[]` e `outras[]`); no registro da validação, só a marca de que a coluna foi mostrada, sem número.
+    expect(camposDoEsquema(shared.correcaoDoLoteResponseSchema).filter((campo) => /saida/i.test(campo)).sort()).toEqual(['destaques[].saidasDaAba', 'outras[].saidasDaAba', 'validacao.apresentado.saidaDaAbaMostrada'])
+    expect(shared.loteApresentadoSchema.shape.saidaDaAbaMostrada.safeParse(true).success).toBe(true)
+    expect(shared.loteApresentadoSchema.shape.saidaDaAbaMostrada.safeParse(3).success).toBe(false)
+    // É opcional: a atividade sem prova nem tem o campo.
+    const aluno = { alunoId: randomUUID(), nome: 'Aluno Sintético', acertos: 1, total: 2, emBranco: 0 }
+    expect(shared.correcaoDoAlunoSchema.safeParse(aluno).success).toBe(true)
+    expect(shared.correcaoDoAlunoSchema.safeParse({ ...aluno, saidasDaAba: 3 }).success).toBe(true)
+    // A saída é contagem inteira, nunca um horário nem uma lista de instantes.
+    expect(shared.correcaoDoAlunoSchema.safeParse({ ...aluno, saidasDaAba: -1 }).success).toBe(false)
+    expect(shared.correcaoDoAlunoSchema.safeParse({ ...aluno, saidasDaAba: '3' }).success).toBe(false)
+    expect(shared.correcaoDoAlunoSchema.safeParse({ ...aluno, saidas: [new Date().toISOString()] }).success).toBe(false)
+  })
+
   it('avaliacao-e-correcao 3.0: o que o aluno lê da prova (`comecar`, `prova`, `tempo`, `minhas-atividades`) leva só o `limiteEm` dele, e nunca a saída da aba, o tempo adicional nem o percentual', () => {
     const doAluno = {
       provaOnlineResponseSchema: shared.provaOnlineResponseSchema,

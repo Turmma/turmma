@@ -1,11 +1,13 @@
-import { ComecarProvaRateLimit, IdPipe, RequirePermissao, ZodValidationPipe } from '@educa/core'
+import { ComecarProvaRateLimit, IdPipe, RequirePermissao, SaidaDaAbaRateLimit, ZodValidationPipe } from '@educa/core'
 import {
   ErrorCode,
   minhasAtividadesQuerySchema,
   responderQuestaoRequestSchema,
   emptyOrMissingBodyRequestSchema,
   questaoDoCaminhoSchema,
+  registrarSaidaDaAbaRequestSchema,
   type MinhasAtividadesQuery,
+  type RegistrarSaidaDaAbaRequest,
   type ResponderQuestaoRequest,
   type EmptyBodyRequest,
   type AtividadeEnviadaResponse,
@@ -26,8 +28,8 @@ import { MinhaAtividadeService } from './minha-atividade.service.js'
  * A entrada passa pelo `ZodValidationPipe` e pelo `IdPipe` no parâmetro (17.0); a `questao` do caminho fora do formato ou
  * do intervalo, onde nenhuma questão existe, responde como o inexistente (`NAO_ENCONTRADO`), e não como entrada inválida.
  *
- * **`comecar`, a prova, o tempo, a resposta e o envio** são as rotas de prova: a instância que não pulsa há mais de 30 s as recusa com 503 antes de ler ou gravar
- * (`RotasDeProvaGuard`, avaliacao-e-correcao, 2.0 e 3.0). A lista e o diagnóstico seguem. `comecar` conta ainda no balde próprio de 30 por minuto por usuário (`rl:comecar-prova`).
+ * **`comecar`, a prova, o tempo, a resposta, o envio e a saída da aba** são as rotas de prova: a instância que não pulsa há mais de 30 s as recusa com 503 antes de ler ou gravar
+ * (`RotasDeProvaGuard`, avaliacao-e-correcao, 2.0 e 3.0). A lista e o diagnóstico seguem. `comecar` conta ainda no balde próprio de 30 por minuto por usuário (`rl:comecar-prova`), e `saidas-da-aba` no seu (`rl:saida-da-aba`, 30 por minuto).
  *
  * O limite é o geral de requisições, por usuário e por escola, nunca por IP (regra 80, item 1): trinta e cinco alunos
  * respondem do mesmo IP.
@@ -91,6 +93,17 @@ export class MinhaAtividadeController {
   @Header('Cache-Control', 'no-store')
   send(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(emptyOrMissingBodyRequestSchema)) _corpo: EmptyBodyRequest): Promise<AtividadeEnviadaResponse> {
     return this.atividades.send(atividadeAplicadaId)
+  }
+
+  /** Uma saída da aba da prova em andamento (D70): a `chave` é um uuid v4 da tela, para o reenvio não contar duas vezes. 204 também no reenvio; fora de prova em andamento, `NAO_ENCONTRADO`. */
+  @Post('atividades-aplicadas/:id/saidas-da-aba')
+  @UseGuards(RotasDeProvaGuard)
+  @SaidaDaAbaRateLimit()
+  @RequirePermissao('minha_atividade', 'registrar_saida')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Header('Cache-Control', 'no-store')
+  saidaDaAba(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(registrarSaidaDaAbaRequestSchema)) { chave }: RegistrarSaidaDaAbaRequest): Promise<void> {
+    return this.atividades.registrarSaida(atividadeAplicadaId, chave)
   }
 
   @Get('atividades-aplicadas/:id/meu-diagnostico')
