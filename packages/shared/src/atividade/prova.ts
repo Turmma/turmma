@@ -71,11 +71,19 @@ export type MinhasAtividadesResponse = z.infer<typeof minhasAtividadesResponseSc
 /**
  * Uma questão como o aluno a recebe: o número, o enunciado e as alternativas. **Sem `gabarito`, sem `explicacao`, sem
  * habilidade e sem citação**: o objeto é estrito, e a questão do artefato inteira não passa por ele.
+ *
+ * **O embaralhamento é só de apresentação** (RF8): `numero` é sempre o da questão original, e as questões vêm na ordem do aluno. `alternativas` vem na ordem em que o aluno as
+ * vê, e `ordemDasAlternativas[i]` é o **índice original** da alternativa que está na posição `i` (a identidade quando não se embaralha): é esse índice que o `PUT` da resposta
+ * carrega e que a correção compara com o gabarito.
  */
 export const questaoDaProvaSchema = z.strictObject({
   numero: numeroDaQuestaoSchema,
   enunciado: z.string().min(1),
   alternativas: z.array(z.string().min(1)).length(ALTERNATIVAS_POR_QUESTAO),
+  ordemDasAlternativas: z
+    .array(alternativaSchema)
+    .length(ALTERNATIVAS_POR_QUESTAO)
+    .refine((indices) => new Set(indices).size === ALTERNATIVAS_POR_QUESTAO, { message: 'a ordem das alternativas é uma permutação dos índices originais' }),
 })
 export type QuestaoDaProva = z.infer<typeof questaoDaProvaSchema>
 
@@ -133,7 +141,12 @@ export type ProvaResponse = z.infer<typeof provaResponseSchema>
  * gabarito, explicação, habilidade e citação não têm como ir junto, mesmo que o artefato ganhe campo novo.
  */
 export function questoesDaProva(conteudo: ConteudoDeAtividade): QuestaoDaProva[] {
-  return conteudo.questoes.map((questao, indice) => ({ numero: indice + 1, enunciado: questao.enunciado, alternativas: [...questao.alternativas] }))
+  return conteudo.questoes.map((questao, indice) => ({
+    numero: indice + 1,
+    enunciado: questao.enunciado,
+    alternativas: [...questao.alternativas],
+    ordemDasAlternativas: questao.alternativas.map((_, original) => original),
+  }))
 }
 
 /**

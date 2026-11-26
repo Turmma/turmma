@@ -28,9 +28,9 @@
   - [x] 3.4 A tela de atividade de hoje chama `comecar`
   - [x] 3.5 Testes: RF1, RF5, RF6 por chamador, RF7 (API), corridas (a) e (b), §1b do aluno
 
-- [ ] **4.0 — Embaralhamento por aluno, mantido na retomada, corrigido pela ordem original**
-  - [ ] 4.1 Sorteador injetável; `ordem` gravada no começo; a prova na ordem do aluno
-  - [ ] 4.2 Testes: RF8
+- [x] **4.0 — Embaralhamento por aluno, mantido na retomada, corrigido pela ordem original**
+  - [x] 4.1 Sorteador injetável; `ordem` gravada no começo; a prova na ordem do aluno
+  - [x] 4.2 Testes: RF8
 
 - [ ] **5.0 — O professor estende o tempo e acompanha quem está fazendo**
   - [ ] 5.1 `extensoes` com chave; `acompanhamento` numa consulta

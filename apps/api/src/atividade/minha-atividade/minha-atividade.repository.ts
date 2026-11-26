@@ -16,8 +16,9 @@ import {
   type Database,
   type DatabaseTransaction,
 } from '@educa/core'
-import { InvariantException, type PaginationQuery, type DiagnosticoGravado, type EnvioDaTentativa, type EstadoDeAtividadeAplicada, type ExtensaoDoLimite, type PercentualDeTempoAdicional } from '@educa/shared'
+import { InvariantException, type Embaralhar, type PaginationQuery, type DiagnosticoGravado, type EnvioDaTentativa, type EstadoDeAtividadeAplicada, type ExtensaoDoLimite, type PercentualDeTempoAdicional } from '@educa/shared'
 import { and, asc, desc, eq, exists, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm'
+import type { OrdemDaProva } from './ordem-da-prova.js'
 
 /** Uma atividade da turma do aluno, na lista dele: sem acerto, sem gabarito, sem colega. */
 export interface MinhaAtividadeLida {
@@ -67,6 +68,8 @@ export interface TentativaLida {
   readonly enviadaEm: Date | null
   readonly limiteBaseEm: Date | null
   readonly envio: EnvioDaTentativa | null
+  /** A ordem do aluno como foi gravada (`jsonb`): quem a lê é `readOrdem`. Nula quando a aplicação não embaralha. */
+  readonly ordem: unknown
   readonly agora: Date
 }
 
@@ -105,6 +108,7 @@ const COLUNAS_DA_TENTATIVA = {
   enviadaEm: tentativaAtividade.enviadaEm,
   limiteBaseEm: tentativaAtividade.limiteBaseEm,
   envio: tentativaAtividade.envio,
+  ordem: tentativaAtividade.ordem,
   agora: agoraDoBanco,
 }
 
@@ -224,6 +228,18 @@ export class MinhaAtividadeRepository {
     return linha
   }
 
+  /**
+   * O que a professora ligou nesta aplicação, no mesmo alcance de `prova`: lido só por quem vai **começar** (a ordem do aluno é sorteada uma vez, e só para o que está ligado). Fora de
+   * `prova` de propósito: o texto da consulta de `prova` já está perto do 1 kB que `pg_stat_activity` guarda, e o teste da trava `for share` (`prova-online-aluno.int.test.ts`, "mudar a janela × começar") acha a espera por um trecho do fim dele.
+   */
+  async embaralhar(id: string): Promise<Embaralhar | undefined> {
+    const [linha] = await this.banco
+      .select({ questoes: atividadeAplicada.embaralharQuestoes, alternativas: atividadeAplicada.embaralharAlternativas })
+      .from(atividadeAplicada)
+      .where(and(this.#daMinhaTurma(), eq(atividadeAplicada.id, id)))
+    return linha
+  }
+
   /** O mesmo alcance de `prova`, só com o estado e o número de questões, e a **trava**: é o que o `PUT` da resposta e o envio leem, sem carregar o conteúdo. */
   async lockParaGravar(id: string): Promise<AtividadeParaGravar | undefined> {
     const [linha] = await this.#paraGravar(id).for('share', { of: atividadeAplicada })
@@ -246,12 +262,12 @@ export class MinhaAtividadeRepository {
 
   /**
    * Começa a prova: cria a tentativa do aluno da sessão com o `limite_base_em` já calculado, **uma só** (`on conflict do nothing`: o clique duplo, a outra aba e a retomada não
-   * criam outra; regra 80, item 7). Quando a tentativa já existia, nada muda, e quem chama lê a gravada, com o limite da primeira. O `iniciada_em` é o `now()` do banco, o mesmo com que `limiteBaseEm` foi calculado (a transação é a mesma). Só se chama depois de `prova` achar a atividade na turma do aluno.
+   * criam outra; regra 80, item 7). Quando a tentativa já existia, nada muda, e quem chama lê a gravada, com o limite e a `ordem` da primeira (os dois são sorteados e calculados antes, mas só valem na primeira inserção). O `iniciada_em` é o `now()` do banco, o mesmo com que `limiteBaseEm` foi calculado (a transação é a mesma). Só se chama depois de `prova` achar a atividade na turma do aluno.
    */
-  async comecar(atividadeAplicadaId: string, limiteBaseEm: Date | null): Promise<void> {
+  async comecar(atividadeAplicadaId: string, limiteBaseEm: Date | null, ordem: OrdemDaProva | null): Promise<void> {
     await this.banco
       .insert(tentativaAtividade)
-      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId: requestSessao().usuarioId, limiteBaseEm })
+      .values({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId: requestSessao().usuarioId, limiteBaseEm, ordem })
       .onConflictDoNothing({ target: [tentativaAtividade.escolaId, tentativaAtividade.anoLetivoId, tentativaAtividade.atividadeAplicadaId, tentativaAtividade.alunoId] })
   }
 

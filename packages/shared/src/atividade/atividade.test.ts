@@ -33,17 +33,34 @@ const conteudo: ConteudoDeAtividade = {
 const prova = { atividadeAplicadaId: UM_ID, titulo: 'Lista de estequiometria', avaliativa: false, estado: 'aberta', adaptacao: null, questoes: questoesDaProva(conteudo), respostas: [{ questao: 1, alternativa: 2, sequencia: 3 }], enviadaEm: null }
 
 describe('a prova que o aluno recebe: sem gabarito e sem explicação', () => {
-  it('as questões da prova saem do artefato só com número, enunciado e alternativas', () => {
+  it('as questões da prova saem do artefato só com número, enunciado, alternativas e a ordem delas (a identidade sem embaralhar)', () => {
     const questoes = questoesDaProva(conteudo)
     expect(questoes).toEqual([
-      { numero: 1, enunciado: 'Qual é o reagente limitante?', alternativas: ['H2', 'O2', 'H2O', 'Nenhum'] },
-      { numero: 2, enunciado: 'Quantos mols de água se formam?', alternativas: ['1', '2', '3', '4'] },
+      { numero: 1, enunciado: 'Qual é o reagente limitante?', alternativas: ['H2', 'O2', 'H2O', 'Nenhum'], ordemDasAlternativas: [0, 1, 2, 3] },
+      { numero: 2, enunciado: 'Quantos mols de água se formam?', alternativas: ['1', '2', '3', '4'], ordemDasAlternativas: [0, 1, 2, 3] },
     ])
     // Em nenhuma profundidade: nem a chave do gabarito, nem o texto da explicação, nem a habilidade, nem a página.
     const texto = JSON.stringify(questoes)
     for (const proibido of ['gabarito', 'explicacao', 'habilidade', 'citacao', 'O H2 acaba primeiro', 'QUI.EM.05']) expect(texto, proibido).not.toContain(proibido)
-    for (const questao of questoes) expect(Object.keys(questao).sort()).toEqual(['alternativas', 'enunciado', 'numero'])
+    for (const questao of questoes) expect(Object.keys(questao).sort()).toEqual(['alternativas', 'enunciado', 'numero', 'ordemDasAlternativas'])
     expect(provaResponseSchema.safeParse(prova).success).toBe(true)
+  })
+
+  it('a ordem das alternativas é uma permutação dos quatro índices originais: repetido, faltando, fora de 0 a 3, a mais ou ausente é recusado; qualquer permutação passa', () => {
+    const [daProva] = questoesDaProva(conteudo)
+    for (const [caso, ordem] of [
+      ['índice repetido', [0, 0, 2, 3]],
+      ['só três', [0, 1, 2]],
+      ['cinco', [0, 1, 2, 3, 3]],
+      ['fora de 0 a 3', [0, 1, 2, 4]],
+      ['negativo', [-1, 1, 2, 3]],
+      ['fracionário', [0, 1, 2, 3.5]],
+    ] as const) {
+      expect(questaoDaProvaSchema.safeParse({ ...daProva, ordemDasAlternativas: ordem }).success, caso).toBe(false)
+    }
+    const { ordemDasAlternativas: _ausente, ...semAOrdem } = daProva ?? { ordemDasAlternativas: [] }
+    expect(questaoDaProvaSchema.safeParse(semAOrdem).success, 'ausente').toBe(false)
+    for (const ordem of [[0, 1, 2, 3], [3, 2, 1, 0], [1, 2, 0, 3]]) expect(questaoDaProvaSchema.safeParse({ ...daProva, ordemDasAlternativas: ordem }).success, ordem.join()).toBe(true)
   })
 
   it('o schema da prova recusa a questão inteira do artefato e qualquer campo que entregue a resposta', () => {

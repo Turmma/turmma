@@ -136,14 +136,14 @@ describe('atividade aplicada', () => {
   })
 
   describe('o aluno responde', () => {
-    it('a prova traz número, enunciado e alternativas, e nada do gabarito, da explicação, da habilidade nem da citação', async () => {
+    it('a prova traz número, enunciado, alternativas e a ordem delas, e nada do gabarito, da explicação, da habilidade nem da citação', async () => {
       const id = await aplicada()
       const resposta = await rotas.comecar(a.aluno, id)
       expect(resposta.status).toBe(200)
       const prova = provaEmAndamentoResponseSchema.parse(resposta.corpo)
       expect(prova).toMatchObject({ atividadeAplicadaId: id, estado: 'aberta', adaptacao: null, respostas: [], enviadaEm: null })
       expect(prova.questoes).toHaveLength(5)
-      for (const questao of prova.questoes) expect(Object.keys(questao).sort()).toEqual(['alternativas', 'enunciado', 'numero'])
+      for (const questao of prova.questoes) expect(Object.keys(questao).sort()).toEqual(['alternativas', 'enunciado', 'numero', 'ordemDasAlternativas'])
       const texto = JSON.stringify(resposta.corpo)
       for (const proibido of ['gabarito', 'explicacao', EXPLICACAO_DE_TESTE, 'habilidade', 'QUI.EM', 'EM13CNT', 'citacao', 'correta', 'acertos']) expect(texto).not.toContain(proibido)
     })

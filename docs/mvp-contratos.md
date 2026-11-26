@@ -113,7 +113,7 @@ aluno (a prova com nome, o diagnóstico), a exportação ganha ação de auditor
 | `POST /entregas/:id/aprovar-lote` | `emptyBodyRequestSchema` | `loteAprovadoResponseSchema` | `entrega.aprovar_lote` P `tv` | `DESTAQUES_NAO_ABERTOS`, `ENTREGA_JA_DECIDIDA` | `lote.aprovado` |
 | `GET /turmas/:id/desempenho` | `desempenhoDaTurmaQuerySchema` | `desempenhoDaTurmaResponseSchema` | `desempenho_da_turma.ler` P `tv`, C `na` | `ENTRADA_INVALIDA` (coordenação sem `finalidade`) | `turma.desempenho_lido` (só a coordenação) |
 
-A prova do aluno é montada por `questoesDaProva(conteudo)`: copia número, enunciado e alternativas, e nada mais.
+A prova do aluno é montada por `questoesDaProva(conteudo)`: copia número, enunciado e alternativas, e nada mais. Com o embaralhamento ligado (avaliacao-e-correcao, 4.0; RF8), a tentativa guarda **uma vez**, no `comecar`, a `ordem` do aluno (`ordem-da-prova.ts`), e a prova sai nela: `numero` continua o da questão original, `alternativas` vem na ordem que o aluno vê, e `ordemDasAlternativas[i]` é o **índice original** da alternativa na posição `i` (a identidade quando não se embaralha). O `PUT` da resposta, a correção, o relatório e o diagnóstico seguem pelo número e pelo índice originais.
 
 ### Tutor e sinais (T, W) — `tutor/`
 

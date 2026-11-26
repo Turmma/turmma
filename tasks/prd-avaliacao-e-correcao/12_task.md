@@ -25,7 +25,14 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 - [ ] 12.4 — A fila de saídas (§5.8)
 - [ ] 12.5 — Acessibilidade da §4; os textos de erro e o do "Enviar" com 503
 - [ ] 12.6 — Roteiro da demonstração e o spec dele; `docs/interface.md` §2
-- [ ] 12.7 — Testes e `e2e/aluno-prova.spec.ts`
+- [ ] 12.7 — A prova embaralhada (aviso da 4.0, RF8): com "embaralhar" ligado a prova chega fora da ordem original, e a tela
+  - acha a questão por `numero`, não pela posição em `prova.questoes`;
+  - manda como `alternativa` do `PUT` o `questao.ordemDasAlternativas[posicao]` (o índice original), nunca a posição da tela;
+  - lê pelo índice original o mapa das questões e o diagnóstico depois do envio (`Atividade.tsx`: `prova.questoes.find(item => item.numero === …)?.alternativas`, hoje indexado
+    pela posição): o texto de "sua resposta" e o de "a certa" são os do índice original, e o diagnóstico confere com a prova embaralhada;
+  - troca o comentário de `Atividade.tsx` ("O índice é a identidade da alternativa no contrato: a ordem delas não muda"), que a 4.0 tornou falso;
+  - só usa `ordemDasAlternativas` para mandar o índice original: a ordem de um aluno não aparece a outro
+- [ ] 12.8 — Testes e `e2e/aluno-prova.spec.ts`
 
 ## Arquivos previstos
 
@@ -34,6 +41,9 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 | `apps/web/src/paths.ts` | alterado |
 | `apps/web/src/areas/aluno/routes.tsx` | alterado |
 | `apps/web/src/areas/aluno/Atividades.tsx` | alterado |
+| `apps/web/src/areas/aluno/Atividade.tsx` | alterado (a questão por `numero`, o `ordemDasAlternativas[posicao]` no `PUT`, o mapa e o diagnóstico pelo índice original; o comentário do `label`) |
+| `apps/web/src/areas/aluno/Atividade.test.tsx` | alterado (a prova embaralhada) |
+| `apps/web/src/api/atividades-do-aluno.ts` | alterado (a web tolera o campo a mais da `prova`; ver a 4.0, recomendação do `infra-guardian`) |
 | `apps/web/src/areas/aluno/AntesDeComecar.tsx` | novo |
 | `apps/web/src/areas/aluno/ProvaEmFoco.tsx` | novo |
 | `apps/web/src/areas/aluno/ProvaEmFoco.test.tsx` | novo |
@@ -62,6 +72,8 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 | Recomeço | e2e | a resposta atrasada da prova anterior não aparece; a fila da primeira pessoa não sai com a sessão da segunda | `page.route` segurando | |
 | 360 px e 1366 × 768 | e2e | faixa de uma linha; `paginaNaoRola`; Começar e Sair da prova com 44 px | | |
 | Roteiro | e2e | o passo do aluno na prova | | |
+| A prova embaralhada: o `PUT` leva o índice original | unidade web | prova com sorteio conhecido, a alternativa certa marcada numa posição de tela diferente da original: o `PUT` leva `ordemDasAlternativas[posicao]`; a questão é achada por `numero`; o mapa e o diagnóstico mostram o texto do índice original em "sua resposta" e "a certa" | mandar a posição da tela (fica vermelho) | |
+| Prova embaralhada, de ponta a ponta | e2e `aluno-prova.spec.ts` | uma aplicação com "embaralhar" ligado: o aluno marca pelo texto a alternativa certa, e a resposta gravada é o índice original (o gabarito); o diagnóstico depois do lote aprovado acerta | a tela mandar a posição, e o aluno "errar" a que acertou | |
 
 ## Como testar
 

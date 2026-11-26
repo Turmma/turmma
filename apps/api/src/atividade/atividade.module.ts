@@ -13,6 +13,7 @@ import { LoteReadMarker } from './correcao/lote-read-marker.js'
 import { LoteController } from './correcao/lote.controller.js'
 import { MinhaAtividadeController } from './minha-atividade/minha-atividade.controller.js'
 import { MinhaAtividadeService } from './minha-atividade/minha-atividade.service.js'
+import { sorteadorDeProducao, type Sorteador } from './minha-atividade/ordem-da-prova.js'
 import { PulsoRepository } from './pulso/pulso.repository.js'
 import { PulsoService, type Tique } from './pulso/pulso.service.js'
 import { RotasDeProvaGuard } from './pulso/rotas-de-prova.guard.js'
@@ -24,7 +25,12 @@ export interface AtividadeModuleOpcoes {
   readonly relogioDoPulso?: Clock
   /** O tique do pulso, que o teste dispara à mão. */
   readonly tiqueDoPulso?: Tique
+  /** O sorteio da ordem de cada aluno que começa uma prova embaralhada (RF8): o teste injeta a sequência que quer; sem ele, `crypto.randomInt`. */
+  readonly sorteadorDaProva?: Sorteador
 }
+
+/** O sorteio da ordem da prova, que `forRoot` fornece (o do teste, ou o de produção). */
+const SORTEADOR_DA_PROVA = Symbol('SORTEADOR_DA_PROVA')
 
 /**
  * A atividade aplicada e a correção de objetiva (MVP, A3; D33, D46, D56): a professora aplica e encerra, o aluno
@@ -42,7 +48,7 @@ export interface AtividadeModuleOpcoes {
     { provide: LoteReadMarker, useFactory: (cliente: Redis) => new LoteReadMarker(cliente), inject: [REDIS_LOGIN_CLIENT] },
     { provide: AtividadeAplicadaService, useFactory: (banco: Database, conferencia: FuncaoSuspensionCheck) => new AtividadeAplicadaService(banco, conferencia), inject: [DB, FuncaoSuspensionCheck] },
     { provide: CorrecaoService, useFactory: (banco: Database, leitura: LoteReadMarker) => new CorrecaoService(banco, leitura), inject: [DB, LoteReadMarker] },
-    { provide: MinhaAtividadeService, useFactory: (banco: Database) => new MinhaAtividadeService(banco), inject: [DB] },
+    { provide: MinhaAtividadeService, useFactory: (banco: Database, sorteador: Sorteador) => new MinhaAtividadeService(banco, sorteador), inject: [DB, SORTEADOR_DA_PROVA] },
     { provide: DesempenhoService, useFactory: (banco: Database) => new DesempenhoService(banco), inject: [DB] },
     RotasDeProvaGuard,
   ],
@@ -52,6 +58,7 @@ export class AtividadeModule {
     return {
       module: AtividadeModule,
       providers: [
+        { provide: SORTEADOR_DA_PROVA, useValue: opcoes.sorteadorDaProva ?? sorteadorDeProducao },
         { provide: PulsoRepository, useFactory: (pool: DatabasePool) => new PulsoRepository(pool), inject: [DB_POOL] },
         {
           provide: PulsoService,

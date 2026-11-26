@@ -210,9 +210,9 @@ export function minhaAtividade(campos: Partial<MinhaAtividade> = {}): MinhaAtivi
 }
 
 export const QUESTOES_SINTETICAS: ProvaResponse['questoes'] = [
-  { numero: 1, enunciado: 'Qual é a massa molar da água, H₂O?', alternativas: ['16 g/mol', '18 g/mol', '20 g/mol', '34 g/mol'] },
-  { numero: 2, enunciado: 'Na reação N₂ + 3 H₂ → 2 NH₃, quantos mols de amônia se formam a partir de 6 mol de H₂?', alternativas: ['2 mol', '3 mol', '4 mol', '6 mol'] },
-  { numero: 3, enunciado: 'Em uma reação química, o que é o reagente limitante?', alternativas: ['O que acaba primeiro', 'O que sobra no fim', 'O produto em maior quantidade', 'O de maior massa molar'] },
+  { numero: 1, enunciado: 'Qual é a massa molar da água, H₂O?', alternativas: ['16 g/mol', '18 g/mol', '20 g/mol', '34 g/mol'], ordemDasAlternativas: [0, 1, 2, 3] },
+  { numero: 2, enunciado: 'Na reação N₂ + 3 H₂ → 2 NH₃, quantos mols de amônia se formam a partir de 6 mol de H₂?', alternativas: ['2 mol', '3 mol', '4 mol', '6 mol'], ordemDasAlternativas: [0, 1, 2, 3] },
+  { numero: 3, enunciado: 'Em uma reação química, o que é o reagente limitante?', alternativas: ['O que acaba primeiro', 'O que sobra no fim', 'O produto em maior quantidade', 'O de maior massa molar'], ordemDasAlternativas: [0, 1, 2, 3] },
 ]
 
 /** A prova de uma atividade da lista, como o aluno a recebe: sem gabarito. */

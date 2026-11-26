@@ -60,7 +60,7 @@ beforeEach(() => {
 const idDaAtividade = (n: number) => `0197a1c0-0000-7000-8000-${String(n).padStart(12, '0')}`
 
 const ALTERNATIVAS = ['Quatro', 'Cinco', 'Seis', 'Sete']
-const questao = (numero: number) => ({ numero, enunciado: `Enunciado sintético da questão ${String(numero)}`, alternativas: ALTERNATIVAS })
+const questao = (numero: number) => ({ numero, enunciado: `Enunciado sintético da questão ${String(numero)}`, alternativas: ALTERNATIVAS, ordemDasAlternativas: [0, 1, 2, 3] })
 
 function prova(atividadeAplicadaId: string, respostas: readonly { questao: number; alternativa: number; sequencia: number }[] = [], campos: Record<string, unknown> = {}): FakeResponse {
   return {

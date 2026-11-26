@@ -636,7 +636,7 @@ test.describe('a tarefa aberta na janela do aluno (RF20)', () => {
     const segunda = base.questoes.find((item) => item.numero === 2)
     if (segunda === undefined) throw new Error('o diagnóstico sintético não tem a questão 2')
     const quarta = { ...segunda, numero: 4, explicacao: 'A proporção é de 3 para 2, e o hidrogênio acaba primeiro.' }
-    const questoes: ProvaResponse['questoes'] = [...QUESTOES_SINTETICAS, { numero: 4, enunciado: 'Quantos mols de N₂ reagem com 9 mol de H₂?', alternativas: ['1 mol', '2 mol', '3 mol', '9 mol'] }]
+    const questoes: ProvaResponse['questoes'] = [...QUESTOES_SINTETICAS, { numero: 4, enunciado: 'Quantos mols de N₂ reagem com 9 mol de H₂?', alternativas: ['1 mol', '2 mol', '3 mol', '9 mol'], ordemDasAlternativas: [0, 1, 2, 3] }]
     api.atividades = [atividade]
     api.provas.set(atividade.id, provaDa(atividade, { questoes, enviadaEm: atividade.enviadaEm, respostas: questoes.map((q) => ({ questao: q.numero, alternativa: 0, sequencia: 1 })) }))
     api.diagnosticos.set(atividade.id, { ...base, total: 4, questoes: [...base.questoes, quarta] })

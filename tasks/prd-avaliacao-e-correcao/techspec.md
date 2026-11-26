@@ -74,6 +74,10 @@ indisponibilidade    id, inicio, fim timestamptz      (sem escola, sem pessoa)
 `minhas-atividades` traz janela e duração (com o tempo adicional, sem dizer que é adicional); a segunda chamada, só ao
 convocado.
 
+`comecar` e `prova` devolvem as questões na ordem do aluno: `numero` é o da questão original, `alternativas` vem na ordem em que a tela as mostra e
+`ordemDasAlternativas[i]` é o índice original da alternativa da posição `i` (a identidade sem embaralhar). A resposta, a correção, o relatório e o
+diagnóstico usam sempre o número e o índice originais.
+
 ## 5. Fluxo
 
 1. **Aplicar.** Alunos do tempo adicional, da extensão e da segunda chamada são da turma. Tempo adicional que não cabe
@@ -86,7 +90,9 @@ convocado.
    convocado; fora, `NAO_ENCONTRADO`. Só depois a janela, e depois o limite.
 3. **Começar.** Aplicação `for share`; `insert … on conflict do nothing` com `limite_base_em = min(início + duração ×
    (1 + percentual), fecha_em)` e `ordem` por um sorteador injetável (`crypto.randomInt`), **só na primeira**; quem perde
-   lê a gravada.
+   lê a gravada. A `ordem` é `{ questoes, alternativas }`: `questoes` são os números originais na ordem em que o aluno os vê (a identidade quando só as
+   alternativas embaralham) e `alternativas[k]` é a ordem dos índices originais da questão de número `k + 1` (a identidade quando só as questões
+   embaralham); nula sem embaralhar, e então o sorteador nem é chamado. O sorteio vem depois do alcance, da janela e do estado.
 4. **Limite efetivo** = `limiteDaTentativa`: o base mais as extensões do aluno e da turma e, em ponto fixo, a sobreposição
    com `[iniciada_em, limite]` das indisponibilidades fechadas e da **aberta** (`(pulso.ultimo_em, now())` acima de 30 s).
    Sem duração nem janela, não há limite. Chamam a mesma função o PUT, a saída, `prova`, `tempo`, a rotina e

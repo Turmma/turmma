@@ -190,7 +190,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
           {questao.alternativas.map((texto, indice) => {
             const escolhida = marcada === indice
             return (
-              // O índice é a identidade da alternativa no contrato: a ordem delas não muda.
+              // A identidade da alternativa no contrato é o índice original, e a prova pode chegar embaralhada (`ordemDasAlternativas`): a tarefa 12.0 manda `ordemDasAlternativas[indice]`, e não a posição da tela.
               <label
                 key={indice}
                 data-alternativa={indice}

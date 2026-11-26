@@ -17,6 +17,7 @@ import {
   type PaginationQuery,
   type ResponderQuestaoRequest,
   type AtividadeEnviadaResponse,
+  type ConteudoDeAtividade,
   type MeuDiagnosticoResponse,
   type MinhasAtividadesResponse,
   type ProvaOnlineResponse,
@@ -28,6 +29,7 @@ import { paginar } from '../../http/pagination.js'
 import { habilidadesDaAtividade } from '../correcao/lote.js'
 import { QuedasDaApiRepository } from '../pulso/pulso.repository.js'
 import { MinhaAtividadeRepository, type MinhaAtividadeLida, type TentativaLida } from './minha-atividade.repository.js'
+import { readOrdem, naOrdemDoAluno, sortearOrdem, type OrdemDaProva, type Sorteador } from './ordem-da-prova.js'
 
 /**
  * O limite efetivo da tentativa do aluno da sessão (`limiteDaTentativa`, a função única da Tech Spec §5.4): o base mais as extensões dele e da turma e a queda do nosso sistema
@@ -111,7 +113,11 @@ function paraATela(lida: MinhaAtividadeLida, venceu: boolean, enviadaEm: Date | 
  * e fica para depois do MVP de apresentação (decisão do pacote Z; teste em `correcao.int.test.ts`, "aluno transferido").
  */
 export class MinhaAtividadeService {
-  constructor(private readonly banco: Database) {}
+  constructor(
+    private readonly banco: Database,
+    /** O sorteio da ordem de cada aluno (`crypto.randomInt` em produção); o teste injeta a sequência que quer. */
+    private readonly sorteador: Sorteador,
+  ) {}
 
   async list(consulta: PaginationQuery): Promise<MinhasAtividadesResponse> {
     const linhas = await new MinhaAtividadeRepository(this.banco).list(consulta)
@@ -150,9 +156,8 @@ export class MinhaAtividadeService {
     return vencidas
   }
 
-  /** A prova em andamento como o aluno a lê: as questões, o que ele já salvou e o tempo dele. */
-  #emAndamento(prova: NonNullable<Awaited<ReturnType<MinhaAtividadeRepository['prova']>>>, tentativa: TentativaLida, respostas: readonly { questao: number; alternativa: number; sequencia: number }[], limite: Date | null): ProvaOnlineResponse {
-    const conteudo = conteudoDeAtividadeSchema.parse(prova.conteudo)
+  /** A prova em andamento como o aluno a lê: as questões, o que ele já salvou e o tempo dele. O `conteudo` já vem lido (`conteudoDeAtividadeSchema`) por quem chama, uma vez só. */
+  #emAndamento(prova: NonNullable<Awaited<ReturnType<MinhaAtividadeRepository['prova']>>>, conteudo: ConteudoDeAtividade, tentativa: TentativaLida, respostas: readonly { questao: number; alternativa: number; sequencia: number }[], limite: Date | null): ProvaOnlineResponse {
     const { enviadaEm, envio } = envioDaTentativa(tentativa, prova.estado, limite)
     return provaOnlineResponseSchema.parse({
       comecou: true,
@@ -162,7 +167,8 @@ export class MinhaAtividadeService {
       estado: prova.estado,
       // Só os tipos da adaptação, que valem para a turma inteira: nada sobre aluno (D35).
       adaptacao: conteudo.adaptacao ?? null,
-      questoes: questoesDaProva(conteudo),
+      // Na ordem do aluno, gravada no começo e a mesma em toda leitura; cada questão e cada alternativa leva o número e o índice originais.
+      questoes: naOrdemDoAluno(questoesDaProva(conteudo), readOrdem(tentativa.ordem)),
       respostas: respostas.map(({ questao, alternativa, sequencia }) => ({ questao, alternativa, sequencia })),
       enviadaEm: enviadaEm?.toISOString() ?? null,
       tempo: { limiteEm: limite?.toISOString() ?? null, agora: tentativa.agora.toISOString(), envio },
@@ -190,21 +196,34 @@ export class MinhaAtividadeService {
         })
       }
       const respostas = await atividades.respostas(id)
-      return this.#emAndamento(prova, tentativa, respostas, await limiteDaTentativaDoAluno(tx, id, tentativa))
+      return this.#emAndamento(prova, conteudoDeAtividadeSchema.parse(prova.conteudo), tentativa, respostas, await limiteDaTentativaDoAluno(tx, id, tentativa))
     })
+  }
+
+  /**
+   * A ordem de apresentação de quem começa agora (RF8), sorteada aqui, uma vez: nula quando a aplicação não embaralha, e então o sorteador nem é chamado. Só depois do alcance (`prova`).
+   * **O `undefined` de `embaralhar(id)` não acontece**: `prova(id, true)` acabou de achar a aplicação e a travou em `for share` na mesma transação, e `embaralhar` usa o mesmo alcance;
+   * a guarda só estreita o tipo. Se um dia acontecesse, o erro sairia como falha interna (`InvariantException`), e não como `NAO_ENCONTRADO`: por isso ela não pode virar resposta ao aluno.
+   */
+  async #ordemDeQuemComeca(atividades: MinhaAtividadeRepository, id: string, totalDeQuestoes: number): Promise<OrdemDaProva | null> {
+    const embaralhar = await atividades.embaralhar(id)
+    if (embaralhar === undefined) throw new InvariantException('aplicação sem as opções de embaralhar')
+    return sortearOrdem(totalDeQuestoes, embaralhar, this.sorteador)
   }
 
   /**
    * Começa a prova, ou devolve a que já começou (Tech Spec §5.2 e §5.3). **Alcance, depois janela, depois o limite**: quem não é da turma recebe `NAO_ENCONTRADO` mesmo fora da
    * janela, e só então a janela (`PROVA_FORA_DA_JANELA`) e o estado (`ATIVIDADE_ENCERRADA`). A aplicação fica travada em `for share` até o fim da transação: a mudança da janela
    * (`for update`) espera o começo terminar e então vê a tentativa (`PROVA_JA_COMECOU`). A tentativa é uma só e o limite base é o da primeira chamada (`on conflict do nothing`):
-   * quem perde a corrida, o clique duplo e a retomada leem a gravada. Quem já começou volta a ela mesmo depois de a janela fechar (a extensão, a queda e a retomada valem).
+   * quem perde a corrida, o clique duplo e a retomada leem a gravada, **com a ordem de apresentação da primeira** (sorteada só aqui, só quando a aplicação embaralha; RF8). Quem já começou volta a ela mesmo depois de a janela fechar (a extensão, a queda e a retomada valem).
    */
   async comecar(id: string): Promise<ProvaOnlineResponse> {
     return this.banco.transaction(async (tx) => {
       const atividades = new MinhaAtividadeRepository(tx)
       const prova = await atividades.prova(id, true)
       if (prova === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
+      // O conteúdo é lido uma vez: conta as questões do sorteio e vira a prova em andamento.
+      const conteudo = conteudoDeAtividadeSchema.parse(prova.conteudo)
       let tentativa = await atividades.tentativa(id)
       if (tentativa === undefined) {
         if (prova.abreEm !== null && prova.fechaEm !== null && (prova.agora.getTime() < prova.abreEm.getTime() || prova.agora.getTime() >= prova.fechaEm.getTime())) {
@@ -212,12 +231,13 @@ export class MinhaAtividadeService {
         }
         if (prova.estado !== 'aberta') throw new DomainException(ErrorCode.ATIVIDADE_ENCERRADA)
         const percentual = prova.duracaoMin === null ? null : await atividades.percentualDoAluno(id)
-        await atividades.comecar(id, limiteBaseDaTentativa({ agora: prova.agora, fechaEm: prova.fechaEm, duracaoMin: prova.duracaoMin, percentual }))
+        const ordem = await this.#ordemDeQuemComeca(atividades, id, conteudo.questoes.length)
+        await atividades.comecar(id, limiteBaseDaTentativa({ agora: prova.agora, fechaEm: prova.fechaEm, duracaoMin: prova.duracaoMin, percentual }), ordem)
         tentativa = await atividades.tentativa(id)
       }
       if (tentativa === undefined) throw new InvariantException('tentativa não começada')
       const respostas = await atividades.respostas(id)
-      return this.#emAndamento(prova, tentativa, respostas, await limiteDaTentativaDoAluno(tx, id, tentativa))
+      return this.#emAndamento(prova, conteudo, tentativa, respostas, await limiteDaTentativaDoAluno(tx, id, tentativa))
     })
   }
 

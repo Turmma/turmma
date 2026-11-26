@@ -545,10 +545,10 @@ describe('prova online: o aluno começa e responde dentro do limite', () => {
         const outra = await montarEscolaComAssistente(api, bancada)
         const limite = em(30)
         for (const [onde, escolaId, anoLetivoId] of [['com a escola trocada', outra.escolaId, a.anoLetivoId], ['com o ano trocado', a.escolaId, randomUUID()]] as const) {
-          await runInContext(contexto(escolaId, anoLetivoId, caio, 'aluno'), () => new MinhaAtividadeRepository(banco).comecar(id, limite)).catch(() => undefined)
+          await runInContext(contexto(escolaId, anoLetivoId, caio, 'aluno'), () => new MinhaAtividadeRepository(banco).comecar(id, limite, null)).catch(() => undefined)
           expect(await contarTentativas(id), `comecar ${onde}`).toBe(0)
         }
-        await runInContext(contexto(a.escolaId, a.anoLetivoId, caio, 'aluno'), () => new MinhaAtividadeRepository(banco).comecar(id, limite))
+        await runInContext(contexto(a.escolaId, a.anoLetivoId, caio, 'aluno'), () => new MinhaAtividadeRepository(banco).comecar(id, limite, null))
         expect(await contarTentativas(id)).toBe(1)
         for (const [onde, escolaId, anoLetivoId] of [['com a escola trocada', outra.escolaId, a.anoLetivoId], ['com o ano trocado', a.escolaId, randomUUID()]] as const) {
           await runInContext(contexto(escolaId, anoLetivoId, caio, 'aluno'), () => new MinhaAtividadeRepository(banco).send(id)).catch(() => undefined)

@@ -54,6 +54,7 @@
 | RF7 | Na prova, sem lateral nem Tutor; "Sair da prova" leva a Atividades, e voltar mostra o mesmo relógio | e2e | prova dentro da casca |
 | RF8 | Sorteio fixo: dois alunos com ordens diferentes conhecidas; marcar a certa pelo índice original dá acerto nos dois, e o desempenho por habilidade é o mesmo da ordem original | integração | correção pela posição na tela |
 | RF8 | Só alternativas embaralhadas: questões na ordem original; sem embaralhar: `ordem` nula | integração | embaralhar o que não foi pedido |
+| RF8 | Cada questão da prova leva `ordemDasAlternativas`, o índice original de cada alternativa na ordem da tela (a identidade sem embaralhar), e o aluno que escolhe pelo texto manda esse índice | integração, `embaralhamento.int.test.ts` | a tela marcar pela posição |
 | RF8 | Retomada: a segunda leitura traz a mesma ordem | integração | sortear a cada leitura |
 | RF9 | Saída numa avaliativa em andamento soma 1; a mesma chave não soma; chave nova soma; A, B e A: 2 | integração, `saida-da-aba.int.test.ts` | contar sem a tabela de chaves |
 | RF9 | Saída em não avaliativa, em tentativa enviada ou vencida: `NAO_ENCONTRADO`, nada muda | integração | somar sem olhar `avaliativa` ou limite |

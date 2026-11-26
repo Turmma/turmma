@@ -31,7 +31,7 @@ const prova = (campos: Partial<ProvaResponse> = {}): ProvaResponse => ({
   avaliativa: false,
   estado: 'aberta',
   adaptacao: null,
-  questoes: [1, 2, 3].map((numero) => ({ numero, enunciado: `Enunciado ${String(numero)}`, alternativas: ['a', 'b', 'c', 'd'] })),
+  questoes: [1, 2, 3].map((numero) => ({ numero, enunciado: `Enunciado ${String(numero)}`, alternativas: ['a', 'b', 'c', 'd'], ordemDasAlternativas: [0, 1, 2, 3] })),
   respostas: [],
   enviadaEm: null,
   ...campos,
