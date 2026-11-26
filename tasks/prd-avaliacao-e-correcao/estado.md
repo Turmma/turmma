@@ -1,10 +1,9 @@
 # Estado da execução — avaliacao-e-correcao
 
 ## Agora
-- **Retomado (26/11 15:30), pelo `/seguir` do Joaquim:** o limite semanal voltou; par da linha 3 reiniciado em sessão nova (o Implementador 3 estava a 1% da compactação) com `PEDIDO de retomada` da 4.0 apontando `.processo/ordens/4_task-r1.md`. Vigia segue desligada.
-- **Espero:** linhas 1 e 2 ociosas: a 6.0 não corre junto com a 4.0 (`tasks.md`), e parte quando a 4.0 se encontrar. Linha 3 (`Implementador 3` e `Mesa 3`) na **4.0** (porte pequeno, partida 24/11 ~02:10), 1ª tentativa, retomada na ordem da 1ª rodada (`infra-guardian`).
+- **Espero:** linha 3 (`Implementador 3` e `Mesa 3`, sessões novas) na **correção `2026-11-26-e2e-resposta-da-questao`** (partida 26/11 ~15:50): a esteira caiu em `56ffc73` (execução 45331593419), o ajudante do e2e que responde a questão não recebe 200. Antes de qualquer tarefa: depois do encontro dela, partem a 6.0 (linha 1) e a 8.0 (linha 2), como o quadro mostra.
 - **Devo ainda:** No fechamento da F6, levar ao `TODO.md` a alternativa C do diagnóstico d55 (rubrica pelo cartão da ferramenta, sem conversa livre e sem modelo) como requisito do PRD da F7 mínima, por pedido do Arquiteto 2 com a decisão do Joaquim. No fechamento, levar também ao `TODO.md` as duas linhas de "Recomendações sem aplicar" de `tasks/correcoes/2026-11-23-explain-semana-itens.md` (regex sem `ano_letivo_id`; regra no lugar da lista de nomes); as outras duas vão para a retro. Na Validação: o caso do PUT com a extensão (B recebe TEMPO_ESGOTADO) e a fronteira do `>` do tempo esgotado são da 3.0 e ficaram em "Sem aplicar" do `5_task.md`.
-- **Base:** `spec/avaliacao-e-correcao` em `56ffc73f` (encontro da 5.0, depois da escolha encerrada × limite do Arquiteto em `e5db786e`); esteira verde em `4876cb1f`; as de `7006000` e `b735492` canceladas por pushes novos; rodando em `e5db786` e `56ffc73`
+- **Base:** `spec/avaliacao-e-correcao` em `73bc3560` (encontro da 4.0, 26/11; esteira de `73bc356` rodando). Antes: `56ffc73f` (encontro da 5.0, depois da escolha encerrada × limite do Arquiteto em `e5db786e`); esteira verde em `4876cb1f`; as de `7006000` e `b735492` canceladas por pushes novos; rodando em `e5db786` e `56ffc73`
 - **Decidido (23/11), aviso fixo da coluna "Saiu da aba":** o Joaquim aprovou, nesta conversa, o texto proposto em `cenarios.md` §4, sem mudança.
 
 ## Concluídas
@@ -18,6 +17,7 @@
 | 3.0 (linha 3) | `2177c7ba` → spec `70060000` | Sonnet | 2 (`test-engineer` reprovou na 1ª) | encontro 24/11 ~02:05, verificação verde; divergência já propagada ao `cenarios.md` (minhas-atividades sem ano em curso responde NAO_ENCONTRADO); dois itens no `TODO.md` |
 | 7.0 (linha 1) | `c0563400` → spec `b7354925` | Sonnet | 2 (`infra-guardian` e `test-engineer` reprovaram na 1ª) | encontro 24/11, verificação verde; métrica `tutor.trava.duracao` com painel e sem alerta (decisão escrita na tarefa); fora do pedido, a lista fechada de `infra/test/metricas.int.test.ts` e as quedas do teste de infra; destinos 6.0, 6.5 e 11.0 nas tarefas |
 | 5.0 (linha 2) | `82d352bc` + correção encontro-5 `0639304b` → spec `56ffc73f` | Sonnet | 2 (`test-engineer` e `revisor-geral` reprovaram na 1ª); a correção do conflito com a 3.0 em `contracts.test.ts` aprovada na 1ª | encontro 24/11, verificação verde; 14 itens no `TODO.md`; linhas no "Contexto necessário" de 6.0 e 11.0 |
+| 4.0 (linha 3) | `bc6e1cb4` → spec `73bc3560` | Sonnet | 2 (`infra-guardian` reprovou na 1ª; interrompida 24/11 pelo limite semanal, retomada 26/11 em sessão nova) | encontro 26/11, verificação verde; esteira de `56ffc73` VERMELHA (e2e), correção `2026-11-26-e2e-resposta-da-questao` na linha 3 antes da 6.0 e da 8.0 |
 
 ## Esperando o Joaquim
 ## 23/11 16:25 — 1.0 (linha 2), BLOQUEIO do Arquiteto na divergência da 2ª rodada — RESPONDIDA (23/11 ~17:05, no terminal do Arquiteto): A, os dois entram na versão `coordenacao` por exceção declarada (art. 18); PRD, Tech Spec, cenarios.md e docs/lgpd.md editados pelo Arquiteto na linha 2, sem commit, vão no commit da 1.0
