@@ -3,6 +3,7 @@ import { Catch, HttpException, type ArgumentsHost, type ExceptionFilter } from '
 import { randomUUID } from 'node:crypto'
 import type { ServerResponse } from 'node:http'
 import { currentContext } from '../context/context.js'
+import { semConexaoIn } from '../db/sem-conexao.error.js'
 import type { LoggerBase } from '../log/logger.js'
 import { DomainException, DEFAULT_RETRY_AFTER_SECONDS } from './domain.exception.js'
 import { mapPostgresError } from './map-postgres-error.js'
@@ -33,6 +34,10 @@ function segundosDoRetryAfter(erro: DomainException): number | undefined {
 
 function traduzir(excecao: unknown): DomainException {
   if (excecao instanceof DomainException) return excecao
+  // Antes do mapa do SQLSTATE: o erro guarda o do Postgres em `cause` (recusa na conexão), e ele não é um erro de consulta.
+  if (semConexaoIn(excecao) !== undefined) {
+    return new DomainException(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+  }
   const doPostgres = mapPostgresError(excecao)
   if (doPostgres !== undefined) return doPostgres
   if (excecao instanceof HttpException) {

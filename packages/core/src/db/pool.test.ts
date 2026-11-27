@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import pg from 'pg'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createPool, isConnectionError, type DatabasePool } from './pool.js'
+import { SemConexaoComOBancoError } from './sem-conexao.error.js'
 
 function erroDoServidor(code: string, severity: string): pg.DatabaseError {
   return Object.assign(new pg.DatabaseError('mensagem', 0, 'error'), { code, severity })
@@ -91,5 +92,47 @@ describe('criarPool: ReadyForQuery que chega depois do erro da consulta', () => 
     await expect(pool.query(`insert into t (nome) values ('Enzo Martins')`)).rejects.toMatchObject({ code: '23505' })
     expect(liberacoes).toHaveLength(1)
     expect(liberacoes[0]).toBeInstanceOf(Error)
+  })
+})
+
+describe('criarPool: a conexão que o pool não entrega', () => {
+  const pools: DatabasePool[] = []
+  afterEach(async () => {
+    await Promise.all(pools.splice(0).map((pool) => pool.end()))
+  })
+
+  // A porta 1 recusa a conexão na hora: nenhuma consulta chega a ser enviada.
+  function poolSemServidor(): DatabasePool {
+    const pool = createPool({ url: 'postgres://sintetico:sintetico@127.0.0.1:1/sintetico', maximoConexoes: 1, timeoutConexaoMs: 300, timeoutConsultaMs: 300 }, () => undefined)
+    pools.push(pool)
+    return pool
+  }
+
+  it('pool.connect e pool.query rejeitam com o erro tipado, que guarda o original em cause', async () => {
+    const pool = poolSemServidor()
+
+    const aoConectar = await pool.connect().catch((erro: unknown) => erro)
+    expect(aoConectar).toBeInstanceOf(SemConexaoComOBancoError)
+    expect((aoConectar as SemConexaoComOBancoError).cause).toMatchObject({ code: 'ECONNREFUSED' })
+
+    await expect(pool.query('select 1')).rejects.toBeInstanceOf(SemConexaoComOBancoError)
+  })
+
+  it('o pool que já fechou também rejeita com o erro tipado', async () => {
+    // Fora da lista do `afterEach`: o `end` já foi chamado aqui, e um segundo `end` é recusado pelo pg-pool.
+    const pool = createPool({ url: 'postgres://sintetico:sintetico@127.0.0.1:1/sintetico', maximoConexoes: 1, timeoutConexaoMs: 300, timeoutConsultaMs: 300 }, () => undefined)
+    await pool.end()
+
+    await expect(pool.connect()).rejects.toBeInstanceOf(SemConexaoComOBancoError)
+    await expect(pool.query('select 1')).rejects.toBeInstanceOf(SemConexaoComOBancoError)
+  })
+
+  it('a forma com callback do pg-pool segue como estava', async () => {
+    const pool = poolSemServidor()
+    const erro = await new Promise<unknown>((resolver) => {
+      pool.connect((falha) => resolver(falha))
+    })
+    expect(erro).toMatchObject({ code: 'ECONNREFUSED' })
+    expect(erro).not.toBeInstanceOf(SemConexaoComOBancoError)
   })
 })

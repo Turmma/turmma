@@ -1,6 +1,7 @@
 import type { EventEmitter } from 'node:events'
 import pg from 'pg'
 import { isPostgresError } from '../error/summarize-error.js'
+import { SemConexaoComOBancoError } from './sem-conexao.error.js'
 
 export interface DatabaseConfig {
   url: string
@@ -142,7 +143,11 @@ function conexaoQueSaiNoErroDeConexao(pool: pg.Pool): typeof pool.connect {
   const original = pool.connect.bind(pool) as (...argumentos: unknown[]) => unknown
   return async function conectar(...argumentos: unknown[]): Promise<unknown> {
     if (typeof argumentos[0] === 'function') return original(...argumentos)
-    const conexao = (await original()) as pg.PoolClient
+    // Só a falha de obter a conexão vira o erro tipado. Nenhuma consulta foi enviada: é seguro repetir (503), e o texto do
+    // `pg-pool` (`timeout exceeded when trying to connect`) não é o que reconhece o erro.
+    const conexao = await (original() as Promise<pg.PoolClient>).catch((erro: unknown) => {
+      throw new SemConexaoComOBancoError(erro)
+    })
     const devolverAoPool = conexao.release.bind(conexao)
     let devolvida = false
     // Emprestada, a conexão fica sem o ouvinte de 'error' do pool, e o `pg` emite 'error' em toda queda de socket, com
