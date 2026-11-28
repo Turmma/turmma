@@ -1,6 +1,6 @@
 import { atividadeAplicada, extensaoDeTempo, pulsoDaApi, requireAnoEmCurso, requireEscolaId, requestSessao, tentativaAtividade, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
 import type { EnvioDaTentativa, EstadoDeAtividadeAplicada, ExtensaoDoLimite, IntervaloDeIndisponibilidade, PulsoDoLimite } from '@educa/shared'
-import { and, asc, eq, isNull, sql, type SQL } from 'drizzle-orm'
+import { and, asc, eq, isNull, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../../assistente/turma-do-professor.repository.js'
 
 /** A tentativa do aluno como o acompanhamento a lê: só o que decide a situação e o limite. Nenhuma saída da aba (D70, D88). */
@@ -43,6 +43,17 @@ interface IndisponibilidadeLida {
   readonly fim: string
 }
 
+/** As extensões da aplicação (as de cada aluno e as da turma), em `jsonb`, como subconsulta: `limiteDaTentativa` escolhe as que valem para cada aluno. A escola e a aplicação são as colunas da linha de fora, **de uma tabela juntada** (a consulta tem de ter mais de uma tabela): numa só, o drizzle escreve a coluna sem o nome da tabela, e dentro da subconsulta `atividade_aplicada_id = atividade_aplicada_id` vale para toda linha, e as extensões de todas as provas da escola entram. */
+export const extensoesDaAplicacao = (escolaId: AnyColumn, atividadeAplicadaId: AnyColumn): SQL<ExtensaoLida[]> =>
+  sql<ExtensaoLida[]>`(select coalesce(jsonb_agg(jsonb_build_object('alunoId', ${extensaoDeTempo.alunoId}, 'minutos', ${extensaoDeTempo.minutos})), '[]'::jsonb) from ${extensaoDeTempo} where ${extensaoDeTempo.escolaId} = ${escolaId} and ${extensaoDeTempo.atividadeAplicadaId} = ${atividadeAplicadaId})`
+
+/** As indisponibilidades da API que terminam depois do começo da tentativa, em `jsonb`, como subconsulta (a tabela é global, sem dono). */
+export const indisponibilidadesDesde = (iniciadaEm: AnyColumn): SQL<IndisponibilidadeLida[]> =>
+  sql<IndisponibilidadeLida[]>`(select coalesce(jsonb_agg(jsonb_build_object('inicio', i.inicio, 'fim', i.fim)), '[]'::jsonb) from indisponibilidade i where i.fim > ${iniciadaEm})`
+
+/** O último pulso da API, como subconsulta: a lacuna aberta desde ele é parte do limite. */
+export const ultimoPulsoDaApi = sql`(select ${pulsoDaApi.ultimoEm} from ${pulsoDaApi} limit 1)`.mapWith(pulsoDaApi.ultimoEm)
+
 /**
  * A aplicação no alcance do professor do contexto (regra 10, itens 3 e 4): escola e ano em curso do contexto e vínculo `confirmado` **na turma e na disciplina
  * do artefato dela**. O professor de outra escola, de outra turma, de outra disciplina, sem vínculo, e a coordenação e o aluno (que não têm vínculo de professor) não a alcançam.
@@ -78,9 +89,9 @@ export class AcompanhamentoRepository {
         enviadaEm: tentativaAtividade.enviadaEm,
         envio: tentativaAtividade.envio,
         limiteBase: tentativaAtividade.limiteBaseEm,
-        ultimoPulso: sql`(select ${pulsoDaApi.ultimoEm} from ${pulsoDaApi} limit 1)`.mapWith(pulsoDaApi.ultimoEm),
-        extensoes: sql<ExtensaoLida[]>`(select coalesce(jsonb_agg(jsonb_build_object('alunoId', ${extensaoDeTempo.alunoId}, 'minutos', ${extensaoDeTempo.minutos})), '[]'::jsonb) from ${extensaoDeTempo} where ${extensaoDeTempo.escolaId} = ${atividadeAplicada.escolaId} and ${extensaoDeTempo.atividadeAplicadaId} = ${atividadeAplicada.id})`,
-        indisponibilidades: sql<IndisponibilidadeLida[]>`(select coalesce(jsonb_agg(jsonb_build_object('inicio', i.inicio, 'fim', i.fim)), '[]'::jsonb) from indisponibilidade i where i.fim > ${tentativaAtividade.iniciadaEm})`,
+        ultimoPulso: ultimoPulsoDaApi,
+        extensoes: extensoesDaAplicacao(atividadeAplicada.escolaId, atividadeAplicada.id),
+        indisponibilidades: indisponibilidadesDesde(tentativaAtividade.iniciadaEm),
       })
       .from(atividadeAplicada)
       .leftJoin(

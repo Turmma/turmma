@@ -1,8 +1,9 @@
 import { artefato, atividadeAplicada, convocadoDaSegundaChamada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tempoAdicional, tentativaAtividade, turma, usuario, vinculo, type AplicacaoTravada, type Database, type DatabaseTransaction } from '@educa/core'
 import type { AtividadesAplicadasQuery, Embaralhar, EstadoDeAtividadeAplicada, EstadoDeEntrega, JanelaDaProva, PercentualDeTempoAdicional, TempoAdicionalDoAluno, TipoDeArtefato } from '@educa/shared'
-import { and, desc, eq, inArray, isNotNull, lt, notInArray, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
-import { InvariantException } from '@educa/shared'
+import { and, desc, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
+import { InvariantException, limiteDaTentativa } from '@educa/shared'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../../assistente/turma-do-professor.repository.js'
+import { extensoesDaAplicacao, indisponibilidadesDesde, ultimoPulsoDaApi } from './acompanhamento.repository.js'
 
 /** Uma atividade aplicada como a professora da turma a lê: só contagem de participação, sem aluno. */
 export interface AplicacaoLida {
@@ -142,17 +143,68 @@ export class AtividadeAplicadaRepository {
       .where(and(this.#noAlcance(), condicao))
   }
 
+  /**
+   * Soma ao `enviaram` as tentativas **vencidas e ainda sem envio** das aplicações abertas: "vencida sem envio conta como enviada em toda leitura" (avaliacao-e-correcao, Tech Spec §5.5, RF5).
+   * A rotina e o encerramento é que gravam o fato (`enviada_em = limite`), e a rotina só age quando o `fecha_em` passa: numa janela de um dia, a tentativa de 40 min vence na primeira hora e a
+   * professora leria "0 enviaram" o dia inteiro. O limite não se calcula em SQL (extensões, quedas fechadas e lacuna aberta, em ponto fixo): vem da mesma `limiteDaTentativa` do acompanhamento,
+   * sobre uma leitura só das tentativas em andamento de todas as aplicações lidas. A encerrada fica como o encerramento a gravou: a que ainda tinha tempo segue sem envio (§5.5).
+   *
+   * **Só recebe linhas que vieram de `#lidas`**: é lá que estão a escola, o ano e o vínculo da professora (regra 10, item 3). A consulta daqui repete a escola e o ano, mas os ids que a limitam são os das linhas lidas.
+   */
+  async #contandoAsVencidas(lidas: AplicacaoLida[]): Promise<AplicacaoLida[]> {
+    const abertas = lidas.filter((lida) => lida.estado === 'aberta')
+    // A encerrada não tem o que somar (o encerramento já gravou o fato): sem aberta, nenhuma ida ao banco.
+    if (abertas.length === 0) return lidas
+    const emAndamento = await this.banco
+      .select({
+        atividadeAplicadaId: tentativaAtividade.atividadeAplicadaId,
+        alunoId: tentativaAtividade.alunoId,
+        iniciadaEm: tentativaAtividade.iniciadaEm,
+        limiteBase: tentativaAtividade.limiteBaseEm,
+        agora: sql`now()`.mapWith(tentativaAtividade.iniciadaEm),
+        ultimoPulso: ultimoPulsoDaApi,
+        extensoes: extensoesDaAplicacao(atividadeAplicada.escolaId, atividadeAplicada.id),
+        indisponibilidades: indisponibilidadesDesde(tentativaAtividade.iniciadaEm),
+      })
+      .from(tentativaAtividade)
+      // A junção não é só filtro: sem ela as extensões de todas as provas da escola entram no limite (ver `extensoesDaAplicacao`).
+      .innerJoin(atividadeAplicada, and(eq(atividadeAplicada.escolaId, tentativaAtividade.escolaId), eq(atividadeAplicada.anoLetivoId, tentativaAtividade.anoLetivoId), eq(atividadeAplicada.id, tentativaAtividade.atividadeAplicadaId)))
+      .where(
+        and(
+          eq(tentativaAtividade.escolaId, requireEscolaId()),
+          eq(tentativaAtividade.anoLetivoId, requireAnoEmCurso()),
+          inArray(tentativaAtividade.atividadeAplicadaId, abertas.map((lida) => lida.id)),
+          isNull(tentativaAtividade.enviadaEm),
+        ),
+      )
+    const vencidas = new Map<string, number>()
+    for (const tentativa of emAndamento) {
+      const limite = limiteDaTentativa({
+        alunoId: tentativa.alunoId,
+        iniciadaEm: tentativa.iniciadaEm,
+        limiteBase: tentativa.limiteBase,
+        extensoes: tentativa.extensoes.map((extensao) => ({ alunoId: extensao.alunoId, minutos: extensao.minutos })),
+        indisponibilidades: tentativa.indisponibilidades.map((queda) => ({ inicio: new Date(queda.inicio), fim: new Date(queda.fim) })),
+        pulso: tentativa.ultimoPulso === null ? null : { ultimoEm: tentativa.ultimoPulso, agora: tentativa.agora },
+      })
+      const venceu = limite !== null && limite.getTime() <= tentativa.agora.getTime()
+      if (venceu) vencidas.set(tentativa.atividadeAplicadaId, (vencidas.get(tentativa.atividadeAplicadaId) ?? 0) + 1)
+    }
+    return lidas.map((lida) => ({ ...lida, enviaram: lida.enviaram + (vencidas.get(lida.id) ?? 0) }))
+  }
+
   /** A aplicação com esse id, se está no alcance. A de outra escola, de outro ano, de outra turma, de outra disciplina ou inexistente não é achada. */
   async porId(id: string): Promise<AplicacaoLida | undefined> {
-    const [linha] = await this.#lidas(eq(atividadeAplicada.id, id))
+    const [linha] = await this.#contandoAsVencidas(await this.#lidas(eq(atividadeAplicada.id, id)))
     return linha
   }
 
   /** Uma página das aplicações da turma no alcance, da mais nova para a mais antiga, com uma linha a mais que diz se há próxima. */
-  list({ turmaId, pagina, limite }: AtividadesAplicadasQuery): Promise<AplicacaoLida[]> {
-    return this.#lidas(and(eq(atividadeAplicada.turmaId, turmaId), pagina === undefined ? undefined : lt(atividadeAplicada.id, pagina)))
+  async list({ turmaId, pagina, limite }: AtividadesAplicadasQuery): Promise<AplicacaoLida[]> {
+    const lidas = await this.#lidas(and(eq(atividadeAplicada.turmaId, turmaId), pagina === undefined ? undefined : lt(atividadeAplicada.id, pagina)))
       .orderBy(desc(atividadeAplicada.id))
       .limit(limite + 1)
+    return this.#contandoAsVencidas(lidas)
   }
 
   /**

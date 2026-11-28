@@ -1,6 +1,6 @@
 import { createDatabase, runInContext, type DatabasePool, type RequestContext } from '@educa/core'
 import { sql as sqlDoDrizzle } from 'drizzle-orm'
-import { acompanhamentoResponseSchema, type AcompanhamentoResponse, type PapelDeUsuario } from '@educa/shared'
+import { acompanhamentoResponseSchema, atividadeEncerradaResponseSchema, listaDeAtividadesAplicadasResponseSchema, type AcompanhamentoResponse, type PapelDeUsuario } from '@educa/shared'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MedidorDeTeste } from '../../../../tools/testes/metricas.ts'
@@ -9,6 +9,7 @@ import { alunosComSessao, aplicarAtividade, criarAtividade, rotasDaAtividade, ty
 import { montarAnoAnterior, montarEscolaComAssistente, vincularProfessor, type EscolaComAssistente } from '../../test/escola-assistente.fixture.js'
 import { SessaoFixtures, type TestSessao } from '../../test/sessao.fixture.js'
 import { aguardar, esperarNaTrava, WriteBlockTrigger } from '../../test/write-block-trigger.js'
+import { AtividadeAplicadaRepository } from './atividade-aplicada/atividade-aplicada.repository.js'
 import { AcompanhamentoRepository, ExtensaoRepository, type AlunoDoAcompanhamento, type LeituraDoAcompanhamento } from './atividade-aplicada/acompanhamento.repository.js'
 
 /**
@@ -552,6 +553,82 @@ describe('a extensão de tempo e o acompanhamento da prova', () => {
         await cliente.query('rollback')
         cliente.release()
       }
+    })
+  })
+
+  describe('a contagem de quem enviou, na leitura da professora', () => {
+    /** A participação que a lista da professora devolve para a aplicação, com o pulso fresco (a lacuna aberta de uma API parada andaria todos os limites). */
+    const participacaoDe = async (id: string) => {
+      await pulsoFresco()
+      const lista = listaDeAtividadesAplicadasResponseSchema.parse((await rotas.listar(a.professora, `?turmaId=${a.turma}&limite=100`)).corpo)
+      const achada = lista.itens.find((item) => item.id === id)
+      if (achada === undefined) throw new Error('a aplicação não está na lista')
+      return achada.participacao
+    }
+
+    it('a tentativa vencida, com a janela ainda aberta, conta como enviada (Tech Spec §5.5, RF5); a que tem tempo, a estendida e a sem limite não, e a vencida de outra prova não passa para esta', async () => {
+      const id = await aplicarProva()
+      await iniciarTentativa(id, ana, { haMin: 60, baseEmMin: -20 })
+      await iniciarTentativa(id, bia, { haMin: 30, baseEmMin: 10 })
+      // O Caio enviou há 10 min e o limite dele passou há 5: já conta pelo envio, e não conta de novo como vencido.
+      await iniciarTentativa(id, caio, { haMin: 30, baseEmMin: -5, enviadaHaMin: 10, envio: 'aluno' })
+      await iniciarTentativa(id, colega, { haMin: 60, baseEmMin: -2 })
+      await iniciarTentativa(id, a.aluno, { haMin: 30, baseEmMin: null })
+      // O colega venceria há 2 min; com 10 a mais, o limite é daqui a 8.
+      expect((await estender(a.professora, id, { alunoId: colega.usuarioId, minutos: 10, chave: randomUUID() })).status).toBe(200)
+      const outra = await aplicarProva()
+      await iniciarTentativa(outra, ana, { haMin: 60, baseEmMin: -20 })
+      // A extensão de uma terceira prova, da turma toda, não anda o limite de ninguém destas duas.
+      const vizinha = await aplicarProva()
+      expect((await estender(a.professora, vizinha, { minutos: 120, chave: randomUUID() })).status).toBe(200)
+
+      // Ana (vencida) e Caio (enviou): dois. Bia tem tempo, o colega foi estendido, e quem não tem limite nunca vence.
+      expect(await participacaoDe(id)).toMatchObject({ iniciaram: 5, enviaram: 2 })
+      expect(await participacaoDe(outra)).toMatchObject({ iniciaram: 1, enviaram: 1 })
+      expect(await participacaoDe(vizinha)).toMatchObject({ iniciaram: 0, enviaram: 0 })
+
+      // O `porId` (o que o aplicar, a mudança de janela e a segunda chamada devolvem) conta a vencida como a lista.
+      await pulsoFresco()
+      const lida = await runInContext(contextoDaProfessora(), () => new AtividadeAplicadaRepository(createDatabase(bancada.pool)).porId(id))
+      expect(lida).toMatchObject({ iniciaram: 5, enviaram: 2 })
+
+      // O encerramento grava o fato (`enviada_em` no limite) só da vencida, e a contagem de antes e a de depois são a mesma.
+      const encerrada = atividadeEncerradaResponseSchema.parse((await rotas.encerrar(a.professora, id)).corpo)
+      expect(encerrada.atividade.participacao).toMatchObject({ iniciaram: 5, enviaram: 2 })
+      expect(await participacaoDe(id)).toMatchObject({ iniciaram: 5, enviaram: 2 })
+
+      // Depois do encerramento a conta é a que ele gravou: a Bia, que tinha tempo, não vira "enviada" quando o limite dela passa (uma queda posterior andaria o limite, §5.5).
+      await sql('update tentativa_atividade set limite_base_em = now() - interval \'1 minute\' where atividade_aplicada_id = $1 and aluno_id = $2', [id, bia.usuarioId])
+      expect(await participacaoDe(id)).toMatchObject({ iniciaram: 5, enviaram: 2 })
+    })
+
+    it('a queda fechada da API dentro da prova anda o limite: a tentativa que venceria não conta enquanto a queda a cobre, e conta sem ela (a mesma conta do acompanhamento)', async () => {
+      const id = await aplicarProva()
+      // Começou há 60 min e o limite base passou há 2. A API ficou fora 6 min dentro da prova (de 30 a 24 min atrás), e o limite anda 6: vence daqui a 4 min.
+      // A margem de 4 min é a do limite com a queda (6 − 2): o teste não dorme, e uma CI lenta só estraga o caso se atrasar mais de 4 min entre gravar a tentativa e ler a lista. Mexer nos números pede refazer essa conta.
+      await iniciarTentativa(id, ana, { haMin: 60, baseEmMin: -2 })
+      const [dentro] = await sql<{ id: string }>(`insert into indisponibilidade (inicio, fim) values (now() - interval '30 minutes', now() - interval '24 minutes') returning id`)
+      try {
+        expect(await participacaoDe(id)).toMatchObject({ iniciaram: 1, enviaram: 0 })
+      } finally {
+        await sql('delete from indisponibilidade where id = $1', [dentro?.id])
+      }
+      expect(await participacaoDe(id)).toMatchObject({ iniciaram: 1, enviaram: 1 })
+    })
+
+    it('a aplicação encerrada não custa a segunda ida ao banco, e a aberta custa (regra 80: a leitura de quem já encerrou é só a da aplicação)', async () => {
+      const vazia = await montarEscolaComAssistente(api, bancada)
+      const prova = { janela: janelaDe(60, 120), duracaoMin: 40 }
+      const encerrada = await aplicarProva(prova, vazia)
+      expect((await rotas.encerrar(vazia.professora, encerrada)).status).toBe(200)
+      const aberta = await aplicarProva(prova, vazia)
+      const consultasDoPorId = async (id: string): Promise<number> => {
+        const { pool: poolContado, consultas } = contarConsultas(bancada.pool)
+        await runInContext(contexto(vazia.escolaId, vazia.anoLetivoId, vazia.professora, 'professor'), () => new AtividadeAplicadaRepository(createDatabase(poolContado)).porId(id))
+        return consultas()
+      }
+      expect(await consultasDoPorId(encerrada)).toBe(1)
+      expect(await consultasDoPorId(aberta)).toBe(2)
     })
   })
 
