@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import type { Locator, Page, Request, Route } from '@playwright/test'
 import { MENSAGENS_DE_ERRO } from '../packages/shared/src/errors/messages.ts'
-import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, abrirEstrutura, esperarEstrutura, esperarPainel, lateral, recarregarSemMedirAPrimeiraCarga, SIGN_IN_TIMEOUT_MS, secoes as secoesDaNavegacao } from './support/casca.ts'
+import { abrirNavegacao, entrarComoCoordenacaoNaMesmaAba, entrarPelaTelaComSegundoFator, abrirEstrutura, esperarEstrutura, esperarPainel, lateral, recarregarSemMedirAPrimeiraCarga, SIGN_IN_TIMEOUT_MS, secoes as secoesDaNavegacao } from './support/casca.ts'
 import { abrirAnoEDisciplinas, comOQueFalta, fecharPainel, irPelaCoordenacao, linhasDaTabela, paginaNaoRola, painelDoAno } from './support/coordenacao.ts'
-import { abrirPelaApiSemMedirAPrimeiraCarga } from './support/mfa.ts'
+import { abrirPelaApiSemMedirAPrimeiraCarga, configurarSegundoFatorPelaApi } from './support/mfa.ts'
 import { expect, test } from './support/profiles.ts'
 import {
   apagarDisciplinaNoBanco,
@@ -1152,12 +1152,17 @@ test.describe('o componente da BNCC da disciplina (classificacao-bncc, 1.0)', ()
     await activate(dialogo(page, 'Componente da BNCC').getByRole('button', { name: 'Salvar componente' }), hasTouch)
     await expect(linhaDaDisciplina(painelDeA, nomeDeA)).toContainText('Componente da BNCC: Geografia', { timeout: SIGN_IN_TIMEOUT_MS })
     await page.keyboard.press('Escape')
+
+    // O 2º fator de B vai pela API, num contexto à parte (a ordem não depende da sessão de A); a entrada dela continua pela tela, na mesma aba.
+    // A configuração pela tela é dos casos de `entrarComoCoordenacaoNaMesmaAba` e do convite: este não a cobre, e não os apague por causa dele.
+    const deB = await criarEquipeComSenha('coordenador')
+    const { segredo: segredoDeB } = await configurarSegundoFatorPelaApi(request, deB)
+
     await abrirNavegacao(page, hasTouch)
     await activate(lateral(page).getByRole('button', { name: 'Sair' }), hasTouch)
     await expect(page).toHaveURL(/\/entrar$/, { timeout: SIGN_IN_TIMEOUT_MS })
 
-    const deB = await criarEquipeComSenha('coordenador')
-    await entrarComoCoordenacaoNaMesmaAba(page, deB, hasTouch)
+    await entrarPelaTelaComSegundoFator(page, deB, segredoDeB, hasTouch)
     await esperarPainel(page)
     await abrirEstrutura(page, hasTouch)
     const painelDeB = await abrirAnoEDisciplinas(page, hasTouch)
