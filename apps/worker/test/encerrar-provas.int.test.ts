@@ -27,13 +27,19 @@ import { configuracaoDoBanco, InMemoryLog, QueueFixtures } from './queue.fixture
 interface NoDoPlano {
   'Node Type'?: string
   'Index Name'?: string
+  'Relation Name'?: string
   'Rows Removed by Filter'?: number
   Plans?: NoDoPlano[]
 }
 
 const nosDoPlano = (no: NoDoPlano | undefined): NoDoPlano[] => (no === undefined ? [] : [no, ...(no.Plans ?? []).flatMap(nosDoPlano)])
 const indicesDoPlano = (no: NoDoPlano | undefined): Array<string | undefined> => nosDoPlano(no).map((n) => n['Index Name'])
-const removidasNoFiltro = (no: NoDoPlano | undefined): number => nosDoPlano(no).reduce((soma, n) => soma + (n['Rows Removed by Filter'] ?? 0), 0)
+/**
+ * As linhas que o filtro descartou **na tabela que o teste mede**. A soma dos nós todos contava também a junção com `ano_letivo` (`situacao = 'em_curso'`), cujo descarte é o
+ * dos anos encerrados e planejados que o banco acumulou: dependia do que as outras suítes deixaram, e não do índice da prova aberta. Por isso o filtro por tabela não volta à soma de todos os nós, e o
+ * `beforeAll` do bloco dos índices planta um ano planejado e um encerrado: sem eles, o banco novo passaria mesmo com a soma antiga.
+ */
+const removidasNoFiltro = (no: NoDoPlano | undefined, tabela: string): number => nosDoPlano(no).filter((n) => n['Relation Name'] === tabela).reduce((soma, n) => soma + (n['Rows Removed by Filter'] ?? 0), 0)
 
 describe('a rotina que encerra a prova vencida', () => {
   const sessoes = new SessaoFixtures()
@@ -887,7 +893,7 @@ describe('a rotina que encerra a prova vencida', () => {
 
   describe('os índices da rotina (EXPLAIN, §7c)', () => {
     const SEMEADAS = 5_000
-    const ids: { aplicacoes: string[]; quedas: string[] } = { aplicacoes: [], quedas: [] }
+    const ids: { aplicacoes: string[]; quedas: string[]; anos: string[] } = { aplicacoes: [], quedas: [], anos: [] }
     let encerradas: string[] = []
 
     /** As instruções que o repository manda ao banco, capturadas do pool com os valores à parte: o EXPLAIN é da consulta de verdade, e não de uma cópia dela. */
@@ -942,6 +948,14 @@ describe('a rotina que encerra a prova vencida', () => {
           `insert into indisponibilidade (inicio, fim) select timestamptz '2020-01-01' + make_interval(mins => n * 2), timestamptz '2020-01-01' + make_interval(mins => n * 2 + 1) from generate_series(1, ${String(SEMEADAS)}) as n returning id`,
         )
       ).map(({ id }) => id)
+      // Um ano planejado e um encerrado da escola A, para o banco novo também ter o que o acumulado já tem (o porquê está no JSDoc de `removidasNoFiltro`).
+      ids.anos = (
+        await filas.semear<{ id: string }>(
+          `insert into ano_letivo (escola_id, ano, inicio, fim, situacao) values ($1, 2099, date '2099-02-01', date '2099-12-15', 'planejado'), ($1, 2098, date '2098-02-01', date '2098-12-15', 'encerrado') returning id`,
+          [a.escolaId],
+        )
+      ).map(({ id }) => id)
+      await filas.semear('analyze ano_letivo')
       await filas.semear('analyze atividade_aplicada')
       await filas.semear('analyze extensao_de_tempo')
       await filas.semear('analyze indisponibilidade')
@@ -951,6 +965,7 @@ describe('a rotina que encerra a prova vencida', () => {
       await sql('delete from extensao_de_tempo where escola_id = $1 and atividade_aplicada_id = any($2::uuid[])', [a.escolaId, encerradas])
       await sql('delete from atividade_aplicada where escola_id = $1 and id = any($2::uuid[])', [a.escolaId, [...encerradas, ...ids.aplicacoes]])
       await sql('delete from indisponibilidade where id = any($1::uuid[])', [ids.quedas])
+      await sql('delete from ano_letivo where escola_id = $1 and id = any($2::uuid[])', [a.escolaId, ids.anos])
     })
 
     it('a escolha das escolas com prova vencida e a lista de uma escola descem pelo índice da prova aberta, sem varrer as encerradas', async () => {
@@ -958,24 +973,24 @@ describe('a rotina que encerra a prova vencida', () => {
       const global = await capturar((banco) => runInContext({ requisicaoId: randomUUID(), rotinaDoSistema: true }, () => new ProvasVencidasRepository(banco).escolasComProvaVencida()))
       const planoGlobal = await planoDe(global.find(({ text }) => text.includes('"atividade_aplicada"')))
       expect(indicesDoPlano(planoGlobal)).toContain('atividade_aplicada_prova_aberta_idx')
-      expect(removidasNoFiltro(planoGlobal)).toBeLessThanOrEqual(1)
+      expect(removidasNoFiltro(planoGlobal, 'atividade_aplicada')).toBeLessThanOrEqual(1)
 
       const daEscola = await capturar((banco) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, anoLetivoId: a.anoLetivoId }, () => new ProvasVencidasRepository(banco).vencidasDaEscola(200)))
       const planoDaEscola = await planoDe(daEscola.find(({ text }) => text.includes('"atividade_aplicada"')))
       expect(indicesDoPlano(planoDaEscola)).toContain('atividade_aplicada_prova_aberta_idx')
-      expect(removidasNoFiltro(planoDaEscola)).toBeLessThanOrEqual(1)
+      expect(removidasNoFiltro(planoDaEscola, 'atividade_aplicada')).toBeLessThanOrEqual(1)
     }, 60_000)
 
     it('as extensões de uma aplicação saem pelo índice da chave (escola, aplicação), e a leitura das quedas, pelo índice do fim', async () => {
       const extensoes = await capturar((banco) => runInContext({ requisicaoId: randomUUID(), escolaId: a.escolaId, anoLetivoId: a.anoLetivoId }, () => new EncerramentoDaProvaRepository(banco).extensoes(encerradas[0] ?? '')))
       const planoDasExtensoes = await planoDe(extensoes.find(({ text }) => text.includes('"extensao_de_tempo"')))
       expect(indicesDoPlano(planoDasExtensoes)).toContain('extensao_de_tempo_chave_por_aplicacao')
-      expect(removidasNoFiltro(planoDasExtensoes)).toBeLessThanOrEqual(1)
+      expect(removidasNoFiltro(planoDasExtensoes, 'extensao_de_tempo')).toBeLessThanOrEqual(1)
 
       const quedas = await capturar((banco) => new QuedasDaApiRepository(banco).leituraDesde(new Date(Date.now() - 30_000)))
       const planoDasQuedas = await planoDe(quedas.find(({ text }) => text.includes('"indisponibilidade"')))
       expect(indicesDoPlano(planoDasQuedas)).toContain('indisponibilidade_fim_idx')
-      expect(removidasNoFiltro(planoDasQuedas)).toBeLessThanOrEqual(1)
+      expect(removidasNoFiltro(planoDasQuedas, 'indisponibilidade')).toBeLessThanOrEqual(1)
     }, 60_000)
   })
 })
