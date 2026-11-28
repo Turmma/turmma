@@ -13,7 +13,7 @@ import { colocarAlunoNaTurma, confirmarVinculosNoBanco, criarAlocacaoDoProfessor
  * **A prova online do lado do professor** (avaliacao-e-correcao, 11.0; RF4, RF5, RF9, RF10), contra a API real: ele acompanha,
  * estende, encerra pelo botão e aprova com a saída da aba e o aviso. O aluno faz a parte dele **pela API** (a tela dele é a 12.0). Nos dois projetos, `chromebook` e `celular`
  * (360 px), com axe. Cada caso monta a escola no banco, abre a sessão pela API (o cookie vai no contexto da página) e abre direto a tela que prova: a carga do aplicativo no
- * Chromebook com CPU ×4 já custa uns 8 s, e por isso os casos são curtos, cada um com uma coisa, e nenhum passa de 15 s (metade do prazo da esteira).
+ * Chromebook com CPU ×4 pesa no caso, e por isso os `/assets/` vêm direto, sem a rede do perfil, como em `aluno-prova.spec.ts` (a carga na rede lenta é de `casca.spec.ts`). Os casos são curtos, cada um com uma coisa, e nenhum passa de 15 s (metade do prazo da esteira).
  */
 const DISCIPLINA = 'Química'
 const TITULO = 'Prova de estequiometria'
@@ -39,6 +39,9 @@ async function montarEscola(page: Page): Promise<Escola> {
   const bia = await criarAlunoComMatricula({ escola: professora, nome: 'Bia Lima' })
   await colocarAlunoNaTurma(bia, turma)
   const { artefatoId } = await criarAtividadeNoBanco(professora.escolaId, professora.usuarioId, alocacao.turmaId, DISCIPLINA, TITULO)
+  // Os pedaços do aplicativo (`/assets/…`) são uns 40, e na rede lenta do perfil eles chegam em ondas de 0,5 s: a carga sozinha leva uns 10 s de um caso de 15 s. Eles vêm
+  // direto, como em `aluno-prova.spec.ts` (a carga do aplicativo na rede lenta é de `casca.spec.ts`); a CPU ×4 e a rede do perfil seguem para tudo o que estes casos provam: as chamadas à API e a tela.
+  await page.route('**/assets/**', async (rota) => rota.fulfill({ response: await rota.fetch() }))
   // A sessão abre pela API, no contexto da página: o cookie vai junto, e a tela já abre dentro dela (a entrada pelo formulário é de `casca.spec.ts`).
   const dela = await ProfessoraApiClient.entrar(page.request, professora)
   return { professora, dela, turmaId: alocacao.turmaId, artefatoId, ana, bia }
