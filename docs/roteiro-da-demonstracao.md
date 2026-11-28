@@ -223,8 +223,8 @@ aluno e sugere uma nota" (a resposta explica que a IA não corrige redação nem
    que falta. O horário é o da escola. **Tempo adicional**, **Embaralhar questões** e **Embaralhar alternativas** são
    opcionais e ficam para quem quiser mostrar (o tempo adicional é só um percentual, sem motivo).
    **Aparece:** "Aberta para a turma · avaliativa · 0 de 3 alunos enviaram".
-2. Perfil **Aluno** (Ana) → **Tarefas** → em "Para fazer", a atividade aparece com "Avaliação: o Tutor fica pausado até
-   quem dá a aula encerrar". **Diga:** "Na avaliação o Tutor pausa sozinho, no servidor."
+2. Perfil **Aluno** (Ana) → **Tarefas** → em "Para fazer", a atividade aparece com "Avaliação: o Tutor fica pausado durante a
+   prova, da abertura até ela fechar." **Diga:** "Na avaliação o Tutor pausa sozinho, no servidor."
 3. Ana abre a atividade e cai em **Antes de começar**: "Esta prova tem 40 minutos, contados a partir de Começar.", com o aviso de
    que sair da aba aparece para o professor. **Diga:** "O aluno é avisado antes, e nada acontece com a prova por isso." **Começar** abre
    a prova numa tela só dela, sem menu: o relógio ("Faltam 40 min", o do servidor), "Salvo" a cada escolha e **Sair da prova**, que
