@@ -1,4 +1,5 @@
 import {
+  SuspensaoRepository,
   createDatabase,
   createLLMGateway,
   createLogger,
@@ -49,7 +50,6 @@ import { ExecucaoScheduler } from '../src/ia/execucao.scheduler.js'
 import { buildComandos } from '../src/ia/montar-comandos.js'
 import { OrcamentoRepository } from '../src/ia/orcamento.repository.js'
 import { RegistroDeComandos } from '../src/ia/registro-de-comandos.js'
-import { SuspensaoRepository } from '../src/ia/suspensao.repository.js'
 import { VarreduraDeExecucoes } from '../src/ia/varredura-de-execucoes.js'
 import { createWorkerDeIa, type FilaDaIa, type WorkerDeIa } from '../src/ia/worker-de-ia.js'
 import { AlcanceDoAluno } from '../src/tutor/turno.command.js'

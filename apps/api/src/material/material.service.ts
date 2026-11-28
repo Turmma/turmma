@@ -1,4 +1,4 @@
-import { AgendamentoDaClassificacaoRepository, ANTES_DA_PRIMEIRA_SECAO, BnccRepository, DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, AuditoriaRepository, diaDeUso, SECOES_POR_LOTE_DO_AGENDAMENTO, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
+import { SuspensaoRepository, AgendamentoDaClassificacaoRepository, ANTES_DA_PRIMEIRA_SECAO, BnccRepository, DEFAULT_RETRY_AFTER_SECONDS, DomainException, AuditoriaRecorder, AuditoriaRepository, diaDeUso, SECOES_POR_LOTE_DO_AGENDAMENTO, FileStorageUnavailableError, JobOutbox, postgresErrorIn, summarizeError, requestSessao, systemClock, type Clock, type Database, type DatabaseTransaction, type FileStorage, type LoggerBase } from '@educa/core'
 import {
   alcanceDe,
   CODIGOS_DA_BNCC,
@@ -53,7 +53,6 @@ import { DisciplinaRepository } from '@educa/core/estrutura'
 import { chaveDoTemporario, EnvioDeMaterialRepository, ExtracaoDoMaterialRepository, PRAZO_DO_OBJETO_DO_MATERIAL_MS, hasAssinaturaDePdf, uuidV7 } from '@educa/core/material'
 import { z } from 'zod'
 import { paginar } from '../http/pagination.js'
-import { SuspensaoRepository } from '../ia/suspensao.repository.js'
 import { CoberturaRepository } from './cobertura.repository.js'
 import { candidatasDoRecorte } from './habilidades-do-recorte.js'
 import { LicencaRepository, type LicencaParaUso, type VigenciaDaLicenca } from './licenca.repository.js'

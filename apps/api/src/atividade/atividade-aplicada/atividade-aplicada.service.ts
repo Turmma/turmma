@@ -1,8 +1,7 @@
-import { DomainException, AuditoriaRecorder, type Database, type DatabaseTransaction } from '@educa/core'
+import { DomainException, AuditoriaRecorder, encerrarProva, type Database } from '@educa/core'
 import {
   ErrorCode,
   camposInvalidosDaProva,
-  conteudoDeAtividadeSchema,
   atividadeAplicadaResponseSchema,
   atividadeEncerradaResponseSchema,
   listaDeAtividadesAplicadasResponseSchema,
@@ -16,9 +15,7 @@ import {
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
 import type { FuncaoSuspensionCheck } from '../../ia/funcao-suspension-check.js'
-import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoParaMudarAJanela, type AplicacaoTravada } from './atividade-aplicada.repository.js'
-import { acertosDoLote, corrigirTentativa, destaquesDaTentativa, type HistoricoAprovado } from '../correcao/correcao-de-objetiva.js'
-import { CorrecaoRepository, type NovaCorrecao } from '../correcao/correcao.repository.js'
+import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoParaMudarAJanela } from './atividade-aplicada.repository.js'
 
 const registro = new AuditoriaRecorder()
 
@@ -160,13 +157,16 @@ export class AtividadeAplicadaService {
     return listaDeAtividadesAplicadasResponseSchema.parse({ itens: itens.map(paraATela), ...(proxima === undefined ? {} : { proxima }) })
   }
 
+  /**
+   * Encerrar é da professora com a aplicação no alcance dela (`lock`), e o resto é o **miolo do `core`**, o mesmo que a rotina da prova vencida usa (`encerrarProva`; Tech Spec §5.5 e §5.6, "Onde mora o miolo"):
+   * encerra, grava a vencida (`enviada_em` = limite) e corrige, na mesma transação.
+   */
   async encerrar(id: string): Promise<AtividadeEncerradaResponse> {
     const encerrada = await this.banco.transaction(async (tx) => {
       const aplicacoes = new AtividadeAplicadaRepository(tx)
       const travada = await aplicacoes.lock(id)
       if (travada === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      if (travada.estado === 'aberta') await aplicacoes.encerrar(id)
-      await this.#corrigir(tx, travada)
+      await encerrarProva(tx, travada, () => this.#suspensa())
       const lida = await aplicacoes.porId(id)
       if (lida === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       return lida
@@ -184,31 +184,5 @@ export class AtividadeAplicadaService {
       if (erro instanceof DomainException && erro.codigo === ErrorCode.FUNCAO_SUSPENSA) return true
       throw erro
     }
-  }
-
-  /**
-   * A correção do lote, com a aplicação já travada. Não corrige se a aplicação já tem lote pendente ou aprovado (é o
-   * que faz a reexecução não inserir nem alterar correção), se a função está suspensa, ou se ninguém abriu a atividade.
-   * **Quem nunca abriu não tem correção**: faltar não é ficar em branco.
-   */
-  async #corrigir(tx: DatabaseTransaction, aplicacao: AplicacaoTravada): Promise<void> {
-    const correcoes = new CorrecaoRepository(tx)
-    if (await correcoes.hasLoteVigente(aplicacao.id)) return
-    if (await this.#suspensa()) return
-    const respostas = await correcoes.respostasPorAluno(aplicacao.id)
-    if (respostas.size === 0) return
-
-    const { questoes } = conteudoDeAtividadeSchema.parse(aplicacao.conteudo)
-    const historico = new Map<string, HistoricoAprovado>()
-    for (const anterior of await correcoes.historicoAprovado([...respostas.keys()], aplicacao.disciplinaId)) {
-      const soma = historico.get(anterior.alunoId) ?? { acertos: 0, total: 0 }
-      historico.set(anterior.alunoId, { acertos: soma.acertos + anterior.acertos, total: soma.total + anterior.total })
-    }
-    const lote = acertosDoLote(questoes, [...respostas.values()])
-    const novas: NovaCorrecao[] = [...respostas].map(([alunoId, marcadas]) => {
-      const correcao = corrigirTentativa(questoes, marcadas)
-      return { alunoId, ...correcao, destaques: destaquesDaTentativa({ questoes, respostas: marcadas, correcao, historico: historico.get(alunoId), lote }) }
-    })
-    await correcoes.createLote(aplicacao, novas)
   }
 }

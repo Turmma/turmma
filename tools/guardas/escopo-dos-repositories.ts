@@ -37,9 +37,10 @@ export const PROVAS_DE_ESCOPO: ReadonlySet<string> = new Set(['requireEscolaId',
 
 /**
  * Os tipos que fazem uma propriedade ou um parâmetro ser "o banco": `this.banco`, `this.tx`, `tx: DatabaseTransaction`.
- * `DatabaseExecutor` é o banco ou a transação de quem chama, e é como o `AuditoriaRepository` e o `RedeEEscolaRepository` o recebem.
+ * `DatabaseExecutor` é o banco ou a transação de quem chama, e é como o `AuditoriaRepository` e o `RedeEEscolaRepository` o recebem. `DatabasePool` é o pool de onde o
+ * `PulsoRepository` tira a conexão própria do pulso: ele toca o banco, e o `@Unscoped` do método diz por que não tem escola.
  */
-export const TIPOS_DO_BANCO: ReadonlySet<string> = new Set(['Database', 'DatabaseTransaction', 'DatabaseExecutor'])
+export const TIPOS_DO_BANCO: ReadonlySet<string> = new Set(['Database', 'DatabaseTransaction', 'DatabaseExecutor', 'DatabasePool'])
 
 export interface EntradaSemEscopo {
   /** Caminho a partir da raiz do repositório, com `/`. */

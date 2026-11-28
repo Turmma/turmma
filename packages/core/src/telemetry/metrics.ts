@@ -257,6 +257,11 @@ export const METRICS = {
    */
   execucoesAtrasadasDaClassificacao: 'classificacao.execucoes_atrasadas',
   /**
+   * Quantas provas abertas do ano em curso passaram do **fim efetivo** há 5 min ou mais, por `escola_id` (avaliacao-e-correcao, tarefa 6.0; Tech Spec §7c): o `fecha_em` com as extensões da turma e o limite de cada aluno em andamento, com as quedas
+   * da API. É a prova que a rotina por minuto deveria ter encerrado; a do aluno estendido não conta até o limite dele. Só a escola com alguma tem série, medida pelo worker-lote. O alerta "Prova vencida ainda aberta" dispara acima de 0.
+   */
+  provasAbertasAlemDoFim: 'prova.aberta_alem_do_fim',
+  /**
    * Quantas habilidades da BNCC o `concluir` da geração anulou por não serem da seção da página citada (classificacao-bncc, tarefa 10.0; Tech Spec §5, "Geração", e §7c, "Métrica"), por `escola_id`: a questão
    * sai sem habilidade (`null`) e o plano sem aquele código. É o que diz se o modelo está escolhendo habilidade fora do trecho que cita. Só a escola no rótulo: nunca o código, a questão, o artefato nem o professor.
    */
@@ -307,6 +312,7 @@ export const METRICS_WITH_ESCOLA: readonly string[] = [
   METRICS.execucaoInterrompida,
   METRICS.esperaDaClassificacao,
   METRICS.execucoesAtrasadasDaClassificacao,
+  METRICS.provasAbertasAlemDoFim,
   METRICS.habilidadeAnulada,
   METRICS.usoDoOrcamentoDoMes,
   METRICS.usoDoTetoDoOrcamento,

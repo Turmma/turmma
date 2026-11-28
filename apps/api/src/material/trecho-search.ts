@@ -1,6 +1,5 @@
-import { diaDeUso, systemClock, type Clock, type Database } from '@educa/core'
+import { SuspensaoRepository, diaDeUso, systemClock, type Clock, type Database } from '@educa/core'
 import { FUNCAO_DA_TAREFA_DE_IA, type Habilidade } from '@educa/shared'
-import { SuspensaoRepository } from '../ia/suspensao.repository.js'
 import { MaterialRepository } from './material.repository.js'
 import { SecoesRepository } from './secoes.repository.js'
 

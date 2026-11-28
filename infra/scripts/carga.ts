@@ -270,7 +270,7 @@ export async function criarEscolasDoCenario(ambiente: NodeJS.ProcessEnv): Promis
  * Uma sessão real por token, pelo `ops:sessao-sintetica`: não existe mais token sem sessão gravada. Com `semBuild`, chama o `dist` direto (que o `escola criar` e o
  * script da fase já construíram): o `npm run ops:sessao-sintetica` reconstrói três pacotes a cada chamada, e dezenas delas em paralelo se pisariam no `dist`.
  */
-async function sessoesSinteticas(ambiente: NodeJS.ProcessEnv, escolaId: string, papel: string, quantidade: number, grupo: string, semBuild = false): Promise<string[]> {
+export async function sessoesSinteticas(ambiente: NodeJS.ProcessEnv, escolaId: string, papel: string, quantidade: number, grupo: string, semBuild = false): Promise<string[]> {
   const pedido = ['--escola', escolaId, '--papel', papel, '--quantidade', String(quantidade)]
   const { codigo, saida } = semBuild
     ? await rodar('node', ['--env-file=.env.example', 'apps/api/dist/ops/sessao-sintetica.js', ...pedido], ambiente, true)

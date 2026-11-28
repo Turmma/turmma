@@ -807,6 +807,17 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * A rotina do sistema encerrou uma prova vencida (avaliacao-e-correcao, 6.0; RF5 e RF6; Tech Spec §5.6 e §7). `entidadeId` é a atividade aplicada, e o autor é o operador `rotina`: nenhuma pessoa a encerrou.
+   * **Uma por aplicação, nunca por tentativa nem por aluno**: `depois` leva a turma e só a **contagem** de tentativas que o limite tinha vencido, porque quem teve tempo a mais, quem faltou e quem saiu da aba
+   * não é assunto da auditoria da escola (D35, D70). O lote que nasce da correção é o `entrega` pendente, que a professora aprova (regra 70, item 1): a rotina nunca decide nota.
+   */
+  'atividade.encerrada_pelo_limite': {
+    entidade: 'atividade_aplicada',
+    antes: null,
+    depois: z.strictObject({ turmaId: z.uuid(), vencidas: z.number().int().nonnegative() }),
+    finalidade: null,
+  },
+  /**
    * O professor da turma aprovou ou rejeitou uma entrega da IA (MVP; regra 70, itens 3 e 6; regra 20, item 10).
    * `entidadeId` é a entrega; o autor do registro é quem decidiu. A aprovação do lote de correção não vem por aqui: é
    * `lote.aprovado`, com a validação. **Nunca a justificativa da rejeição**, que é texto do professor e fica só na entrega.

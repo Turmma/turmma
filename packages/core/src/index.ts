@@ -379,6 +379,7 @@ export type { PromptData, TaskDefinition, ModelRequest, VersionedPrompt } from '
 export { chaveDoPreco, consumoEstimadoDaInterrompida, custoDaChamada, destinosDaInterrompida, InMemoryConsumo, InMemoryOrcamento, PRECO_DOS_MODELOS, precoDoModelo } from './ia/consumo.js'
 export type { PrecoDoModelo, TabelaDePrecos, VigenciaDePreco, OrcamentoCode, OrcamentoQuery, ConsumoDeIa, DestinoDoAdaptador, DestinosConfigurados, OrcamentoDecision, InMemoryOrcamentoLimits, OrcamentoDeIa, RegistroDeConsumo } from './ia/consumo.js'
 export { exigirFuncaoAtiva, InMemorySuspensoes } from './ia/suspensao.js'
+export { SuspensaoRepository } from './ia/suspensao.repository.js'
 export type { SuspensaoDeFuncao } from './ia/suspensao.js'
 export { MEIO_ABRE_O_DISJUNTOR_EM_MS } from './ia/resilient-adapter.js'
 export { adaptadorDaReserva, createLLMGateway, destinoDoAdaptador, ESPERA_MAXIMA_DA_VAGA_MS, MODELO_DA_REGRA_FIXA, MOTIVO_MODELO_MENOR_SEM_PRECO, MOTIVO_MODELO_SEM_PRECO, LLMGateway } from './ia/llm-gateway.js'
@@ -434,3 +435,28 @@ export {
 export type { ClassificacaoDoTurno, TutorInput, TutorOutput } from './ia/tasks/turno-do-tutor.js'
 export { AulaRepository, CHAVE_DA_TRAVA_DO_VINCULO_DA_AULA, SemanaRepository } from './semana/index.js'
 export type { AlocacaoDaSemana, AnoDaSemana, EventoDaSemana, ItemDaSemana, RegistroDaSemana, VinculoDaSemana } from './semana/index.js'
+export {
+  acertosDoLote,
+  corrigirTentativa,
+  destaquesDaTentativa,
+  DISTANCIA_DO_HISTORICO,
+  FRACAO_DA_TURMA_QUE_ACERTOU,
+  FRACAO_DE_ERROS_ONDE_A_TURMA_ACERTOU,
+  MAXIMO_DE_LOTES_NO_HISTORICO,
+  MINIMO_DE_COLEGAS_PARA_COMPARAR,
+  MINIMO_DE_QUESTOES_NO_HISTORICO,
+  MINIMO_DE_QUESTOES_PARA_COMPARAR_COM_O_HISTORICO,
+  MINIMO_DE_QUESTOES_QUE_A_TURMA_ACERTOU,
+  MINIMO_DE_RESPOSTAS_PARA_MESMA_ALTERNATIVA,
+} from './atividade/correcao-de-objetiva.js'
+export type { AcertosDoLote, CorrecaoCalculada, HistoricoAprovado, RespostasDaTentativa, TentativaParaDestacar } from './atividade/correcao-de-objetiva.js'
+export { CorrecaoDeObjetivaRepository } from './atividade/correcao-de-objetiva.repository.js'
+export type { CorrecaoDoHistorico, NovaCorrecao } from './atividade/correcao-de-objetiva.repository.js'
+export { encerrarPeloLimite, encerrarProva, estaAbertaAlemDoFimEfetivo, fimEfetivo, PRAZO_DO_ALERTA_DA_PROVA_ABERTA_MS, provaAbertaAlemDoFim } from './atividade/encerramento.js'
+export type { DesfechoDaRotina, FuncaoSuspensa } from './atividade/encerramento.js'
+export { EncerramentoDaProvaRepository } from './atividade/encerramento.repository.js'
+export type { AplicacaoDaRotina, AplicacaoTravada, AttemptInProgress, TentativaVencida } from './atividade/encerramento.repository.js'
+export { ProvasVencidasRepository } from './atividade/provas-vencidas.repository.js'
+export type { ProvaVencida } from './atividade/provas-vencidas.repository.js'
+export { pulsoEstaVelho, QuedasDaApiRepository } from './atividade/quedas-da-api.repository.js'
+export type { LeituraDasQuedas } from './atividade/quedas-da-api.repository.js'

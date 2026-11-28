@@ -516,6 +516,18 @@ describe('atividade aplicada', () => {
       expect(await correcoesDa(id)).toHaveLength(2)
     })
 
+    it('o lote de uma aplicação não impede a correção de outra da mesma turma: cada encerramento cria o lote dela', async () => {
+      const primeira = await aplicada()
+      const segunda = await aplicada()
+      await responderProva(rotas, a.aluno, primeira, [0, 1, 2, 3, 0])
+      await responderProva(rotas, a.aluno, segunda, [1, 1, 1, 1, 1])
+      expect((await rotas.encerrar(a.professora, primeira)).status).toBe(200)
+      expect(await lotesDa(primeira)).toHaveLength(1)
+      expect((await rotas.encerrar(a.professora, segunda)).status).toBe(200)
+      expect(await lotesDa(segunda)).toHaveLength(1)
+      expect(await correcoesDa(segunda)).toHaveLength(1)
+    })
+
     it('com a função de correção suspensa, a atividade encerra e nada é corrigido; retomada a função, encerrar de novo corrige', async () => {
       const c = await montarEscolaComAssistente(api, bancada)
       const id = await aplicarAtividade(rotas, c.professora, await criarAtividade(bancada, c), c.turma)

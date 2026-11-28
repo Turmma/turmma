@@ -5,6 +5,8 @@ import {
   defineJob,
   TIPO_AGENDAR_CLASSIFICACAO,
   TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS,
+  TIPO_ENCERRAR_PROVAS_VENCIDAS,
+  TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS,
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
   TIPO_ENVIAR_CONVITE,
@@ -44,6 +46,8 @@ const OS_17_TIPOS = [
   TIPO_EXECUTAR_LOTE,
   TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS,
   TIPO_AGENDAR_CLASSIFICACAO,
+  TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS,
+  TIPO_ENCERRAR_PROVAS_VENCIDAS,
   TIPO_JOB_SINTETICO,
 ] as const
 
@@ -71,6 +75,8 @@ describe('o registro de jobs', () => {
         'ia.executar-lote',
         'sistema.agendar-classificacao',
         'material.agendar-classificacao',
+        'sistema.encerrar-provas-vencidas',
+        'atividade.encerrar-vencidas',
         'sintetico',
       ].sort(),
     )
@@ -96,6 +102,8 @@ describe('o registro de jobs', () => {
       'ia.executar-lote': [['lote'], true, 'escola', 'api'],
       'sistema.agendar-classificacao': [['lote'], true, 'sistema', 'worker'],
       'material.agendar-classificacao': [['lote'], true, 'escola', 'worker'],
+      'sistema.encerrar-provas-vencidas': [['lote'], false, 'sistema', 'worker'],
+      'atividade.encerrar-vencidas': [['lote'], false, 'escola', 'worker'],
       sintetico: [['interativa', 'normal', 'lote'], 'do-pedido', 'escola', 'worker'],
     })
   })
@@ -133,6 +141,8 @@ describe('o registro de jobs', () => {
       [TIPO_EXECUTAR_LOTE]: { execucaoId: UM_UUID },
       [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: {},
       [TIPO_AGENDAR_CLASSIFICACAO]: {},
+      [TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS]: {},
+      [TIPO_ENCERRAR_PROVAS_VENCIDAS]: {},
       [TIPO_JOB_SINTETICO]: { cpuMs: 0, falhar: false },
     }
     for (const tipo of OS_17_TIPOS) {
@@ -195,6 +205,9 @@ describe('o registro de jobs', () => {
       // A rotina das 19h só grava um job por escola; o da escola lê as seções em lotes de 500 e tem meia hora (classificacao-bncc, 5.0).
       [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: 600_000,
       [TIPO_AGENDAR_CLASSIFICACAO]: 1_800_000,
+      // A rotina por minuto da prova vencida e o job de cada escola: um minuto, o do laço de até 200 provas (avaliacao-e-correcao, 6.0).
+      [TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS]: 60_000,
+      [TIPO_ENCERRAR_PROVAS_VENCIDAS]: 60_000,
       [TIPO_JOB_SINTETICO]: 90_000,
     })
   })

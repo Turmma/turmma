@@ -398,7 +398,10 @@ describe('prova online: o aluno começa e responde dentro do limite', () => {
       await posicionar(enviada, ana, -10, 30)
       await rotas.enviar(ana, enviada)
       await posicionar(enviada, ana, -41, -3)
+      // A atividade encerrada com a tentativa ainda com tempo fica sem envio (a vencida, ao encerrar, é gravada no limite dela: caso a seguir); depois o limite passa.
+      await posicionar(encerrada, ana, -10, 30)
       await encerrarAtividade(rotas, a.professora, encerrada)
+      await posicionar(encerrada, ana, -41, -3)
       const lista = minhasAtividadesResponseSchema.parse((await rotas.minhas(ana, '?limite=100')).corpo).itens
       const de = (id: string) => lista.find((item) => item.id === id)
       // Sem extensão: vencida há 3 min, conta como enviada, com o limite como hora. A extensão do aluno e a da turma a mantêm em andamento; a de outro aluno não vale para ela.
@@ -440,6 +443,35 @@ describe('prova online: o aluno começa e responde dentro do limite', () => {
         await conexao.query('rollback')
         conexao.release()
       }
+    })
+
+    it('a professora encerrando grava a vencida no limite dela (`envio` = limite) e deixa sem envio a que ainda tinha tempo, que segue com o que salvou (6.0; Tech Spec §5.5)', async () => {
+      await pulsar()
+      // Uma queda gravada nos últimos 35 min (de outro caso ou de outro arquivo da rodada) andaria o limite que o caso compara.
+      await sql("delete from indisponibilidade where fim > now() - interval '3 hours'")
+      const id = await aplicarProva()
+      for (const aluno of [ana, bia]) {
+        await rotas.comecar(aluno, id)
+        expect((await rotas.responder(aluno, id, 1, 0)).status).toBe(200)
+      }
+      await posicionar(id, ana, -35, -5)
+      await posicionar(id, bia, -5, 20)
+      expect((await rotas.encerrar(a.professora, id)).status).toBe(200)
+      const daAna = await tentativaDe(id, ana)
+      expect(daAna?.envio).toBe('limite')
+      expect(daAna?.enviada_em?.toISOString()).toBe(daAna?.limite_base_em?.toISOString())
+      const semEnvio = async () => {
+        const daBia = await tentativaDe(id, bia)
+        return [daBia?.enviada_em, daBia?.envio]
+      }
+      expect(await semEnvio()).toEqual([null, null])
+      // As duas entram na correção, com o que cada uma salvou.
+      expect(await contar('correcao', 'atividade_aplicada_id = $1', [id])).toBe(2)
+      // Encerrar de novo, com o limite da que tinha tempo já passado, não regrava nada: o fato gravado no primeiro encerramento é o que vale, e a Bia segue sem envio (o `encerramento` é derivado: não se grava).
+      await posicionar(id, bia, -35, -5)
+      expect((await rotas.encerrar(a.professora, id)).status).toBe(200)
+      expect(await semEnvio()).toEqual([null, null])
+      expect(await contar('correcao', 'atividade_aplicada_id = $1', [id])).toBe(2)
     })
   })
 

@@ -181,6 +181,7 @@ describe('métricas com escola', () => {
         METRICS.execucaoInterrompida,
         METRICS.esperaDaClassificacao,
         METRICS.execucoesAtrasadasDaClassificacao,
+        METRICS.provasAbertasAlemDoFim,
         METRICS.habilidadeAnulada,
         METRICS.usoDoOrcamentoDoMes,
         METRICS.usoDoTetoDoOrcamento,

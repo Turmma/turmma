@@ -1,4 +1,4 @@
-import { adaptadorDaReserva, createLLMGateway, createQueueRedisClient, destinoDoAdaptador, globalMeter, observeProvedorDeReserva, SoberaniaNaSubida, tarefasAprovadasParaAReserva, throttledWarn, TokenLimiter, SuboperadorDaEscolaRepository, type Database, type DestinoDoAdaptador, type LimiteDeTokens, type LLMConfig, type LoggerBase, type Meter, type OrcamentoDeIa, type SuspensaoDeFuncao } from '@educa/core'
+import { SuspensaoRepository, adaptadorDaReserva, createLLMGateway, createQueueRedisClient, destinoDoAdaptador, globalMeter, observeProvedorDeReserva, SoberaniaNaSubida, tarefasAprovadasParaAReserva, throttledWarn, TokenLimiter, SuboperadorDaEscolaRepository, type Database, type DestinoDoAdaptador, type LimiteDeTokens, type LLMConfig, type LoggerBase, type Meter, type OrcamentoDeIa, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Inject, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { DB } from '../database.module.js'
@@ -6,7 +6,6 @@ import { ConsumoRepository } from './consumo.repository.js'
 import { LLM_PROVIDER, ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
 import { RegistroDeComandos } from './registro-de-comandos.js'
-import { SuspensaoRepository } from './suspensao.repository.js'
 
 /** O cliente Redis do limite de tokens (49.0): o de fila, sem fila offline e com prazo por comando, como o das vagas. `null` quando a configuração não tem `LLM_TOKENS_POR_MINUTO` nem `LLM_RESERVA_TOKENS_POR_MINUTO` (só em `AMBIENTE=local`). É um só para o limitador do principal e o da reserva. */
 export const REDIS_DOS_TOKENS = Symbol('REDIS_DOS_TOKENS')

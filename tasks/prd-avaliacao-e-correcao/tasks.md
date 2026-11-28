@@ -36,13 +36,13 @@
   - [x] 5.1 `extensoes` com chave; `acompanhamento` numa consulta
   - [x] 5.2 Testes: RF4, corrida (d), §1b do professor
 
-- [ ] **6.0 — A rotina encerra a prova vencida no fim efetivo, e não durante uma queda**
-  - [ ] 6.1 `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas`
-  - [ ] 6.2 `encerrarPeloLimite`
-  - [ ] 6.3 Alertas (prova aberta além do fim efetivo; p95 do PUT) e runbook
-  - [ ] 6.4 Etapa 1 da AIA
-  - [ ] 6.5 Carga `prova-online.js`
-  - [ ] 6.6 Testes: §2 da rotina, corridas (c), (e), (f), (j), (l)
+- [x] **6.0 — A rotina encerra a prova vencida no fim efetivo, e não durante uma queda**
+  - [x] 6.1 `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas`
+  - [x] 6.2 `encerrarPeloLimite`
+  - [x] 6.3 Alertas (prova aberta além do fim efetivo; p95 do PUT) e runbook
+  - [x] 6.4 Etapa 1 da AIA
+  - [x] 6.5 Carga `prova-online.js`
+  - [x] 6.6 Testes: §2 da rotina, corridas (c), (e), (f), (j), (l)
 
 - [x] **7.0 — Tutor travado por aluno até o fim da janela ou o limite dele**
   - [x] 7.1 `avaliativaAberta` por aluno, com `limiteDaTentativa`, e o convocado

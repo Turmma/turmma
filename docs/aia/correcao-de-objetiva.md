@@ -64,7 +64,7 @@ A saída da aba (D70) não usa IA: é a contagem de quantas vezes a aba da prova
 
 ### 1.4 O que a função faz (escopo positivo)
 
-1. **Dispara** no fim da atividade ou da avaliação, quando o professor a encerra.
+1. **Dispara** no fim da atividade ou da avaliação: quando o professor a encerra, ou, na prova online, quando ela vence. Nesse caso a **rotina da escola** encerra a prova no minuto em que o último tempo (o do fim da janela, com a extensão da turma, ou o de cada aluno ainda fazendo a prova) acaba, e só se a API estiver de pé: com a API parada nada encerra, porque o tempo do aluno ainda vai andar. A rotina é só o gatilho: corrige pelo mesmo caminho do professor, não decide nada sobre o aluno, e o lote que ela cria nasce pendente. O que ela grava na auditoria é o fato (a prova encerrou pelo limite e quantas tentativas venceram), sem o nome de aluno nenhum. Escola com a função suspensa (1.7) tem a prova encerrada sem correção.
 2. Corrige cada resposta objetiva comparando com o gabarito.
 3. Monta o **lote** da turma: média, distribuição, acerto por habilidade, relatório por questão
    e os **destaques** — prova em branco, resultado muito fora do histórico do aluno, item com
@@ -80,7 +80,7 @@ A saída da aba (D70) não usa IA: é a contagem de quantas vezes a aba da prova
    existir com a validação registrada do professor.
 9. **Saída da aba (D70):** durante uma avaliação online, o sistema conta quantas vezes a aba da
    prova perdeu o foco e mostra o número ao professor da turma, como fato, junto dos destaques.
-   O aluno é avisado antes de começar.
+   O aluno é avisado antes de começar. A contagem existe **só no lote**, preso àquela avaliação, e a rotina que encerra a prova vencida não a lê, não a soma por aluno e não a usa para nada: ela só encerra no limite e cria o lote pendente.
 
 ### 1.5 O que a função não faz (escopo negativo)
 

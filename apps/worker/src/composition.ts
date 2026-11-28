@@ -16,6 +16,7 @@ import {
   SyntheticEffectRepository,
   JobOutbox,
   ClassificacaoAtrasadaRepository,
+  ProvasVencidasRepository,
   OrcamentoDoMesRepository,
   CronEscolasRepository,
   ExpurgoDaEscolaRepository,
@@ -56,6 +57,8 @@ import {
   TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS,
   TIPO_CONSOLIDAR_USO,
   TIPO_ELIMINAR_TITULAR,
+  TIPO_ENCERRAR_PROVAS_VENCIDAS,
+  TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS,
   TIPO_ENVIAR_CONVITE,
   TIPO_ENVIAR_EMAIL_DA_CONTA,
   TIPO_EXTRAIR_PDF,
@@ -79,6 +82,7 @@ import { JOB_SCHEDULES, createScheduleProcessor, SCHEDULES_QUEUE, registerJobSch
 import type { StorageConfig, WorkerConfig } from './config.js'
 import { createAgendamentoDaClassificacao, createRotinaDaClassificacao } from './processors/agendar-classificacao.js'
 import { createConsolidacaoDeUso } from './processors/consolidar-uso.js'
+import { createEncerramentoDasProvasVencidas, createRotinaDasProvasVencidas } from './processors/encerrar-provas-vencidas.js'
 import { createEnvioDoConvite, createEnvioDoLinkDaConta, createEnvios, type EnviosDoEmail } from './processors/enviar-email.js'
 import { createExpurgoDeAcesso } from './processors/expurgar-acesso.js'
 import { createExpurgoDeJobs } from './processors/expurgar-jobs.js'
@@ -90,6 +94,7 @@ import { createVarreduraDeTemporarios } from './processors/varrer-envios.js'
 import { EliminacaoGauge } from './eliminacao-gauge.js'
 import { ArquivoGauge } from './arquivo-gauge.js'
 import { ClassificacaoGauge } from './classificacao-gauge.js'
+import { ProvaAbertaGauge } from './prova-aberta-gauge.js'
 import { OrcamentoGauge } from './orcamento-gauge.js'
 import type { EscolaGauge } from './escola-gauge.js'
 import { ImportacaoGauge } from './importacao-gauge.js'
@@ -395,7 +400,7 @@ interface MedicoesPorEscolaDependencies {
 }
 
 /**
- * As medições por escola que os alertas leem (as noites do expurgo, o incidente sem confirmação, o arquivo do titular, a eliminação, a classificação do material atrasada e o uso do orçamento de IA do mês): sobem com o worker-lote, medem a cada
+ * As medições por escola que os alertas leem (as noites do expurgo, o incidente sem confirmação, o arquivo do titular, a eliminação, a classificação do material atrasada, o uso do orçamento de IA do mês e a prova aberta além do fim efetivo): sobem com o worker-lote, medem a cada
  * volta e param com ele. Sem medidor não há medição. Devolve o que as encerra, uma depois da outra.
  */
 function startMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, janelaDaEscola, relogio, logger, medidor }: MedicoesPorEscolaDependencies): () => Promise<void> {
@@ -409,6 +414,7 @@ function startMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, jan
           new EliminacaoGauge({ escolas, repositorio: expurgoDaEscola, relogio, logger, medidor }),
           new ClassificacaoGauge({ escolas, repositorio: new ClassificacaoAtrasadaRepository(banco), janelaDaEscola, relogio, logger, medidor }),
           new OrcamentoGauge({ escolas, repositorio: new OrcamentoDoMesRepository(banco), relogio, logger, medidor }),
+          new ProvaAbertaGauge({ escolas, banco, relogio, logger, medidor }),
         ]
   for (const medicao of medicoes) medicao.start()
   return async () => {
@@ -420,7 +426,7 @@ function startMedicoesPorEscola({ escolas, banco, expurgoDaEscola, arquivos, jan
  * As rotinas do sistema, que só a réplica de lote executa: consolidação de uso (com o storage),
  * expurgo de `job_registro`, expurgo do acesso (registro de acesso, sessão e convite, 17.0), a varredura horária do PDF que sobrou no storage (ingestao-do-material, 2.0) e o expurgo do dado pessoal
  * (F3, tarefa 3.0): a rotina que grava um job por escola, o job da escola, e, com o medidor, a medição das noites
- * incompletas que o alerta lê.
+ * incompletas que o alerta lê, e a rotina por minuto que encerra a prova vencida (avaliacao-e-correcao, 6.0), com o job de cada escola.
  */
 function createRoutines(
   storage: StorageConfig,
@@ -458,6 +464,8 @@ function createRoutines(
       [TIPO_EXPURGAR_DADO_PESSOAL]: createRotinaDeExpurgo({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
       [TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS]: createRotinaDaClassificacao({ escolas, banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), janelaDaEscola, relogio, logger }),
       [TIPO_AGENDAR_CLASSIFICACAO]: createAgendamentoDaClassificacao({ banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), logger }),
+      [TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS]: createRotinaDasProvasVencidas({ provas: new ProvasVencidasRepository(banco), banco, enfileirador: new JobOutbox(new JobOutboxRepository(banco)), relogio, logger }),
+      [TIPO_ENCERRAR_PROVAS_VENCIDAS]: createEncerramentoDasProvasVencidas({ banco, logger }),
       [TIPO_EXPURGAR_ESCOLA]: createExpurgoDaEscola({
         repositorio: expurgoDaEscola,
         arquivos,

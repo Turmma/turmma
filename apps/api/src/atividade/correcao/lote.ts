@@ -1,6 +1,6 @@
 import { ALTERNATIVAS_POR_QUESTAO, type DiagnosticoGravado, type Habilidade, type LoteApresentado, type MotivoDeDestaque, type QuestaoObjetiva, type ResumoDoLote } from '@educa/shared'
 import { createHash } from 'node:crypto'
-import type { RespostasDaTentativa } from './correcao-de-objetiva.js'
+import type { RespostasDaTentativa } from '@educa/core'
 
 /** Uma linha de `correcao`, com o que o lote soma e mostra. */
 export interface CorrecaoDoLote {

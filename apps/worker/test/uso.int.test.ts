@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { DeleteObjectCommand, DeleteObjectsCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3'
 import { UsageMeter, currentContext, runInContext, UsageRepository, VALIDADE_DO_CONTADOR_SEGUNDOS, type UsagePeriod, JobFailureError } from '@educa/core'
-import { JobFailureCode, TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS, TIPO_CONSOLIDAR_USO, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL } from '@educa/shared'
+import { JobFailureCode, TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS, TIPO_CONSOLIDAR_USO, TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS, TIPO_EXPURGAR_ACESSO, TIPO_EXPURGAR_DADO_PESSOAL, TIPO_EXPURGAR_JOBS, TIPO_VARRER_TEMPORARIOS_DE_MATERIAL } from '@educa/shared'
 import { Queue } from 'bullmq'
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished } from 'vitest'
@@ -588,13 +588,14 @@ describe('uso por escola: contagem, consolidação e bytes', () => {
       await fila.close()
     })
 
-    it('as rotinas são agendadas à 1h, às 2h, às 3h30 e às 4h30 de São Paulo, a da classificação às 19h, e a varredura do PDF que sobrou, de hora em hora no minuto 10, e registrar de novo (a outra réplica) não duplica o agendador', async () => {
+    it('as rotinas são agendadas à 1h, às 2h, às 3h30 e às 4h30 de São Paulo, a da classificação às 19h, a da prova vencida a cada minuto, e a varredura do PDF que sobrou, de hora em hora no minuto 10, e registrar de novo (a outra réplica) não duplica o agendador', async () => {
       await registerJobSchedulers(fila)
       await registerJobSchedulers(fila)
       const agendadores = await fila.getJobSchedulers()
       expect(agendadores.map(({ key, pattern, tz }) => ({ key, pattern, tz })).sort((a, b) => a.key.localeCompare(b.key))).toEqual([
         { key: TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS, pattern: '0 19 * * *', tz: SCHEDULE_TIMEZONE },
         { key: TIPO_CONSOLIDAR_USO, pattern: '0 2 * * *', tz: SCHEDULE_TIMEZONE },
+        { key: TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS, pattern: '* * * * *', tz: SCHEDULE_TIMEZONE },
         { key: TIPO_EXPURGAR_ACESSO, pattern: '30 4 * * *', tz: SCHEDULE_TIMEZONE },
         { key: TIPO_EXPURGAR_DADO_PESSOAL, pattern: '0 1 * * *', tz: SCHEDULE_TIMEZONE },
         { key: TIPO_EXPURGAR_JOBS, pattern: '30 3 * * *', tz: SCHEDULE_TIMEZONE },

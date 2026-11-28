@@ -227,7 +227,7 @@ describe('auditoria no banco', () => {
     })
   })
 
-  describe('o autor `rotina` (F3, tarefa 15.0): o banco o aceita só nas ações da eliminação, na substituição da edição do material (8.0) e na herança da classificação dela (classificacao-bncc, 2.0)', () => {
+  describe('o autor `rotina` (F3, tarefa 15.0): o banco o aceita só nas ações da eliminação, na substituição da edição do material (8.0), na herança da classificação dela (classificacao-bncc, 2.0) e no encerramento da prova vencida (avaliacao-e-correcao, 6.0)', () => {
     const comoRotina = (acao: string, entidade: string) =>
       pool.query(
         `insert into auditoria (escola_id, autor_usuario_id, autor_operador, acao, entidade, entidade_id, requisicao_id)
@@ -244,6 +244,8 @@ describe('auditoria no banco', () => {
       ['material.substituido', 'material'],
       // A mesma transação herda a correção da anterior para a edição nova (classificacao-bncc, 2.0): sem pessoa, assinada pela rotina.
       ['material.classificacao_herdada', 'material'],
+      // O job por escola que encerra a prova vencida grava o fato sem pessoa, assinado pela rotina (avaliacao-e-correcao, 6.0): ele não aprova nem valida nada, o lote nasce pendente.
+      ['atividade.encerrada_pelo_limite', 'atividade_aplicada'],
     ])('aceita %s', async (acao, entidade) => {
       await comoRotina(acao, entidade)
       const { rows } = await pool.query('select autor_operador from auditoria where escola_id = $1 and acao = $2', [escolaA, acao])

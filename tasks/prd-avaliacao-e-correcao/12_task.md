@@ -10,7 +10,7 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 
 ## Contexto necessário
 
-- `techspec.md` §4 (`prova`, `tempo`), §5.8, §9
+- `techspec.md` §4 (`prova`, `tempo`), §5.8, §9 (com o reenvio espalhado), §7c (carga)
 - `prd.md` RF5, RF6, RF7; §7
 - `cenarios.md` §1 (as linhas da tela de RF5, RF6, RF7 e RF9), §4 (aluno), §4b
 - `.claude/rules/50`, `70` item 4b; `docs/interface.md` §2
@@ -21,7 +21,9 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 - [ ] 12.1 — Atividades: "Abre em…", "Fechou"; "Antes de começar" lendo `prova` sem tentativa (duração sem "adicional")
   e "Começar"
 - [ ] 12.2 — `/aluno/prova/:id` fora da casca: relógio com o desvio, "Salvando…", "Sair da prova" de um clique; o fim
-- [ ] 12.3 — A fila de respostas no app (§9)
+- [ ] 12.3 — A fila de respostas no app (§9), com o reenvio espalhado: o `online` deixa de mandar na hora e cada fila sorteia
+  de 0 a `ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS` (5 s, em `respostas.ts`) antes de tentar; "Tentar de novo", o item marcado e
+  a sessão que volta continuam na hora; o recuo de `esperaAntesDeTentar` não muda (decisão do Joaquim, 27/11, na 6.0)
 - [ ] 12.4 — A fila de saídas (§5.8)
 - [ ] 12.5 — Acessibilidade da §4; os textos de erro e o do "Enviar" com 503
 - [ ] 12.6 — Roteiro da demonstração e o spec dele; `docs/interface.md` §2
@@ -47,7 +49,9 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 | `apps/web/src/areas/aluno/AntesDeComecar.tsx` | novo |
 | `apps/web/src/areas/aluno/ProvaEmFoco.tsx` | novo |
 | `apps/web/src/areas/aluno/ProvaEmFoco.test.tsx` | novo |
-| `apps/web/src/areas/aluno/fila-de-respostas.ts` | alterado |
+| `apps/web/src/areas/aluno/fila-de-respostas.ts` | alterado (o `online` com o sorteio) |
+| `apps/web/src/areas/aluno/respostas.ts`, `respostas.test.ts` | alterado (`ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS`; o caso "tentar agora (a rede voltou…)" separa o `online` do botão) |
+| `infra/test/carga-prova.test.ts` | alterado (o k6 repete `ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS` do app) |
 | `apps/web/src/areas/aluno/fila-de-saidas.ts` | novo |
 | `apps/web/src/areas/aluno/fila-de-saidas.test.ts` | novo |
 | `e2e/aluno-prova.spec.ts` | novo |
@@ -61,6 +65,8 @@ O aluno lê o aviso, faz a prova em tela de foco com o relógio do servidor, sem
 |---|---|---|---|---|
 | Relógio do cliente 10 min adiantado | unidade web | o tempo do servidor | `Date.now()` sem desvio fica vermelho | |
 | Sem rede; 503 e depois 200 | unidade web | gravam uma vez; a saída volta com a mesma chave; `tempo` mantém o último limite | descartar na queda ou no 5xx | |
+| A rede volta (`online`) com 3 pendentes, sorteio fixado em 4 s pelo `agendar` e pelo sorteio injetados | unidade web | nada sai antes dos 4 s; aos 4 s, as 3 saem uma por vez; o sorteio fica entre 0 e 5 s; "Tentar de novo" e a escolha nova saem na hora | o `online` chamando o `tryAgora` direto (sai no instante 0) | |
+| O k6 imita a fila do app | unidade (infra) | `ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS`, `PRIMEIRA_ESPERA_DA_FILA_MS`, `MAIOR_ESPERA_DA_FILA_MS`, o jitter e o prazo do PUT iguais em `respostas.ts`/`client.ts` e em `infra/k6/prova-online.js` | trocar um dos lados | `infra/test/carga-prova.test.ts` |
 | "Enviar" com 503 | unidade web | o item fica; o texto da §4 | | |
 | `TEMPO_ESGOTADO`, extensão, `tempo` com o limite novo | unidade web | a fila reenvia e grava | parar no primeiro | |
 | "Sair" com 2 pendentes | unidade web | a fila segue; o fim mostra "2 respostas não chegaram"; Atividades, "2 respostas ainda não chegaram" até esvaziar | fila presa à rota | |

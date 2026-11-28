@@ -1,0 +1,63 @@
+# Alerta "Prova vencida ainda aberta" (avaliacao-e-correcao, tarefa 6.0; Tech Spec §7c; runbook: docs/runbook.md#prova-vencida-ainda-aberta).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# `prova.aberta_alem_do_fim{escola_id}` é medida pelo worker-lote a cada 5 min, de `atividade_aplicada`: as provas abertas do ano em curso da escola que passaram do **fim efetivo** (o `fecha_em` com as extensões da
+# turma e o limite de cada aluno em andamento, com as quedas da API) há 5 min ou mais. É a prova que a rotina por minuto deveria ter encerrado, e que está pendurada: a professora não recebe o lote, e o aluno
+# continua com a prova "aberta". O aluno estendido além do `fecha_em` não conta até o limite dele: o fim é o efetivo, não o da janela. Dispara por escola quando passa de 0, em qualquer réplica, por 1 min. O alerta
+# traz a escola, nunca a prova, a turma nem o aluno.
+#
+# Sem dado é normal: só a escola com prova nessa situação tem série, e ela some quando a rotina a encerra.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: prova-vencida-aberta
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-prova-vencida-aberta
+        title: Prova vencida ainda aberta
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: prova
+        annotations:
+          summary: 'Há prova da escola {{ $labels.escola_id }} aberta 5 min além do fim efetivo: a rotina não a encerrou'
+          description: A rotina por minuto que encerra a prova vencida não encerrou, ou não chegou a rodar. A professora não recebe o lote de correção enquanto a prova estiver aberta. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#prova-vencida-ainda-aberta
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: max by (escola_id) (prova_aberta_alem_do_fim{job="educa/worker"})
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0]

@@ -2984,6 +2984,55 @@
           "range": true
         }
       ]
+    },
+    {
+      "id": 63,
+      "type": "timeseries",
+      "title": "Prova aberta além do fim efetivo, por escola",
+      "description": "Quantas provas abertas da escola passaram do fim efetivo (o `fecha_em` com as extensões da turma e o limite de cada aluno em andamento, com as quedas da API) há 5 min ou mais (avaliacao-e-correcao, tarefa 6.0): a rotina por minuto devia tê-las encerrado. Medido pelo worker-lote a cada 5 min; só a escola tem série, e ela some quando a rotina encerra a prova. O alerta \"Prova vencida ainda aberta\" dispara acima de 0. Só a escola no rótulo: nunca a prova, a turma nem o aluno. O que fazer está no runbook.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 195
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (escola_id) (prova_aberta_alem_do_fim)",
+          "legendFormat": "{{escola_id}}",
+          "range": true
+        }
+      ]
     }
   ]
 }

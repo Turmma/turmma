@@ -1,4 +1,5 @@
 import {
+  SuspensaoRepository,
   currentContext,
   runInContext,
   DomainException,
@@ -44,7 +45,6 @@ import { ExecucaoDaSessaoRepository, ExecucaoRepository } from './execucao.repos
 import { ORCAMENTO_DE_IA, SUSPENSAO_DE_FUNCAO } from './ia.module.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
 import { RegistroDeComandos, tarefasSemComando, TAREFAS_SEM_CHAMADOR } from './registro-de-comandos.js'
-import { SuspensaoRepository } from './suspensao.repository.js'
 import type { ModelAdapter, ModelCall, ModelResponse } from '../../../../packages/core/src/ia/adapter.js'
 import type { Perfil } from '../../../../packages/core/src/ia/perfis.js'
 import { atividadeDeEstequiometria, entradaDeAtividade } from '../../../../packages/core/src/ia/__fixtures__/inputs.js'

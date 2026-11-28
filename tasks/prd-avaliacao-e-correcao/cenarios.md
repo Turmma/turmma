@@ -159,9 +159,44 @@
 
 ## 5. Carga
 
-`infra/k6/prova-online.js`, junto da `FASE=sala`: 10 escolas, 6 turmas cada, 35 alunos × 20 itens, com `tempo` a cada
+`infra/k6/prova-online.js`, em cenário próprio (`npm run carga:prova`), **separado** da `FASE=sala` (decidido na triagem da 6.0: a pausa de 90 s das APIs reprovaria os critérios de espera da sala pela queda, e não pela prova; e as 60 turmas da prova já são os ~2.100 alunos da manhã, `docs/infra.md` §3.1 e §3.3, de modo que somá-las à sala contaria o pico duas vezes. Os critérios abaixo não mudam): 10 escolas, 6 turmas cada, 35 alunos × 20 itens, com `tempo` a cada
 30 s e a rede de 10% dos alunos caindo 1 min. No meio da prova, todas as instâncias da API fora por 90 s.
 
-Passa quando: p95 do PUT de resposta abaixo de 500 ms; respostas enviadas pelo cliente = linhas gravadas; a queda anda o
-limite dos alunos em prova em 90 s e nenhuma prova é encerrada durante ela. Controle negativo: com o PUT atrasado
-artificialmente em 600 ms, o cenário reprova.
+O cliente do k6 imita a fila do app (Tech Spec §9): um item por vez, o item novo sai na hora, o recuo de 2, 4, 8 e 15 s
+com ±25% de jitter depois da falha, o item que estourou o prazo de 10 s vai para o fim, e na volta da rede cada aluno
+sorteia de 0 a 5 s antes de reenviar. As constantes são as do app, e `infra/test/carga-prova.test.ts` confere as duas.
+
+Passa quando (critério dividido, decisão do Joaquim em 27/11/2026, na 6.0):
+
+- **Fluxo normal:** p95 do PUT de resposta abaixo de 500 ms, contado só no PUT do aluno que não está se recuperando
+  (`put_fluxo_normal_ms`). Está se recuperando o aluno da primeira falha (ou da rede que caiu com ele respondendo) até a
+  fila dele esvaziar; o PUT desse trecho é medido à parte (`put_da_volta_ms`), sem limite. **Fora da janela da volta**
+  (triagem do Arquiteto e decisão de 27/11/2026, na 6.0, `.processo/divergencia-6.0-carga.md` item 3, opção A): o PUT
+  normal que começa antes de `FIM_DA_QUEDA_S + 60` e termina depois de `FIM_DA_QUEDA_S` também fica fora do critério
+  (`put_fluxo_normal_na_volta_ms`, sem limite, só para ler). São os mesmos 60 s que a fila tem para esvaziar: nesse
+  trecho o sistema inteiro se recupera, e o aluno que já esvaziou a fila disputa o pool da API com a rajada de ~2.100
+  filas acumuladas (cada PUT pega o pool duas vezes, a sessão e a transação). Exigir dele o p95 normal ali mede a
+  máquina de teste, com Postgres, as duas APIs e os VUs do k6 na mesma VM.
+- **Falhas fora da queda:** zero (`put_falhas_fora_da_queda`, e `respostas_inesperadas` para `comecar`, `tempo` e
+  `enviar`). A janela da queda vai de 15 s antes dela até `FIM_DA_QUEDA_S + 60`, e nela só a indisponibilidade é da
+  queda (status 0, 502, 503 e 504, este com `Retry-After`); um 500 ou um 4xx ali continua defeito. O pool que não
+  entrega conexão no prazo responde 503 `INDISPONIVEL_TENTE_DE_NOVO`, não 500 (correção `2026-11-27-pool-503`).
+- **Volta da queda:** nenhuma perda, ou seja, respostas enviadas pelo cliente = linhas gravadas = 42.000; e a fila de
+  cada aluno que atravessou a queda esvazia em até **60 s** depois do fim previsto dela (`fila_esvaziada_na_volta_s`,
+  o máximo; a fila que desiste no prazo entra com o tempo até desistir).
+- A queda anda o limite dos alunos em prova em 90 s e nenhuma prova é encerrada durante ela.
+
+Por que 60 s: o pior caso do desenho é ~45 s (a API volta uns segundos depois do `unpause`; o aluno no teto do recuo
+espera até 18,75 s; o que estava pendurado leva até 10 s; e a maior fila, a de quem ficou sem rede antes da queda, tem
+8 ou 9 itens, que na volta saem a ~1,6 s cada no p95 medido), e 60 s ainda fica abaixo dos 3 min em que o alerta
+"Salvamento de resposta de prova lento" precisa do p95 alto para disparar: uma volta que cumpre o critério não dispara
+o alerta, e uma que leva minutos é defeito, não a máquina de teste.
+
+O que a janela da volta não afrouxa: a volta que leva minutos reprova pela fila (o controle de 150 s prova isso); o PUT
+600 ms mais lento reprova pelo fluxo normal fora da janela; nenhuma resposta se perde; e o alerta de produção não muda,
+porque pede o p95 alto por 3 min e a rajada da volta dura ~40 s. O risco aceito: nas piores rodadas a fila levou 57 s;
+se a lentidão passar de `FIM_DA_QUEDA_S + 60`, a rodada reprova assim mesmo, pelo fluxo normal e pela fila.
+
+Controles negativos, os dois só depois de uma rodada verde: com o PUT atrasado artificialmente em 600 ms, o cenário
+reprova pelo p95 do fluxo normal; com as APIs fora por 150 s em vez de 90 s (o k6 sem saber), reprova pela volta
+(entre as reprovações, a `fila_esvaziada_na_volta_s`).

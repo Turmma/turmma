@@ -484,6 +484,13 @@
       "when": 1795455480141,
       "tag": "0068_prova_online",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1795541880141,
+      "tag": "0069_auditoria_da_rotina_da_prova",
+      "breakpoints": true
     }
   ]
 }

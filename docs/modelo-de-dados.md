@@ -102,7 +102,7 @@ marca ou cuja marca tem mais de 20 h, até 500 por noite. O job troca o nome com
 linha de execução, consumo, artefato e entrega. Depois, numa transação só, na ordem pedido → usuário: refaz o compartilhamento,
 anonimiza as execuções do titular, elimina a pessoa, marca `apagado_em` nos arquivos dele, conclui os outros pedidos abertos e
 conclui o pedido. O autor é quem registrou, se ainda é usuário ativo da escola, ou `rotina` (`autor_operador`, só em
-`usuario.eliminado`, `acesso_turma.revogado`, `titular.nome_trocado`, `pedido.concluido` e `material.substituido`, por check do banco). O pedido guarda
+`usuario.eliminado`, `acesso_turma.revogado`, `titular.nome_trocado`, `pedido.concluido`, `material.substituido` e, desde a `0069` (avaliacao-e-correcao, 6.0), `atividade.encerrada_pelo_limite`, uma por aplicação e sem aluno, por check do banco). O pedido guarda
 só o id do titular e as duas marcas, `nome_trocado` e `homonimo`.
 
 **A identidade é global, os vínculos são por escola** (decidido na Tech Spec do F1). `Conta`

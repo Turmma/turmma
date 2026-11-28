@@ -84,11 +84,13 @@ describe('a réplica de cada fila contra o registro de jobs', () => {
     expect(await tiposDaReplicaDa('interativa')).toEqual(['sintetico'])
     expect(await tiposDaReplicaDa('normal')).toEqual(['email.enviar-convite', 'estrutura.gravar-planilha', 'sintetico', 'sistema.enviar-email-da-conta', 'titular.montar-arquivo'])
     expect(await tiposDaReplicaDa('lote')).toEqual([
+      'atividade.encerrar-vencidas',
       'material.agendar-classificacao',
       'retencao.expurgar-escola',
       'sintetico',
       'sistema.agendar-classificacao',
       'sistema.consolidar-uso',
+      'sistema.encerrar-provas-vencidas',
       'sistema.expurgar-acesso',
       'sistema.expurgar-dado-pessoal',
       'sistema.expurgar-jobs',

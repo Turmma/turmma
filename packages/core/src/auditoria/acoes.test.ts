@@ -150,6 +150,15 @@ describe('mapa de ações da auditoria', () => {
     expect(estendido.depois.safeParse({ escopo: 'aluno', alunoId: UM_ID }).success, 'o aluno não entra').toBe(false)
   })
 
+  it('avaliacao-e-correcao 6.0: `atividade.encerrada_pelo_limite` leva a turma e a contagem de vencidas, uma por aplicação: nunca o aluno, o percentual nem os minutos', () => {
+    const encerrada = ACOES_DE_AUDITORIA['atividade.encerrada_pelo_limite']
+    expect([encerrada.entidade, encerrada.antes, encerrada.finalidade]).toEqual(['atividade_aplicada', null, null])
+    expect(encerrada.depois.safeParse({ turmaId: UM_ID, vencidas: 3 }).success).toBe(true)
+    expect(encerrada.depois.safeParse({ turmaId: UM_ID, vencidas: -1 }).success, 'contagem negativa').toBe(false)
+    expect(encerrada.depois.safeParse({ turmaId: UM_ID, vencidas: 3, alunoId: UM_ID }).success, 'o aluno não entra').toBe(false)
+    expect(encerrada.depois.safeParse({ turmaId: UM_ID, vencidas: 3, percentual: 50 }).success, 'o percentual não entra').toBe(false)
+  })
+
   it('`material.atualizado` leva as séries antes e depois e só se o título mudou: nunca o título, que é texto livre (ingestao-do-material, 12.0)', () => {
     const { antes, depois, finalidade, entidade } = ACOES_DE_AUDITORIA['material.atualizado']
     expect([entidade, finalidade]).toEqual(['material', null])

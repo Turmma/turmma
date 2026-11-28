@@ -19,6 +19,7 @@ Uma rotina por minuto encerra a prova vencida. O embaralhamento é só de aprese
 | `packages/shared` (`atividade`, `permissao`, `privacidade`) | contratos, `limiteDaTentativa`, matriz, classificação |
 | `apps/api/src/atividade` (`atividade-aplicada`, `minha-atividade`, `pulso` novo) | §4 e §5 |
 | `apps/api/src/tutor` | trava por aluno |
+| `packages/core/src/atividade` (novo, 6.0) | o miolo do encerramento (§5.5 e §5.6), que a API e o worker chamam |
 | `apps/worker` | a rotina, o job por escola, o expurgo |
 | `apps/web` | §9 |
 
@@ -54,6 +55,13 @@ indisponibilidade    id, inicio, fim timestamptz      (sem escola, sem pessoa)
 - As quatro tabelas com aluno são `trabalho_do_aluno` (classificação e expurgo; a extensão da turma sai com elas).
   `pulso_da_api` e `indisponibilidade`: exceções do item 1 de `docs/modelo-de-dados.md`; esta sai aos 13 meses.
 - Uma migration, `00NN_prova_online`, escrita à mão.
+- **E a `0069_auditoria_da_rotina_da_prova`** (decidido na triagem da 6.0), escrita à mão, que só afrouxa o check
+  `auditoria_rotina_so_nas_acoes` com `atividade.encerrada_pelo_limite` (`DROP`, `ADD … NOT VALID`, `VALIDATE`, como a
+  0056 e a 0060), com o check em `packages/core/src/db/schema/auditoria.ts` (e o comentário dele), o snapshot e o
+  journal do drizzle. A 0068 não muda: já foi aplicada nos bancos das linhas. A rotina não ganha outro apelido para
+  passar pelo check, e ele continua recusando a ela aprovar, rejeitar e validar (regra 70): encerrar a prova não é
+  decidir nota, e o lote nasce pendente. O caso `aceita atividade.encerrada_pelo_limite` entra em
+  `packages/core/src/auditoria/auditoria.int.test.ts`, junto dos outros seis.
 
 ## 4. API
 
@@ -113,6 +121,7 @@ diagnóstico usam sempre o número e o índice originais.
    o fim efetivo (janela com extensões da turma, limite de cada tentativa em andamento) e `encerrarPeloLimite`: o
    `encerrar` sem o alcance do professor, com a suspensão conferida na escola do job (suspensa: sem lote, como hoje).
    `estender` toma a aplicação `for share`. A aberta na virada do ano fica como hoje.
+   **Onde mora o miolo** (decidido na triagem da 6.0): o worker não importa `apps/api` (`app-nao-importa-app`), e o job por escola fica no `apps/worker`, executor `worker`, fila `lote` (não vai para o `main-worker`: lá o consumo espera a D62 conferida e o `lote` é uma vaga por réplica, do modelo). O que os dois encerramentos usam desce para `packages/core/src/atividade/`, como os outros jobs do worker (`material/agendamento-da-classificacao.repository.ts`): a conta `correcao-de-objetiva.ts`, com o teste, movida sem mudar; um repository com o `for update`, o `encerrar`, a gravação das vencidas, as leituras que a `limiteDaTentativa` pede (extensões, indisponibilidades, pulso) e as quatro consultas da correção (`hasLoteVigente`, `respostasPorAluno`, `historicoAprovado`, `createLote`, com `alunosDaTurma`), todas no escopo do contexto, sem `requestSessao`; a listagem `@Unscoped` da rotina, num repository próprio; o `SuspensaoRepository` (de `apps/api/src/ia`), que o worker consulta no contexto da escola do job; e a função do miolo, que recebe a aplicação travada, se a função está suspensa e o relógio. A `AtividadeAplicadaService.encerrar` confere o alcance da professora e chama o mesmo miolo; o `#corrigir` e as quatro consultas saem da API, e o `CorrecaoRepository` fica com as leituras e a aprovação da professora. O job roda em `runInContext({ escolaId, anoLetivoId })`, com o ano em curso da escola lido no core. Nenhum comportamento muda: os testes de hoje da correção e do encerramento passam só com o caminho do import trocado.
 7. **Pulso.** Cada instância HTTP, com conexão própria que reconecta, a cada 10 s e antes de aceitar tráfego, numa
    instrução com o `now()` do banco: `with antes as (select … for update), novo as (update … returning antes.ultimo_em)
    insert into indisponibilidade select … where lacuna > 30 s`. A instância que não pulsa há 30 s recusa as rotas do
@@ -162,7 +171,7 @@ tarefa da rotina atualiza a etapa 1 da AIA de correção de objetiva (1.4/1, o g
 | Dependência cai | API ou banco: lacuna aberta, nada encerra; worker: o lote atrasa |
 | Erro ambíguo | os códigos recusam antes de gravar; o resto, a fila reenvia, idempotente |
 | Alerta, com runbook | p95 do PUT de resposta acima de 500 ms; prova aberta 5 min além do fim **efetivo**; pulso parado 2 min com a API de pé |
-| Carga | k6 `prova-online.js`, na escala acima, junto da `FASE=sala`: `cenarios.md` §5 |
+| Carga | k6 `prova-online.js`, na escala acima, em cenário próprio (`npm run carga:prova`), separado da `FASE=sala` (decidido na triagem da 6.0: a queda de 90 s das APIs reprovaria a sala pela queda, e as 60 turmas já são os ~2.100 alunos da manhã). O cliente do k6 imita a fila do app (§9), com as mesmas constantes. Critério dividido (decisão do Joaquim, 27/11/2026, na 6.0): no **fluxo normal**, p95 do PUT < 500 ms; na **volta da queda**, nenhuma perda (enviadas = gravadas) e a fila de cada aluno que atravessou a queda vazia em até **60 s** depois do fim dela. Exigir da volta o p95 do fluxo normal mede a máquina de teste: na 6.0, o PUT normal teve p95 de 14 ms e o que esvazia a fila acumulada, 1,62 s. **Janela da volta** (opção A da triagem de 27/11/2026, na 6.0): de `FIM_DA_QUEDA_S` a `FIM_DA_QUEDA_S + 60`, `put_fluxo_normal_ms` e `put_falhas_fora_da_queda` não contam; o PUT normal que toca a janela vai para `put_fluxo_normal_na_volta_ms`, sem limite, e nela só a indisponibilidade (0, 502, 503, 504) é falha da queda, o que vale também para `comecar`, `tempo` e `enviar`. O pool que não entrega conexão no prazo responde 503 com `Retry-After` (correção `2026-11-27-pool-503`), que mantém o item na fila do app (§9). Os números, o motivo dos 60 s, o que a janela não afrouxa e os dois controles negativos: `cenarios.md` §5 |
 
 ## 8. Uso de IA
 
@@ -179,6 +188,12 @@ Nenhum.
   numa faixa de uma linha no topo.
 - A **fila de respostas vive no app**: 503, 5xx e rede mantêm o item; com pendência, relê `tempo` e reenvia mesmo
   depois do "Sair" e do fim; no fim, a tela diz quantas não chegaram.
+- **O reenvio é espalhado** (decisão do Joaquim, 27/11/2026, na 6.0; regra 80, item 6): 2.100 alunos atrás da mesma queda
+  não podem voltar no mesmo segundo. Um item por vez, como hoje. Depois da falha, o recuo que `respostas.ts` já tem (2, 4,
+  8 e 15 s, ±25% de jitter, `esperaAntesDeTentar`). **Novo:** a rede que volta (`online`) não manda na hora: cada fila
+  espera um sorteio uniforme de 0 a 5 s (`ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS`), porque a rede da escola volta para a sala
+  inteira no mesmo instante. O "Tentar de novo" da tela, o item que o aluno acabou de marcar e a sessão que volta mandam
+  na hora: são um aluno, não a sala. O k6 da prova (§7c) repete essas constantes, e um teste confere as duas.
 - Escola ativa (D87), fuso da escola, altura pela casca. Textos, estados, acessibilidade e 360 px:
   `cenarios.md` §4.
 

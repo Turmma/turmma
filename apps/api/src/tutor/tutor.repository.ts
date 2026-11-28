@@ -1,4 +1,5 @@
 import {
+  QuedasDaApiRepository,
   artefato,
   atividadeAplicada,
   configuracaoOperacionalEscola,
@@ -31,7 +32,6 @@ import { InvariantException, limiteDaTentativa, TIPOS_DE_SINAL_DE_TRABALHO, TROC
 import { and, asc, count, desc, eq, exists, gte, inArray, isNotNull, isNull, lt, lte, notExists, or, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { medirATrava } from './trava-duration.js'
-import { QuedasDaApiRepository } from '../atividade/pulso/pulso.repository.js'
 import { declaradoParaASerie, proprioOuComLicencaVigente } from '../material/material.repository.js'
 import type { TurnoDoAluno } from './sinais-do-turno.js'
 

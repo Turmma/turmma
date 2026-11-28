@@ -1,4 +1,4 @@
-import { createLogger, globalMeter, JobOutbox, JobOutboxRepository, type Database, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
+import { SuspensaoRepository, createLogger, globalMeter, JobOutbox, JobOutboxRepository, type Database, type LoggerBase, type Meter, type SuspensaoDeFuncao } from '@educa/core'
 import { Global, Module, type DynamicModule } from '@nestjs/common'
 import { DB } from '../database.module.js'
 import { ExecucaoScheduler } from './execucao.scheduler.js'
@@ -8,7 +8,6 @@ import { ExecucoesService } from './execucoes.service.js'
 import { MetricasDaExecucao } from './metricas-da-execucao.js'
 import { OrcamentoRepository } from './orcamento.repository.js'
 import { RegistroDeComandos } from './registro-de-comandos.js'
-import { SuspensaoRepository } from './suspensao.repository.js'
 
 /** A porta da camada de IA (regra 30, item 1): `@Inject(LLM_PROVIDER) ia: LLMProvider`. **Só o `main-worker` a provê** (`IaDoWorkerModule`): a API não tem modelo. */
 export const LLM_PROVIDER = Symbol('LLM_PROVIDER')

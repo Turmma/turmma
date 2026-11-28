@@ -208,6 +208,16 @@ describe('destaques: padrão de erro', () => {
     const lote = acertosDoLote(QUESTOES, [TUDO_CERTO, ...Array.from({ length: 6 }, () => errouTudo)])
     expect(destaquesDaTentativa({ questoes: QUESTOES, respostas: TUDO_CERTO, correcao: corrigirTentativa(QUESTOES, TUDO_CERTO), lote })).toEqual([])
   })
+
+  it('o acerto do próprio aluno sai da conta de cada questão: com ele a questão passaria da fração da turma, sem ele não passa', () => {
+    // Cinco colegas: quatro acertaram tudo, um errou as três primeiras. O aluno acertou as três primeiras e errou as duas últimas, que todos os colegas acertaram.
+    // Sem o aluno, as três primeiras têm 4 de 5 colegas (0,8): não são da turma, e só as duas últimas são, e ele errou as duas (padrão de erro).
+    // Se o acerto dele contasse, as três primeiras teriam 5 de 5, as cinco seriam da turma, e dois erros em cinco (0,4) não destacariam.
+    const aluno = respostas(0, 1, 2, 0, 1)
+    const colegas = [TUDO_CERTO, TUDO_CERTO, TUDO_CERTO, TUDO_CERTO, respostas(1, 2, 3, 3, 0)]
+    const lote = acertosDoLote(QUESTOES, [aluno, ...colegas])
+    expect(destaquesDaTentativa({ questoes: QUESTOES, respostas: aluno, correcao: corrigirTentativa(QUESTOES, aluno), lote })).toEqual(['padrao_de_erro'])
+  })
 })
 
 describe('destaques: o que sai', () => {

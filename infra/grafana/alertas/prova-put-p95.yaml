@@ -1,0 +1,62 @@
+# Alerta "Salvamento de resposta de prova lento" (avaliacao-e-correcao, tarefa 6.0; Tech Spec §7c; runbook: docs/runbook.md#salvamento-de-resposta-de-prova-lento).
+# Provisionado por arquivo no Grafana da observabilidade local (infra/compose.yml monta esta pasta em provisioning/alerting).
+#
+# Mede o `PUT /v1/atividades-aplicadas/:id/respostas/:questao`, o salvamento de cada resposta da prova, pelo histograma `http.server.request.duration` da rota (somadas as instâncias da API). Dispara quando o p95 do último
+# minuto passa de 500 ms por 3 min seguidos: é a meta da carga da prova (60 turmas × 35 alunos, ~80 req/s, `cenarios.md` §5). O histograma tem 0,5 s como fronteira de balde (`LIMITES_DO_HISTOGRAMA_HTTP_S`), então o p95 acima de 500 ms
+# é acima de 500 ms de verdade, e não interpolação dentro de um balde. O 5xx dessa rota tem o alerta dele ("Taxa de erro 5xx", por rota).
+#
+# Sem resposta salva no minuto, a expressão fica sem série (e não NaN): fora da prova, sem alerta. Sem dado é normal.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: prova-put-p95
+    folder: Educa.ia alertas
+    interval: 10s
+    rules:
+      - uid: educa-prova-put-p95
+        title: Salvamento de resposta de prova lento
+        condition: C
+        for: 3m
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        labels:
+          area: prova
+        annotations:
+          summary: O p95 do salvamento de resposta da prova passou de 500 ms há mais de 3 min
+          description: Alunos estão em prova e o salvamento de cada resposta está lento. A fila do aplicativo guarda o que não chegou, mas o relógio da prova segue. Prioridade máxima. Siga o runbook.
+          runbook_url: https://github.com/Turmma/turmma/blob/main/docs/runbook.md#salvamento-de-resposta-de-prova-lento
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job="educa/api", http_route="/v1/atividades-aplicadas/:id/respostas/:questao", http_request_method="PUT"}[1m]))) and on () (sum (rate(http_server_request_duration_seconds_count{job="educa/api", http_route="/v1/atividades-aplicadas/:id/respostas/:questao", http_request_method="PUT"}[1m])) > 0)
+              instant: true
+              range: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params: [0.5]

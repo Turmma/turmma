@@ -272,6 +272,25 @@ describe('regras de alerta provisionadas', () => {
     expect(pulsoParado.noDataState).toBe('OK')
     expect(NOMES_NO_PROMETHEUS.idadeDoPulso).toEqual(['api_pulso_idade_s'])
 
+    // avaliacao-e-correcao, tarefa 6.0: "Prova vencida ainda aberta" é por escola (`max by (escola_id)`), em qualquer réplica do worker-lote, a partir de uma prova aberta 5 min além do fim **efetivo** (o gauge só conta a que já passou desse prazo): acima de 0, por 1 min.
+    const provaAberta = regraPorUid(REGRAS_PROVISIONADAS.provaVencidaAberta).regra
+    expect(provaAberta.for).toBe('1m')
+    expect(expressao(provaAberta)).toBe('max by (escola_id) (prova_aberta_alem_do_fim{job="educa/worker"})')
+    expect(expressao(provaAberta)).not.toMatch(/absent|usuario|aluno|turma|prova_id/)
+    expect(limiar(provaAberta)).toEqual({ type: 'gt', params: [0] })
+    expect(provaAberta.noDataState).toBe('OK')
+    expect(NOMES_NO_PROMETHEUS.provasAbertasAlemDoFim).toEqual(['prova_aberta_alem_do_fim'])
+
+    // avaliacao-e-correcao, tarefa 6.0: "Salvamento de resposta de prova lento" é o p95 do PUT de resposta, só dessa rota e desse método, na janela de 1 min e só com resposta salva nela; acima de 500 ms, que é fronteira de balde.
+    const putLento = regraPorUid(REGRAS_PROVISIONADAS.provaPutP95).regra
+    expect(putLento.for).toBe('3m')
+    expect(expressao(putLento)).toBe(
+      'histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job="educa/api", http_route="/v1/atividades-aplicadas/:id/respostas/:questao", http_request_method="PUT"}[1m]))) and on () (sum (rate(http_server_request_duration_seconds_count{job="educa/api", http_route="/v1/atividades-aplicadas/:id/respostas/:questao", http_request_method="PUT"}[1m])) > 0)',
+    )
+    expect(limiar(putLento)).toEqual({ type: 'gt', params: [0.5] })
+    expect(putLento.noDataState).toBe('OK')
+    expect(LIMITES_DO_HISTOGRAMA_HTTP_S).toContain(0.5)
+
     // camada-ia, tarefa 4.0: o uso do orçamento do mês, por escola, pelo maior valor entre as réplicas do worker-lote. O limiar está na expressão: `>= 0.8` e `>= 1` (o aviso da coordenação vale `>=`) e `> 1` no teto (o lote
     // só espera com o custo **acima** dele). `noDataState: OK`: escola sem orçamento ou sem aluno ativo não tem série. Nenhuma das três leva valor em reais na consulta.
     const orcamentoAos80 = regraPorUid(REGRAS_PROVISIONADAS.iaOrcamentoAos80).regra

@@ -260,6 +260,8 @@ describe('métricas na observabilidade local, por rota, fila e escola', () => {
         ...NOMES_NO_PROMETHEUS.esperaDaClassificacao,
         // As execuções da classificação que não terminaram a noite, por escola: o que o alerta `classificacao-atrasada` lê (classificacao-bncc, tarefa 5.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.execucoesAtrasadasDaClassificacao,
+        // As provas abertas além do fim efetivo, por escola: o que o alerta `prova-vencida-aberta` lê (avaliacao-e-correcao, tarefa 6.0; Tech Spec §7c).
+        ...NOMES_NO_PROMETHEUS.provasAbertasAlemDoFim,
         // As habilidades que a geração anulou por não serem da seção da página citada, por escola (classificacao-bncc, tarefa 10.0; Tech Spec, seção 7c).
         ...NOMES_NO_PROMETHEUS.habilidadeAnulada,
         // O que a escola já gastou do orçamento de IA do mês e do teto de segurança dele, por escola: o que os alertas de 80%, de 100% e do teto leem (camada-ia, tarefa 4.0; Tech Spec, seção 7c).

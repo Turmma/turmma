@@ -1,6 +1,6 @@
 import { loteApresentadoSchema, type QuestaoObjetiva } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { corrigirTentativa, type RespostasDaTentativa } from './correcao-de-objetiva.js'
+import { corrigirTentativa, type RespostasDaTentativa } from '@educa/core'
 import { loteApresentado, marcaDoApresentado, resumoDoLote, type CorrecaoDoLote, type DadosDoLote } from './lote.js'
 
 const MATERIAL = '018f4e2a-7b1c-7d3e-9a4b-0123456789ab'

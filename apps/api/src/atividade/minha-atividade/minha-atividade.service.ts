@@ -1,4 +1,4 @@
-import { DomainException, type Database, type DatabaseTransaction } from '@educa/core'
+import { QuedasDaApiRepository, DomainException, type Database, type DatabaseTransaction } from '@educa/core'
 import {
   ErrorCode,
   InvariantException,
@@ -27,7 +27,6 @@ import {
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
 import { habilidadesDaAtividade } from '../correcao/lote.js'
-import { QuedasDaApiRepository } from '../pulso/pulso.repository.js'
 import { MinhaAtividadeRepository, type MinhaAtividadeLida, type TentativaLida } from './minha-atividade.repository.js'
 import { readOrdem, naOrdemDoAluno, sortearOrdem, type OrdemDaProva, type Sorteador } from './ordem-da-prova.js'
 

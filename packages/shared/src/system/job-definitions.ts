@@ -32,6 +32,10 @@ export const TIPO_EXECUTAR_LOTE = 'ia.executar-lote'
 export const TIPO_AGENDAR_CLASSIFICACAO_DAS_ESCOLAS = 'sistema.agendar-classificacao'
 /** O agendamento da classificação de uma escola (classificacao-bncc 5.0 e 6.0): cria as execuções das seções sem classificação, em lotes de 500, e os jobs `ia.executar-lote` delas; com `materialId` ou `disciplinaId`, refaz antes a classificação do recorte que mudou. */
 export const TIPO_AGENDAR_CLASSIFICACAO = 'material.agendar-classificacao'
+/** A rotina por minuto que encerra a prova vencida (avaliacao-e-correcao 6.0): sem escola, só lista as escolas com prova vencida do ano em curso e grava um `atividade.encerrar-vencidas` por escola, com o minuto por chave. Não roda com o pulso da API velho. */
+export const TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS = 'sistema.encerrar-provas-vencidas'
+/** O encerramento das provas vencidas de uma escola (avaliacao-e-correcao 6.0): até 200 aplicações, uma transação cada, pelo mesmo caminho do encerramento da professora. Sem dados: a escola vem da linha do outbox. */
+export const TIPO_ENCERRAR_PROVAS_VENCIDAS = 'atividade.encerrar-vencidas'
 
 /**
  * `escola`: o job pertence a uma escola e nasce no contexto dela. `sistema`: rotina nossa, sem escola, e só nasce de rotina do
@@ -302,6 +306,28 @@ export const JOB_DEFINITIONS = {
     retentativa: RETENTATIVA_DE_HOJE,
     prazoMs: 1_800_000,
     naoUrgente: true,
+  }),
+  // A rotina por minuto da prova vencida (avaliacao-e-correcao, 6.0; Tech Spec §5.6): sem escola, no `worker-lote`, **urgente** (`naoUrgente: false`): é leve (uma leitura de ids e os `enfileirarUmaVez`), e a prova encerra
+  // no minuto, dentro do horário letivo, que é quando ela vence. Segurada pela janela, ela deixaria a prova do aluno pendurada até as 18h. Um minuto de prazo: a próxima rodada já está no relógio.
+  [TIPO_ENCERRAR_PROVAS_VENCIDAS_DAS_ESCOLAS]: defineJob({
+    filas: ['lote'],
+    escopo: 'sistema',
+    executor: 'worker',
+    dados: semDados,
+    retentativa: RETENTATIVA_DE_HOJE,
+    prazoMs: 60_000,
+    naoUrgente: false,
+  }),
+  // O encerramento das provas vencidas de uma escola (6.0): lê até 200 aplicações, cada uma numa transação (`for update`, o fim efetivo, o encerramento e a correção). Urgente pelo mesmo motivo da rotina. O prazo
+  // de 60 s é o do laço: o que passar dele sai na rodada do minuto seguinte, pelo mesmo caminho (a aplicação encerrada não volta à lista).
+  [TIPO_ENCERRAR_PROVAS_VENCIDAS]: defineJob({
+    filas: ['lote'],
+    escopo: 'escola',
+    executor: 'worker',
+    dados: semDados,
+    retentativa: RETENTATIVA_DE_HOJE,
+    prazoMs: 60_000,
+    naoUrgente: false,
   }),
   // O sintético é o job de teste de carga: a fila e o não urgente vêm do corpo do `POST`, e o prazo cobre o teto de CPU dele.
   [TIPO_JOB_SINTETICO]: defineJob({

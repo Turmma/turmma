@@ -1,4 +1,7 @@
-import { requireEscolaId, suspensaoDeFuncao, type Database, type SuspensaoDeFuncao, type DatabaseTransaction } from '@educa/core'
+import { requireEscolaId } from '../context/context-escola.js'
+import type { Database, DatabaseTransaction } from '../db/database.js'
+import { suspensaoDeFuncao } from '../db/schema/suspensao-de-funcao.js'
+import type { SuspensaoDeFuncao } from './suspensao.js'
 import type { ChaveDeFuncao } from '@educa/shared'
 import { and, eq, isNull } from 'drizzle-orm'
 

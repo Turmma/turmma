@@ -116,6 +116,7 @@ export const NOMES_NO_PROMETHEUS = {
   usoDoTetoDeTokens: ['ia_tokens_uso_do_teto'],
   esperaDaClassificacao: ['material_classificacao_espera_seconds_bucket', 'material_classificacao_espera_seconds_count', 'material_classificacao_espera_seconds_sum'],
   execucoesAtrasadasDaClassificacao: ['classificacao_execucoes_atrasadas'],
+  provasAbertasAlemDoFim: ['prova_aberta_alem_do_fim'],
   habilidadeAnulada: ['ia_habilidade_anulada_total'],
   usoDoOrcamentoDoMes: ['ia_orcamento_uso_do_mes'],
   usoDoTetoDoOrcamento: ['ia_orcamento_uso_do_teto'],

@@ -1,4 +1,4 @@
-import { DomainException, AuditoriaRecorder, type Database } from '@educa/core'
+import { CorrecaoDeObjetivaRepository, DomainException, AuditoriaRecorder, type Database, type DatabaseTransaction, type RespostasDaTentativa } from '@educa/core'
 import {
   ErrorCode,
   conteudoDeAtividadeSchema,
@@ -14,7 +14,6 @@ import {
   type DestaqueAbertoResponse,
   type LoteAprovadoResponse,
 } from '@educa/shared'
-import type { RespostasDaTentativa } from './correcao-de-objetiva.js'
 import { CorrecaoRepository, type CorrecaoLida, type LoteLido, type ValidacaoLida } from './correcao.repository.js'
 import type { LoteReadMarker } from './lote-read-marker.js'
 import { loteApresentado, marcaDoApresentado } from './lote.js'
@@ -91,10 +90,10 @@ export class CorrecaoService {
     private readonly leitura: LoteReadMarker,
   ) {}
 
-  async #build(correcoes: CorrecaoRepository, lote: LoteLido): Promise<LoteMontado> {
+  async #build(banco: Database | DatabaseTransaction, correcoes: CorrecaoRepository, lote: LoteLido): Promise<LoteMontado> {
     const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
     const doLote = await correcoes.correcoesDoLote(lote.entregaId)
-    const respostas = await correcoes.respostasPorAluno(lote.atividadeAplicadaId)
+    const respostas = await new CorrecaoDeObjetivaRepository(banco).respostasPorAluno(lote.atividadeAplicadaId)
     return { questoes, correcoes: doLote, apresentado: loteApresentado({ questoes, alunosDaTurma: lote.alunosDaTurma, correcoes: doLote, respostas }) }
   }
 
@@ -102,7 +101,7 @@ export class CorrecaoService {
     const correcoes = new CorrecaoRepository(this.banco)
     const lote = await correcoes.loteDaAplicacao(atividadeAplicadaId)
     if (lote === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-    const montado = await this.#build(correcoes, lote)
+    const montado = await this.#build(this.banco, correcoes, lote)
     const validacao = await correcoes.validacao(lote.entregaId)
     const destaques = montado.correcoes.filter((correcao) => correcao.destaques.length > 0)
     const destaquesAbertos = destaques.filter((destaque) => destaque.destaqueAbertoEm !== null).length
@@ -140,8 +139,9 @@ export class CorrecaoService {
         if (destaque === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       }
       const { questoes } = conteudoDeAtividadeSchema.parse(lote.conteudo)
-      const respostas = (await correcoes.respostasPorAluno(lote.atividadeAplicadaId, alunoId)).get(alunoId) ?? new Map<number, number>()
-      const historico = await correcoes.historicoAprovado([alunoId], lote.disciplinaId, lote.criadaEm)
+      const objetivas = new CorrecaoDeObjetivaRepository(tx)
+      const respostas = (await objetivas.respostasPorAluno(lote.atividadeAplicadaId, alunoId)).get(alunoId) ?? new Map<number, number>()
+      const historico = await objetivas.historicoAprovado([alunoId], lote.disciplinaId, lote.criadaEm)
       return { destaque, respostas: respostasCorrigidas(questoes, respostas), historico: historico.map(({ titulo, acertos, total }) => ({ titulo, acertos, total })) }
     })
     return destaqueAbertoResponseSchema.parse({ ...aberto, destaque: destaqueParaATela(aberto.destaque) })
@@ -156,7 +156,7 @@ export class CorrecaoService {
       if (lote === undefined) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
       if (lote.estado !== 'pendente') throw new DomainException(ErrorCode.ENTREGA_JA_DECIDIDA)
 
-      const montado = await this.#build(correcoes, lote)
+      const montado = await this.#build(tx, correcoes, lote)
       // Validação efetiva (D56): quem aprova leu a correção deste lote, e leu o que vai ficar registrado como apresentado.
       if (marcaLida !== marcaDoApresentado(montado.apresentado)) throw new DomainException(ErrorCode.CONFLITO)
 

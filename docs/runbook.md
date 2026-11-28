@@ -1724,9 +1724,54 @@ que `limiteDaTentativa` soma de volta ao limite de quem estava em prova.
 
 **Depois:** registre no `TODO.md` a hora, a instância (nome do serviço, sem id de escola: o repositório é público), o `sqlstate` do `pulso.falhou` e quanto tempo a instância ficou sem pulsar. Mais de uma vez no mês é tarefa de investigação do banco.
 
-## Salvamento de resposta de prova lento ou falhando
+## Prova vencida ainda aberta
 
-*A preencher no F6.* Prioridade máxima: há aluno fazendo prova agora.
+**Dispara quando:** a escola tem prova aberta (`atividade_aplicada.estado = 'aberta'`, avaliativa, do ano em curso) que passou do **fim efetivo** há 5 min ou mais, por 1 min seguido (`max by (escola_id) (prova_aberta_alem_do_fim{job="educa/worker"}) > 0`, regra
+`infra/grafana/alertas/prova-vencida-aberta.yaml`; avaliacao-e-correcao, tarefa 6.0). O fim efetivo é o do que vier depois: o `fecha_em` com as extensões da turma, e o limite de cada aluno ainda em andamento (com a extensão dele, o tempo adicional e as quedas
+da API). O aluno estendido além do `fecha_em` não dispara até o limite dele. O worker-lote mede a cada 5 min, e a série traz só o `escola_id`: nunca a prova, a turma nem o aluno. Sem prova nessa situação, a escola não tem série.
+
+**Impacto:** a rotina por minuto (`sistema.encerrar-provas-vencidas`) devia ter encerrado a prova, e não encerrou. Enquanto estiver aberta, a professora **não recebe o lote de correção** e o aluno que não enviou continua com a prova "aberta" (ele não grava mais nada: o PUT
+já recusa com `TEMPO_ESGOTADO` depois do limite, sem depender da rotina). Nenhuma resposta se perde. Nada vai ao aluno e nenhuma nota nasce: a rotina só cria o lote **pendente**, que a professora aprova.
+
+**Primeiro olhar:** o log do `worker-lote`: `docker compose logs --since 10m worker-lote | grep prova.`. `prova.rotina_disparada` a cada minuto diz que a rotina roda (com `enfileiradosTotal`, `jaEnfileiradosTotal` e `falhasTotal`); `prova.encerradas_pelo_limite` é o job da escola, com o
+`estado` em que parou (`fim`, `pulso_velho` ou `sinal`) e as contagens; `prova.nao_encerrada` traz o `atividadeAplicadaId` e o `erro` da prova que falhou. Com o Postgres de pé, as provas abertas da escola, só com ids e datas:
+`docker compose exec postgres psql -U educa -c "select id, turma_id, fecha_em, now() - fecha_em as vencida_ha from atividade_aplicada where escola_id = '<escola_id>' and avaliativa and estado = 'aberta' and fecha_em < now() order by fecha_em"`, e a idade do pulso:
+`select ultimo_em, now() - ultimo_em as idade from pulso_da_api`.
+
+**Causas prováveis:**
+1. O pulso da API está velho (mais de 30 s) → a rotina não lista nada e o job para (`estado: pulso_velho`): **é por desenho**, porque a queda ainda não foi gravada e o tempo dos alunos ainda vai andar. Veja "Pulso da API parado" e "Sistema fora do ar no horário letivo". Com o pulso de volta, a rotina encerra no minuto seguinte, já com o limite dos alunos andado pela queda.
+2. O `worker-lote` não roda a rotina → sem `prova.rotina_disparada` por minuto no log dele: `docker compose ps worker-lote`, o agendador (`agendamentos.registrados` no boot) e "Rotina do sistema sem rodar". Os jobs `sistema.encerrar-provas-vencidas` e `atividade.encerrar-vencidas` são **urgentes** (`naoUrgente: false`): não esperam a janela letiva, e a fila `lote` com vaga cheia é o que os atrasa (veja "Job interativo esperando" e o painel "Fundação — rota, fila e escola").
+3. `prova.nao_encerrada` com `erro` de `statement_timeout` (`57014`) → a prova ficou presa atrás de uma transação longa (a professora encerrando, uma extensão, uma troca de janela): `select pid, state, wait_event_type, now() - xact_start as dura, left(query, 60) from pg_stat_activity where datname = current_database() and state <> 'idle' order by xact_start limit 10` (a consulta mostra só o começo da instrução, nunca o conteúdo). O job tenta de novo a cada minuto; a transação que segura a trava termina sozinha.
+4. `prova.nao_encerrada` com outro `erro` (o código vem no log) → falha na correção ou na gravação de uma prova só; as outras seguem. Abra a correção com o `atividadeAplicadaId` e o código, sem editar linha à mão.
+5. A escola não tem ano letivo em curso → o job loga `prova.encerramento_sem_ano_em_curso` e não encerra nada; é a escola entre dois anos, e o alerta não conta prova de ano encerrado.
+6. O job esperou a vaga de lote da escola → `atividade.encerrar-vencidas` divide a vaga `lote` da escola (`VAGAS_ESCOLA_LOTE`, 2 no `.env.example`) com `material.agendar-classificacao` (prazo de 30 min, às 19h) e `sistema.expurgar-escola` (prazo de 6 h). A prova avaliativa feita à noite pode esperar além dos 5 min do alerta enquanto esses dois ocupam as duas vagas; de manhã isso não acontece, porque o não urgente fica segurado pela janela letiva. Confira `job_registro` da escola (`tipo`, `estado`, `criado_em`) e, se a causa é esta, espere o job do lote terminar ou peça à professora o botão "Encerrar".
+
+**Se nada disso resolver:** **a professora pode encerrar a prova pelo botão "Encerrar"** do painel da atividade, que corre pelo mesmo miolo da rotina (grava a vencida no limite dela, corrige e cria o lote pendente): peça à coordenação da escola que avise a professora (seção "Como avisar as escolas"). Não mude `estado`, `encerrada_em` nem `enviada_em` à mão.
+
+**Depois:** registre no `TODO.md` a hora, a escola (só o id), quantas provas e a causa, sem nome de turma nem de aluno. Causa nova vira tarefa com teste que a reproduz. Mais de uma vez no mês é investigação do worker-lote ou da fila.
+
+## Salvamento de resposta de prova lento
+
+**Dispara quando:** o p95 do salvamento de resposta da prova (`PUT /v1/atividades-aplicadas/:id/respostas/:questao`), somadas as instâncias da API, passa de 500 ms no último minuto por 3 min seguidos
+(`histogram_quantile(0.95, …http_server_request_duration_seconds_bucket{…http_route="/v1/atividades-aplicadas/:id/respostas/:questao"…})`, regra `infra/grafana/alertas/prova-put-p95.yaml`; avaliacao-e-correcao, tarefa 6.0). É a meta da carga da prova (60 turmas × 35 alunos, ~80 req/s;
+`infra/k6/prova-online.js`). 500 ms é fronteira de balde do histograma: o p95 acima dele é acima de 500 ms de verdade. Sem resposta salva no minuto, sem série e sem alerta. O 5xx dessa rota tem o alerta "Taxa de erro 5xx" (por rota).
+Prioridade máxima: há aluno fazendo prova agora.
+
+**Impacto:** o aluno vê "Salvando…" por mais tempo, e a fila do aplicativo guarda o que não chegou e reenvia (a gravação é idempotente: nenhuma resposta se perde nem se duplica). O relógio da prova **não anda por lentidão**: só a queda gravada da API (`indisponibilidade`) devolve tempo. O que muda
+para o aluno é a resposta enviada perto do fim, que pode chegar depois do limite e ser recusada (`TEMPO_ESGOTADO`): a professora estende o tempo da turma ou do aluno, e a fila grava.
+
+**Primeiro olhar:** o painel "Fundação — rota, fila e escola" (p95 da rota e do banco, espera do pool) e `docker stats api-1 api-2 postgres`. Com o Postgres de pé: `docker compose exec postgres psql -U educa -c "select pid, state, wait_event_type, wait_event, now() - query_start as dura from pg_stat_activity where datname = current_database() and state <> 'idle' order by query_start limit 20"`
+(sem a coluna `query`: ela pode trazer parâmetro de aluno). O log da API: `docker compose logs --since 10m api-1 api-2 | grep -c 429` mostra se o limite por usuário está recusando.
+
+**Causas prováveis:**
+1. O banco está lento ou saturado (muitas conexões esperando, `wait_event_type = Lock` ou `IO`) → veja os alertas do banco e do pool; uma transação longa que segura a linha da aplicação (`for update` do encerramento, uma extensão) faz o PUT esperar: o PUT toma a aplicação em `for share`. Se há uma em curso há minutos, espere ela terminar ou use `pg_terminate_backend` na que travou, e avise a professora.
+2. O pool de conexões da API esgotou → `db_pool_em_uso` (ou o painel da fundação) perto do teto: a API está saturada; veja o alerta de taxa de 5xx e reinicie a instância que não se recupera (`docker compose restart api-1`, depois `api-2`, uma de cada vez).
+3. A manhã de segunda além da capacidade → mais de ~80 req/s: confira o cenário `prova-online.js` em "Rodar o cenário de carga" e o registro mais novo, e considere subir a segunda instância da API.
+4. O `worker-lote` disputa CPU ou conexões com o banco (a rotina por minuto e o job da escola são leves, mas um lote grande de outra escola não é) → `docker stats worker-lote`; a vaga de lote por escola é o que o contém.
+
+**Se nada disso resolver:** **avise as escolas com prova aberta** (seção "Como avisar as escolas") de que o salvamento está lento e que nada se perde; peça às professoras que estendam o tempo de quem ficou sem salvar. Não desligue o limite por usuário nem a gravação por item.
+
+**Depois:** registre no `TODO.md` a hora, a duração, o p95 e a causa, sem nome de escola nem de aluno (o repositório é público). Mais de uma vez no mês é tarefa de capacidade, com a carga da prova refeita no ambiente certo.
 
 ## Backup do dia não concluído
 
@@ -2028,9 +2073,52 @@ Vale como registro com a primeira condição da seção seguinte (máquina calma
 
 O limite da queda foi 7.128 ms (o do `controle` mais 1 s). Controle negativo (`falso-sem-aprovacao`) logo depois (00:10 de 23/11; `docker ps` vazio e load de 1 minuto **2,41**, ainda com o rastro da corrida que acabara de cair; 15 min: 3,32): reprovou pelo indisponível (260, 230, 260 e 120 nas janelas `5xx`, `prazo`, `429` e `balde`), com o degrau da reserva em 0; o que prova que o worker subiu com a reserva sem modelo elegível são os indisponíveis das janelas `5xx` e `429`. A fase não passa por hash de senha (tokens sintéticos), então as condições 2 e 3 não se aplicam.
 
+## Rodar o cenário da prova
+
+`npm run carga:prova` roda o cenário "a prova da manhã" (avaliacao-e-correcao, tarefa 6.0; Tech Spec, 7c; `cenarios.md`, seção 5) no mesmo projeto compose (`educa-carga`) dos outros, e o derruba no fim.
+Leva uns 12 min, mais a construção das imagens. Não rode junto com o portão, com os testes nem com os outros cenários (`flock /tmp/educa-carga.lock`). O cenário cria a rede e as dez escolas pelo
+`ops:escola`; em cada uma, as duas professoras, uma série, seis turmas, e **uma prova por turma** (atividade objetiva de 20 questões, avaliativa, aberta, janela de 1 h, duração de 40 min); e, por último, as
+sessões dos **210 alunos** da escola (35 por turma) pelo `ops:sessao-sintetica`: o token vale 10 min e a corrida passa de 7, então o mais antigo não pode ter mais de 30 s quando o k6 começa.
+
+O k6 (`infra/k6/prova-online.js`) põe os **2.100 alunos em prova ao mesmo tempo**, pelas rotas reais: `POST …/comecar`, um `PUT …/respostas/:questao` por item (20 itens, a cada ~18 s, ritmo mais que o dobro
+do da Tech Spec), `GET …/tempo` a cada 30 s e `POST …/enviar` no fim. Dois acidentes, que o driver (e não o k6) causa:
+
+- aos 120 s, **um aluno em dez fica 1 min sem rede**: o cliente guarda os itens numa fila e, quando a rede volta, espera um sorteio de 0 a 5 s e os reenvia, em ordem (regra 80, item 6);
+- aos 180 s, **as duas APIs ficam fora por 90 s** (`docker compose pause api-1 api-2`). No começo da queda o driver cria uma prova que vence 40 s depois, com uma tentativa em andamento (a "canária"): a
+  rotina não pode encerrá-la até o pulso voltar, e depois da queda o limite dela tem de ter andado.
+
+O cliente do k6 imita a **fila do app** (`apps/web/src/areas/aluno/fila-de-respostas.ts`), e não um laço próprio: um item por vez, o item novo sai na hora, o recuo de 2, 4, 8 e 15 s com ±25% de jitter
+depois de uma falha, e o item que estourou o prazo de 10 s do cliente vai para o fim da fila. As constantes são as do app, e `infra/test/carga-prova.test.ts` confere as de `respostas.ts` e `client.ts`.
+
+Passa quando (critério dividido, decisão do Joaquim em 27/11/2026): no **fluxo normal**, o p95 do PUT de resposta do aluno que não está se recuperando (`put_fluxo_normal_ms`) fica abaixo de **500 ms**; na **volta da
+queda**, a fila de cada aluno que a atravessou esvazia em até **60 s** depois do fim previsto dela (`fila_esvaziada_na_volta_s`, o máximo), e o PUT de quem se recupera (`put_da_volta_ms`) é só lido, sem teto.
+Está se recuperando o aluno da primeira falha (ou da rede que caiu com ele respondendo) até a fila dele esvaziar. Além disso: as respostas que o cliente deu como enviadas (42.000) são as que o banco tem, nem uma a
+menos nem uma a mais; nenhum PUT, `comecar`, `tempo` ou `enviar` falha fora da janela da queda (±15 s); o pulso grava a lacuna de ~90 s em `indisponibilidade`; **nenhuma prova é encerrada durante a queda**; e a
+canária é encerrada depois dela, com o `enviada_em` andado em pelo menos 30 s do `fecha_em`.
+
+Os **dois controles negativos** só valem depois de uma rodada verde, e cada um só sai verde se o cenário reprovar pelo critério dele: `npm run carga:prova:controle-negativo` instala, só neste banco descartável, um
+gatilho que atrasa 600 ms cada gravação de resposta e exige a reprovação pelo **p95 do fluxo normal**; `npm run carga:prova:controle-da-volta` deixa as APIs fora por **150 s** em vez de 90 (o k6 continua medindo
+a partir do fim previsto, aos 270 s) e exige a reprovação pela **fila da volta**. Reprovar por outra coisa não prova que o limite importa.
+
+Se reprovar, a saída diz o critério:
+- **put_p95:** a gravação do item ficou lenta **no fluxo normal**. Veja o `pg_stat_statements` da `resposta_atividade` e a espera do pool (`observeDatabasePool`); confira o alerta "Salvamento de resposta de prova lento".
+- **fila_da_volta:** a fila de algum aluno levou 60 s ou mais para esvaziar depois do fim da queda: o reenvio está lento ou concentrado. Veja se o recuo e o sorteio da volta da rede do app (`respostas.ts`) são os que o k6 repete, o `put_da_volta_ms` e a espera do pool
+  na volta (`observeDatabasePool`), e se as duas APIs voltaram juntas. Uma volta que leva minutos é defeito do reenvio ou do PUT, e não da máquina de teste; o alerta "Salvamento de resposta de prova lento" é o que a escola veria.
+- **sem_amostra:** o k6 não deixou resumo, ou nenhuma fila atravessou a queda: a volta não foi medida, e a rodada não vale.
+- **resposta_perdida / resposta_nao_enviada:** o cliente deu como enviado o que o banco não tem (ou o contrário), ou algum aluno não terminou. É a regra 80, item 6: leia o `PUT` (idempotência, `upsert`) antes de qualquer outra coisa.
+- **put_falhou_fora_da_queda / resposta_inesperada:** 5xx ou 429 fora da queda. Confira os limites por usuário e por escola (`LIMITE_REQ_USUARIO_MIN`, `LIMITE_REQ_ESCOLA_MIN`) e o log das duas APIs, que o cenário imprime no fim.
+- **queda_nao_gravada:** o pulso não gravou a lacuna. Veja "Pulso da API parado" e `QuedasDaApiRepository`.
+- **encerrada_na_queda / canario_nao_encerrado / limite_nao_andou:** a rotina `sistema.encerrar-provas-vencidas` encerrou com o pulso velho, ou não voltou a rodar, ou gravou o limite sem somar a queda. Veja
+  "Prova vencida ainda aberta" e o log `prova.nao_encerrada` do `worker-lote`.
+
+Quando o cenário reprova, ele imprime as últimas 100 linhas do log das duas APIs e do `worker-lote` (`infra/scripts/carga-prova.ts`). O ambiente é sintético, mas **essa saída não vai para o `TODO.md` nem para issue pública sem ser conferida antes**: o log pode trazer id de escola, de turma e de requisição, e o repositório é público.
+
+O cenário não chama provedor de IA (regra 80, item 11): a prova não usa IA. O cenário vale como registro com a **primeira** condição de "Quando a carga vale como registro" (a máquina calma; ele não passa pelo
+hash, e o throttling das APIs é lido e escrito se o número for citado).
+
 ## Quando a carga vale como registro
 
-Os cenários de login, da sala e da importação (`carga:login`, `carga:sala`, `carga:importacao`; o da ingestão, `carga:ingestao`, não passa pelo hash e só pede a primeira condição) medem o p95 de rotas que passam pelo hash de senha, e as duas APIs
+Os cenários de login, da sala e da importação (`carga:login`, `carga:sala`, `carga:importacao`; o da ingestão, `carga:ingestao`, e o da prova, `carga:prova`, não passam pelo hash e só pedem a primeira condição) medem o p95 de rotas que passam pelo hash de senha, e as duas APIs
 do compose de carga têm `cpus: 1` (`infra/compose.carga.yml`). Se o host não entrega a CPU de referência, o hash custa o dobro, o semáforo do hash
 passa do prazo e o resultado é 503 e p95 de segundos, **sem que o produto tenha mudado**. Foi assim no K2 da sala (hash a 42 ms, `decidir` a 3.047 e
 3.417 ms) e na fase `professores` da validação de `acesso-e-convites` (283 × 503, rajada a 2.123 ms numa corrida e verde na seguinte). Por isso uma rodada

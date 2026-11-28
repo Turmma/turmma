@@ -1,4 +1,4 @@
-import { AuditoriaRecorder, AuditoriaRepository, BnccRepository, DomainException, type Database, type DatabaseTransaction } from '@educa/core'
+import { SuspensaoRepository, AuditoriaRecorder, AuditoriaRepository, BnccRepository, DomainException, type Database, type DatabaseTransaction } from '@educa/core'
 import {
   CODIGOS_DA_BNCC,
   ErrorCode,
@@ -23,7 +23,6 @@ import type { IaRequestRateLimit } from '../assistente/ai-request-rate-limit.js'
 import { paginar } from '../http/pagination.js'
 import { ExecucaoDaSessaoRepository } from '../ia/execucao.repository.js'
 import type { ExecucaoScheduler } from '../ia/execucao.scheduler.js'
-import { SuspensaoRepository } from '../ia/suspensao.repository.js'
 import { descricaoOficialDaHabilidade } from '../material/habilidades-do-recorte.js'
 import { SecoesRepository } from '../material/secoes.repository.js'
 import { ArtefatoRepository, type ArtefatoLido } from './artefato.repository.js'

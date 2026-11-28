@@ -1,4 +1,4 @@
-import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tempoAdicional, tentativaAtividade, turma, usuario, vinculo, type Database, type DatabaseTransaction } from '@educa/core'
+import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tempoAdicional, tentativaAtividade, turma, usuario, vinculo, type AplicacaoTravada, type Database, type DatabaseTransaction } from '@educa/core'
 import type { AtividadesAplicadasQuery, Embaralhar, EstadoDeAtividadeAplicada, EstadoDeEntrega, JanelaDaProva, PercentualDeTempoAdicional, TempoAdicionalDoAluno, TipoDeArtefato } from '@educa/shared'
 import { and, desc, eq, inArray, lt, notInArray, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
@@ -36,15 +36,6 @@ export interface ArtefatoParaAplicar {
   readonly disciplinaId: string
   readonly versaoAdaptada: boolean
   readonly entregaEstado: EstadoDeEntrega | null
-}
-
-/** A atividade aplicada travada para o encerramento, com o conteúdo do artefato, que tem o gabarito. */
-export interface AplicacaoTravada {
-  readonly id: string
-  readonly turmaId: string
-  readonly estado: EstadoDeAtividadeAplicada
-  readonly disciplinaId: string
-  readonly conteudo: unknown
 }
 
 export interface NovaAplicacao {
@@ -229,14 +220,6 @@ export class AtividadeAplicadaRepository {
       .where(and(this.#noAlcance(), eq(atividadeAplicada.id, id)))
       .for('update', { of: atividadeAplicada })
     return linha
-  }
-
-  /** `aberta` → `encerrada`, com a hora do banco. A já encerrada não muda: a data do primeiro encerramento fica. */
-  async encerrar(id: string): Promise<void> {
-    await this.banco
-      .update(atividadeAplicada)
-      .set({ estado: 'encerrada', encerradaEm: sql`now()` })
-      .where(and(eq(atividadeAplicada.escolaId, requireEscolaId()), eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()), eq(atividadeAplicada.id, id), eq(atividadeAplicada.estado, 'aberta')))
   }
 
   /**

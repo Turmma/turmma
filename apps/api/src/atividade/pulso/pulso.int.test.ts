@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { createLogger, createPool, InMemoryFileStorage, type DatabasePool } from '@educa/core'
+import { QuedasDaApiRepository, createLogger, createPool, InMemoryFileStorage, type DatabasePool } from '@educa/core'
 import { limiteDaTentativa } from '@educa/shared'
 import { NestFactory } from '@nestjs/core'
 import { randomUUID } from 'node:crypto'
@@ -18,7 +18,7 @@ import { subirApi, type TestApi } from '../../../test/test-api.js'
 import { testConfig, TEST_APP_OPTIONS } from '../../../test/test-config.js'
 import { esperarNaTrava, WriteBlockTrigger } from '../../../test/write-block-trigger.js'
 import { INTERVALO_DO_PULSO_MS, ouvirDepoisDoPrimeiroPulso, PulsoService, type Tique } from './pulso.service.js'
-import { PulsoRepository, QuedasDaApiRepository } from './pulso.repository.js'
+import { PulsoRepository } from './pulso.repository.js'
 
 /**
  * O pulso da API (avaliacao-e-correcao, 2.0; Tech Spec §5.7; regra 80, item 6): a lacuna entre dois pulsos acima de 30 s vira indisponibilidade, e a instância que não pulsa
