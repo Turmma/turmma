@@ -488,7 +488,34 @@ describe('a extensão de tempo e o acompanhamento da prova', () => {
         await cliente.query('begin')
         await cliente.query('set local enable_seqscan = off')
         await cliente.query('set local enable_bitmapscan = off')
-        // O banco de teste acumula escolas de outras execuções, e o planejador precisa das estatísticas de hoje para escolher o índice da tentativa.
+        // Com uma ou duas linhas na escola, o índice só por escola e a chave única empatam no custo, e o planejador escolhe pelo que as outras suítes deixaram no banco: o volume
+        // de uma escola de verdade (200 aplicações encerradas da turma, com tentativa e extensão por aluno) vai na transação desfeita. Causa: `tasks/correcoes/2026-11-28-extensao-explain-banco-acumulado.md`.
+        const aplicacoesNovas = await cliente.query(
+          `insert into atividade_aplicada (escola_id, ano_letivo_id, turma_id, artefato_id, avaliativa, estado, aplicada_por, aplicada_em, encerrada_em, abre_em, fecha_em, duracao_min)
+           select escola_id, ano_letivo_id, turma_id, artefato_id, avaliativa, 'encerrada', aplicada_por, aplicada_em, now(), abre_em, fecha_em, duracao_min
+           from atividade_aplicada cross join generate_series(1, 200) where escola_id = $1 and id = $2`,
+          [a.escolaId, id],
+        )
+        const tentativasNovas = await cliente.query(
+          `insert into tentativa_atividade (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, iniciada_em, enviada_em, envio)
+           select aplicacao.escola_id, aplicacao.ano_letivo_id, aplicacao.id, aluno.usuario_id, now() - interval '1 hour', now() - interval '30 minutes', 'aluno'
+           from atividade_aplicada aplicacao
+           join vinculo aluno on aluno.escola_id = aplicacao.escola_id and aluno.ano_letivo_id = aplicacao.ano_letivo_id and aluno.turma_id = aplicacao.turma_id and aluno.papel = 'aluno' and aluno.estado = 'confirmado'
+           where aplicacao.escola_id = $1 and aplicacao.estado = 'encerrada' and aplicacao.id <> $2
+           on conflict on constraint tentativa_atividade_uma_por_aluno do nothing`,
+          [a.escolaId, id],
+        )
+        const extensoesNovas = await cliente.query(
+          `insert into extensao_de_tempo (escola_id, ano_letivo_id, atividade_aplicada_id, aluno_id, minutos, concedida_por, chave)
+           select aplicacao.escola_id, aplicacao.ano_letivo_id, aplicacao.id, aluno.usuario_id, 10, aplicacao.aplicada_por, gen_random_uuid()
+           from atividade_aplicada aplicacao
+           join vinculo aluno on aluno.escola_id = aplicacao.escola_id and aluno.ano_letivo_id = aplicacao.ano_letivo_id and aluno.turma_id = aplicacao.turma_id and aluno.papel = 'aluno' and aluno.estado = 'confirmado'
+           where aplicacao.escola_id = $1 and aplicacao.estado = 'encerrada' and aplicacao.id <> $2`,
+          [a.escolaId, id],
+        )
+        // O volume só prova se existe: sem aluno confirmado na turma, os dois últimos `insert` gravariam zero e o empate voltaria calado.
+        expect([aplicacoesNovas.rowCount, (tentativasNovas.rowCount ?? 0) >= 200, (extensoesNovas.rowCount ?? 0) >= 200]).toEqual([200, true, true])
+        // As estatísticas de hoje, com o volume: sem elas o planejador escolhe o índice da tentativa pelo que o banco acumulado tinha.
         for (const tabela of ['atividade_aplicada', 'vinculo', 'usuario', 'tentativa_atividade', 'extensao_de_tempo']) await cliente.query(`analyze ${tabela}`)
         const consulta = runInContext(contextoDaProfessora(), () => new AcompanhamentoRepository(createDatabase(bancada.pool)).consulta(id))
         const { sql: texto, params } = consulta.toSQL()
@@ -514,7 +541,13 @@ describe('a extensão de tempo e o acompanhamento da prova', () => {
         }
         // A tentativa e a extensão entram pela escola, e não só pelo aluno ou pela aplicação.
         const daTentativa = nos.find((no) => no['Relation Name'] === 'tentativa_atividade' && no['Index Name'] === 'tentativa_atividade_uma_por_aluno')
-        expect(String(daTentativa?.['Index Cond'])).toMatch(/escola_id/)
+        expect(daTentativa, resumo).toBeDefined()
+        expect(String(daTentativa?.['Index Cond']), resumo).toMatch(/escola_id/)
+        // E pela aplicação, que é o que a torna seletiva: o índice só por escola (e aluno) também é índice, mas leria as tentativas da escola inteira.
+        expect(String(daTentativa?.['Index Cond']), resumo).toMatch(/atividade_aplicada_id/)
+        const daExtensao = nos.find((no) => no['Relation Name'] === 'extensao_de_tempo' && no['Index Name'] === 'extensao_de_tempo_chave_por_aplicacao')
+        expect(daExtensao, resumo).toBeDefined()
+        expect(String(daExtensao?.['Index Cond']), resumo).toMatch(/escola_id.*atividade_aplicada_id|atividade_aplicada_id.*escola_id/)
       } finally {
         await cliente.query('rollback')
         cliente.release()
