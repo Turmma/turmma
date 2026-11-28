@@ -259,6 +259,10 @@ professor, sem valor nem texto sugerido pela IA (D55).
 - A tela **grava o registro da validação**: o que foi apresentado, quais destaques foram
   abertos, quem confirmou e quando (D56). É esse registro que prova, para a escola e para a
   fiscalização, que houve validação qualificada — e não um clique
+- **No lote de uma prova avaliativa, a coluna "Saiu da aba"** (D70, D88; seção 1.6) vem ao lado de cada
+  aluno, sempre com o aviso fixo acima da lista e da tabela. Não é destaque, não trava o botão de aprovar e
+  não muda a ordem. O registro da validação guarda **só que a coluna foi mostrada**, sem a contagem de
+  ninguém
 
 O desenho da tela, com a cor própria da ação oficial, está na seção 11.5.
 
@@ -275,9 +279,15 @@ O desenho da tela, com a cor própria da ação oficial, está na seção 11.5.
 ### 1.6 Prova online: saída da aba (D70)
 
 - Antes de começar, o aluno lê que sair da aba da prova é mostrado ao professor
-- O professor vê o fato ("saiu da aba 3 vezes"), junto dos outros destaques do lote. Nada
-  acontece sozinho com a prova nem com a nota
-- Não existe fora de avaliação, não vira histórico do aluno e não aparece para a coordenação
+- O professor vê o fato **só no lote**, na coluna "Saiu da aba" (o número de vezes naquela prova), para
+  todo aluno, sempre com o aviso fixo acima: "Conta as vezes em que a aba da prova perdeu o foco. Leitor
+  de tela, teclado virtual e avisos do sistema também contam. Sozinho, não indica cola." Em tela
+  estreita (360 px), a contagem vai dentro do cartão do aluno, com o mesmo rótulo
+- **A saída da aba não é destaque**: não entra na lista "Abra estes N antes de aprovar", não trava a
+  aprovação, não muda a ordem nem a correção, e nada acontece sozinho com a prova nem com a nota
+- Cada saída conta uma vez na tentativa, e o reenvio da mesma saída não soma. Não existe fora de avaliação
+  (a atividade sem prova nem tem a coluna), não é somada entre provas, não vira histórico do aluno, não
+  aparece para a coordenação, nem em Hoje e Turmas, e o registro da validação não guarda a contagem
 
 ### 1.7 Turmas e a turma aberta (X3, tarefas 9.0 a 13.0)
 

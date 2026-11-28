@@ -50,6 +50,12 @@ export const PREFIXO_LIMITE_IMPORTACAO = 'rl:importacao'
  */
 export const PREFIXO_LIMITE_COMECAR_PROVA = 'rl:comecar-prova'
 
+/**
+ * O limite de `saidas-da-aba` na prova online (`rl:saida-da-aba`, avaliacao-e-correcao, 8.0; Tech Spec §7c): 30 por minuto **por usuário**, num balde próprio, além do limite de usuário e de escola
+ * do F0, e separado do de `comecar`. Por usuário e nunca por IP (regra 80, item 1): trinta e cinco alunos atrás do mesmo IP fazem a mesma prova.
+ */
+export const PREFIXO_LIMITE_SAIDA_DA_ABA = 'rl:saida-da-aba'
+
 /** O semáforo das prévias e gravares simultâneos de uma escola (`sem:importacao:{escolaId}`, F2, tarefa 5.0). */
 export const PREFIXO_VAGAS_DA_IMPORTACAO = 'sem:importacao'
 

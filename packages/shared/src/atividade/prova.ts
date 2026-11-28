@@ -16,6 +16,9 @@ import { DURACAO_MAXIMA_DA_PROVA_MIN, DURACAO_MINIMA_DA_PROVA_MIN, ENVIOS_DA_TEN
 /** Quantas vezes por minuto o mesmo aluno pode chamar `comecar` (`rl:comecar-prova`, 429 acima): o clique repetido e o laço de reenvio não esgotam a cota dele nem a da escola. */
 export const LIMITE_DO_COMECAR_POR_MINUTO = 30
 
+/** Quantas vezes por minuto o mesmo aluno pode mandar `saidas-da-aba` (`rl:saida-da-aba`, 429 acima): a fila de saídas da tela reenvia em série, e o laço de reenvio não esgota a cota dele nem a da escola. */
+export const LIMITE_DA_SAIDA_DA_ABA_POR_MINUTO = 30
+
 /** O número da questão, de 1 a 20, no caminho (`/respostas/:questao`) e nos corpos. */
 export const numeroDaQuestaoSchema = z.coerce.number().int().min(1).max(MAXIMO_DE_QUESTOES_POR_ATIVIDADE)
 

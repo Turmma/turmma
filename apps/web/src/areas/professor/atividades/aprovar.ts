@@ -260,3 +260,25 @@ export function outrasEmOrdemDeNome<C extends { readonly alunoId: string; readon
 }
 
 export const AVISO_DO_GABARITO = 'Uma questão em que quase todos erram a mesma alternativa pode ter o gabarito errado. Se for o caso, rejeite a correção e diga qual questão.'
+
+/** Uma linha das outras correções, como a tabela a recebe: a coluna "Saiu da aba" lê dela a contagem. */
+export type CorrecaoDeAluno = CorrecaoDoLoteResponse['outras'][number]
+
+/** A coluna que só a prova avaliativa tem (D70): quantas vezes a aba da prova perdeu o foco **naquela prova**. */
+export const ROTULO_DA_SAIDA_DA_ABA = 'Saiu da aba'
+
+/**
+ * O aviso fixo da coluna (D88; `cenarios.md` §4), **sempre** acima da lista e da tabela que a mostram: a contagem não prova nada sozinha, e a tecnologia assistiva também conta. A coluna sem ele
+ * não aparece. A saída da aba não é destaque, não trava a aprovação e não muda a ordem de ninguém.
+ */
+export const AVISO_DA_SAIDA_DA_ABA = 'Conta as vezes em que a aba da prova perdeu o foco. Leitor de tela, teclado virtual e avisos do sistema também contam. Sozinho, não indica cola.'
+
+/** O lote é de uma avaliativa? Só nela a API devolve `saidasDaAba`, e então todas as correções a trazem. */
+export function hasSaidaDaAba(correcao: Pick<CorrecaoDoLoteResponse, 'destaques' | 'outras'>): boolean {
+  return [...correcao.destaques, ...correcao.outras].some((aluno) => aluno.saidasDaAba !== undefined)
+}
+
+/** A contagem como a tela a diz, em número (a coluna e o cartão a 360 px já levam o rótulo). */
+export function textoDasSaidas(aluno: { readonly saidasDaAba?: number | undefined }): string {
+  return String(aluno.saidasDaAba ?? 0)
+}

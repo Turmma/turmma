@@ -19,6 +19,8 @@ export interface DadosDoLote {
   readonly correcoes: readonly CorrecaoDoLote[]
   /** As respostas de cada aluno corrigido, pelo id dele: é de onde sai a contagem por alternativa. */
   readonly respostas: ReadonlyMap<string, RespostasDaTentativa>
+  /** O lote é de uma avaliativa, cuja coluna "Saiu da aba" a professora vê: o registro guarda **só que ela foi mostrada**, nunca a contagem por aluno (D56, D70). */
+  readonly saidaDaAbaMostrada?: boolean
 }
 
 const SEM_RESPOSTAS: RespostasDaTentativa = new Map()
@@ -87,7 +89,7 @@ export function resumoDoLote({ questoes, alunosDaTurma, correcoes, respostas }: 
 
 /**
  * O que a validação guarda como **apresentado** (D56): o resumo e os destaques, cada um com o id do aluno e os motivos,
- * em ordem de id. Sem nome e sem texto. Montado no servidor, das linhas de `correcao`: nada daqui vem do cliente.
+ * em ordem de id, e, no lote da avaliativa, a marca de que a coluna "Saiu da aba" foi mostrada (sem a contagem de ninguém). Sem nome e sem texto. Montado no servidor, das linhas de `correcao`: nada daqui vem do cliente.
  */
 export function loteApresentado(dados: DadosDoLote): LoteApresentado {
   return {
@@ -96,6 +98,7 @@ export function loteApresentado(dados: DadosDoLote): LoteApresentado {
       .filter((correcao) => correcao.destaques.length > 0)
       .map((correcao) => ({ alunoId: correcao.alunoId, motivos: [...correcao.destaques] }))
       .sort((a, b) => (a.alunoId < b.alunoId ? -1 : a.alunoId > b.alunoId ? 1 : 0)),
+    ...(dados.saidaDaAbaMostrada === true ? { saidaDaAbaMostrada: true as const } : {}),
   }
 }
 

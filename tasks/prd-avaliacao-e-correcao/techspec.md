@@ -151,7 +151,7 @@ toca a de B. Repository novo, contexto de A com id de B: vazio. Casos: `cenarios
 | Autorização | professor pelo `canAplicarNaTurma`; aluno pela §5.2; ações novas na matriz, coordenação e rede em `nunca` |
 | DTO | o aluno não lê colega, saídas nem "tempo adicional"; a coordenação e a rede, nada disto, fora o arquivo do titular sem conta ativa (linha acima) |
 
-A contagem de saídas fica só no lote, fora do `apresentado`: a validação guarda que a coluna foi mostrada (D70, D88).
+A contagem de saídas fica só no lote, fora do `apresentado`: a validação guarda que a coluna foi mostrada (`apresentado.saidaDaAbaMostrada: true`, só na avaliativa; sem a contagem de aluno nenhum; D70, D88).
 
 ## 7b. Conformidade CNE
 
@@ -163,7 +163,7 @@ tarefa da rotina atualiza a etapa 1 da AIA de correção de objetiva (1.4/1, o g
 | Item | Resposta |
 |---|---|
 | Caminho quente | prova: 60 turmas × 35 alunos (PUT por item, `tempo` a cada 30 s), ~80 req/s |
-| Rate limit | o por usuário de hoje; `saidas-da-aba` e `comecar`, 30/min por usuário (429) |
+| Rate limit | o por usuário de hoje; `saidas-da-aba` e `comecar`, 30/min por usuário (429), cada um no seu balde (`rl:saida-da-aba`, `rl:comecar-prova`) |
 | Corridas | `cenarios.md` §3, com ordem forçada e mutação |
 | Laços | job: até 200 aplicações, 1 por transação, 60 s; acompanhamento a cada 15 s, só à vista |
 | Índices | §5.6; `extensao_de_tempo (escola_id, atividade_aplicada_id)`; `indisponibilidade (fim)`; `EXPLAIN` na tarefa |

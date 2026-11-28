@@ -73,9 +73,10 @@ export interface TentativaLida {
   readonly agora: Date
 }
 
-/** A atividade para a resposta e o envio: o estado e quantas questões tem. */
+/** A atividade para a resposta, o envio e a saída da aba: o estado, se é avaliativa e quantas questões tem. */
 export interface AtividadeParaGravar {
   readonly estado: EstadoDeAtividadeAplicada
+  readonly avaliativa: boolean
   readonly questoes: number
 }
 
@@ -254,7 +255,7 @@ export class MinhaAtividadeRepository {
 
   #paraGravar(id: string) {
     return this.banco
-      .select({ estado: atividadeAplicada.estado, questoes: sql<number>`jsonb_array_length(${artefato.conteudo} -> 'questoes')` })
+      .select({ estado: atividadeAplicada.estado, avaliativa: atividadeAplicada.avaliativa, questoes: sql<number>`jsonb_array_length(${artefato.conteudo} -> 'questoes')` })
       .from(atividadeAplicada)
       .innerJoin(artefato, artefatoDaAplicacao)
       .where(and(this.#daMinhaTurma(), eq(atividadeAplicada.id, id)))

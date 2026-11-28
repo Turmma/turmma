@@ -31,8 +31,10 @@ import {
   acertosDoAluno,
   APOIO_DAS_OUTRAS,
   AVISO_DA_REJEICAO_DO_LOTE,
+  AVISO_DA_SAIDA_DA_ABA,
   AVISO_DO_GABARITO,
   caminhoDeVoltaDaCorrecao,
+  type CorrecaoDeAluno,
   contadorDosDestaques,
   destaqueDoEndereco,
   EFEITO_DE_APROVAR_O_LOTE,
@@ -48,7 +50,10 @@ import {
   rotuloDaFaixa,
   ROTULO_DAS_ABAS_DA_CORRECAO,
   ROTULO_DE_REJEITAR_O_LOTE,
+  ROTULO_DA_SAIDA_DA_ABA,
   rotuloDeAprovar,
+  hasSaidaDaAba,
+  textoDasSaidas,
   textoDeAlunos,
   tituloDasOutras,
   tituloDosDestaques,
@@ -251,6 +256,8 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
   }
 
   const { resumo, destaques, outras } = dados
+  // Só o lote de avaliativa traz as saídas da aba (D70): a coluna, o aviso fixo e a contagem no cartão vêm juntos, ou nenhum deles.
+  const comSaidas = hasSaidaDaAba(dados)
   const pendente = dados.entrega.estado === 'pendente'
   const contador = contadorDosDestaques(dados)
   const turma = entregaInteira === undefined ? undefined : nomesDasTurmas(vinculos.data?.pages.flatMap((pagina) => pagina.itens) ?? [])[entregaInteira.turmaId]
@@ -285,7 +292,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
       <li key={destaque.alunoId} id={idDoDestaque(destaque.alunoId)} data-destaque={estado.aberto ? 'aberto' : 'fechado'} className="flex min-w-0 flex-col">
         <ListItem
           titulo={destaque.nome}
-          abaixo={`${motivosDoDestaque(destaque)} · ${acertosDoAluno(destaque)}`}
+          abaixo={`${motivosDoDestaque(destaque)} · ${acertosDoAluno(destaque)}${comSaidas ? ` · ${ROTULO_DA_SAIDA_DA_ABA}: ${textoDasSaidas(destaque)}` : ''}`}
           fim={abrindo ? <StatusBadge familia="pendente">Abrindo…</StatusBadge> : estado.aberto ? <StatusBadge familia="ok">{estado.texto}</StatusBadge> : <StatusBadge familia="pendente">{estado.texto}</StatusBadge>}
           {...(acionavel ? { aoAcionar: () => openOuMostrar(destaque.alunoId) } : {})}
         />
@@ -340,6 +347,7 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
               titulo={tituloDosDestaques(destaques.length)}
               apoio={destaques.length === 0 ? 'Nenhuma correção deste lote ficou fora do esperado. Confira o resumo e aprove.' : 'São as correções fora da curva. Abrir cada uma fica registrado, com a hora.'}
             />
+            {comSaidas && destaques.length > 0 && <Alert tom="info">{AVISO_DA_SAIDA_DA_ABA}</Alert>}
             {destaques.length > 0 && <ul className="m-0 flex min-w-0 list-none flex-col divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda bg-superficie p-0">{destaques.map(linhaDoDestaque)}</ul>}
           </section>
         )}
@@ -347,12 +355,14 @@ export default function Aprovar({ atividadeAplicadaId }: { atividadeAplicadaId: 
         {aba === 'outras' && (
           <section aria-labelledby={idDasOutras} className="flex min-w-0 flex-col gap-3">
             <SectionHeader id={idDasOutras} titulo={tituloDasOutras(outras.length)} apoio={outras.length === 0 ? 'Todas as correções deste lote estão nos destaques.' : APOIO_DAS_OUTRAS} />
+            {comSaidas && outras.length > 0 && <Alert tom="info">{AVISO_DA_SAIDA_DA_ABA}</Alert>}
             {outras.length > 0 && (
               <Table
                 rotulo="As outras correções"
                 colunas={[
                   { chave: 'nome', titulo: 'Aluno', celula: (aluno) => aluno.nome },
                   { chave: 'acertos', titulo: 'Acertos', celula: (aluno) => acertosDoAluno(aluno) },
+                  ...(comSaidas ? [{ chave: 'saidas', titulo: ROTULO_DA_SAIDA_DA_ABA, celula: (aluno: CorrecaoDeAluno) => textoDasSaidas(aluno), alinhamento: 'fim' as const }] : []),
                 ]}
                 linhas={outrasEmOrdem}
                 chaveDaLinha={(aluno) => aluno.alunoId}

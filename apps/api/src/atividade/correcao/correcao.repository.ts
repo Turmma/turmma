@@ -6,6 +6,7 @@ import {
   requireAnoEmCurso,
   requireEscolaId,
   requestSessao,
+  tentativaAtividade,
   usuario,
   validacaoDoLote,
   type Database,
@@ -31,6 +32,8 @@ export interface LoteLido {
   readonly disciplinaId: string
   readonly titulo: string
   readonly conteudo: unknown
+  /** Só a avaliativa tem prova online, e só nela o lote traz a coluna "Saiu da aba" (D70). */
+  readonly avaliativa: boolean
   readonly alunosDaTurma: number
 }
 
@@ -44,6 +47,11 @@ export interface CorrecaoLida {
   readonly porHabilidade: DiagnosticoGravado
   readonly destaques: MotivoDeDestaque[]
   readonly destaqueAbertoEm: Date | null
+  /**
+   * Quantas vezes a aba da prova perdeu o foco **nesta tentativa** (`tentativa_atividade.saidas_da_aba`; D70). Só o lote da avaliativa a mostra (o service decide), e nada a leva para o
+   * registro da validação nem para o resumo: é fato do professor da turma, sem consequência (D88).
+   */
+  readonly saidasDaAba: number
 }
 
 export interface ValidacaoLida {
@@ -71,6 +79,7 @@ const colunasDoLote = {
   disciplinaId: artefato.disciplinaId,
   titulo: artefato.titulo,
   conteudo: artefato.conteudo,
+  avaliativa: atividadeAplicada.avaliativa,
   alunosDaTurma: alunosDaTurma(entrega),
 }
 
@@ -142,9 +151,19 @@ export class CorrecaoRepository {
         porHabilidade: correcao.porHabilidade,
         destaques: correcao.destaques,
         destaqueAbertoEm: correcao.destaqueAbertoEm,
+        saidasDaAba: sql<number>`coalesce(${tentativaAtividade.saidasDaAba}, 0)::int`,
       })
       .from(correcao)
       .innerJoin(usuario, and(eq(usuario.escolaId, correcao.escolaId), eq(usuario.id, correcao.alunoId)))
+      .leftJoin(
+        tentativaAtividade,
+        and(
+          eq(tentativaAtividade.escolaId, correcao.escolaId),
+          eq(tentativaAtividade.anoLetivoId, correcao.anoLetivoId),
+          eq(tentativaAtividade.atividadeAplicadaId, correcao.atividadeAplicadaId),
+          eq(tentativaAtividade.alunoId, correcao.alunoId),
+        ),
+      )
       .where(and(eq(correcao.escolaId, requireEscolaId()), eq(correcao.anoLetivoId, requireAnoEmCurso()), eq(correcao.entregaId, entregaId), alunoId === undefined ? undefined : eq(correcao.alunoId, alunoId)))
       .orderBy(asc(usuario.nome), asc(correcao.alunoId))
   }

@@ -48,10 +48,10 @@
   - [x] 7.1 `avaliativaAberta` por aluno, com `limiteDaTentativa`, e o convocado
   - [x] 7.2 Testes: §2 do Tutor, RF6 do Tutor
 
-- [ ] **8.0 — Saída da aba registrada sem contar duas vezes, e mostrada só no lote**
-  - [ ] 8.1 `saidas-da-aba`; `saidasDaAba` na correção; a marca na validação
-  - [ ] 8.2 Coluna "Saiu da aba" no Aprovar, com o aviso fixo; `docs/interface.md` §1.6
-  - [ ] 8.3 Testes: RF9, corrida (i)
+- [x] **8.0 — Saída da aba registrada sem contar duas vezes, e mostrada só no lote**
+  - [x] 8.1 `saidas-da-aba`; `saidasDaAba` na correção; a marca na validação
+  - [x] 8.2 Coluna "Saiu da aba" no Aprovar, com o aviso fixo; `docs/interface.md` §1.6
+  - [x] 8.3 Testes: RF9, corrida (i)
 
 - [ ] **9.0 — Segunda chamada para quem não enviou, com lote próprio**
   - [ ] 9.1 `segunda-chamada`; convocados; `minhas-atividades` e alcance pelo convocado

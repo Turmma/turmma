@@ -856,6 +856,7 @@ export {
   provaResponseSchema,
   duracaoDoAlunoSchema,
   LIMITE_DO_COMECAR_POR_MINUTO,
+  LIMITE_DA_SAIDA_DA_ABA_POR_MINUTO,
   questaoSalvaResponseSchema,
   respostaSalvaSchema,
   sequenciaSchema,

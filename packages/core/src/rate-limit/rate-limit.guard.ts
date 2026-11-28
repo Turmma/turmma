@@ -12,6 +12,7 @@ import { requestToken } from '../identidade/request-token.js'
 import { extractBearerToken, verifyOperadorToken, type VerifiedOperadorToken } from '../identidade/verify-token.js'
 import { COMECAR_PROVA_RATE_LIMIT_KEY } from './comecar-prova-rate-limit.decorator.js'
 import { IMPORTACAO_RATE_LIMIT_KEY } from './importacao-rate-limit.decorator.js'
+import { SAIDA_DA_ABA_RATE_LIMIT_KEY } from './saida-da-aba-rate-limit.decorator.js'
 import { clientIp, retryAfterSeconds } from './keys.js'
 import type { RateLimiter } from './rate-limiter.js'
 import { TITULAR_SEARCH_RATE_LIMIT_KEY } from './titular-search-rate-limit.decorator.js'
@@ -112,6 +113,15 @@ export class RateLimitGuard implements CanActivate {
       const doComecar = await this.limitador.consumeDoComecarDaProva(token.usuarioId)
       if (!doComecar.aceita) {
         throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(doComecar.msAteLiberar))
+      }
+    }
+    // `saidas-da-aba` da prova online (`@SaidaDaAbaRateLimit`) conta ainda no balde próprio `rl:saida-da-aba`, por usuário.
+    if (!anonima && this.reflector.getAllAndOverride<boolean | undefined>(SAIDA_DA_ABA_RATE_LIMIT_KEY, alvos) === true) {
+      const token = requestToken(requisicao)
+      if (token === undefined) throw new DomainException(ErrorCode.NAO_AUTENTICADO)
+      const daSaida = await this.limitador.consumeDaSaidaDaAba(token.usuarioId)
+      if (!daSaida.aceita) {
+        throw new DomainException(ErrorCode.LIMITE_EXCEDIDO, undefined, retryAfterSeconds(daSaida.msAteLiberar))
       }
     }
     return true
