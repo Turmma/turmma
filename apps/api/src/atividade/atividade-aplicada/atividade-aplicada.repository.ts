@@ -1,6 +1,6 @@
-import { artefato, atividadeAplicada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tempoAdicional, tentativaAtividade, turma, usuario, vinculo, type AplicacaoTravada, type Database, type DatabaseTransaction } from '@educa/core'
+import { artefato, atividadeAplicada, convocadoDaSegundaChamada, entrega, requireAnoEmCurso, requireEscolaId, requestSessao, tempoAdicional, tentativaAtividade, turma, usuario, vinculo, type AplicacaoTravada, type Database, type DatabaseTransaction } from '@educa/core'
 import type { AtividadesAplicadasQuery, Embaralhar, EstadoDeAtividadeAplicada, EstadoDeEntrega, JanelaDaProva, PercentualDeTempoAdicional, TempoAdicionalDoAluno, TipoDeArtefato } from '@educa/shared'
-import { and, desc, eq, inArray, lt, notInArray, sql, type AnyColumn, type SQL } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, lt, notInArray, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { InvariantException } from '@educa/shared'
 import { comVinculoConfirmadoDoProfessor, disciplinaDoArtefato } from '../../assistente/turma-do-professor.repository.js'
 
@@ -45,6 +45,8 @@ export interface NovaAplicacao {
   readonly janela?: JanelaDaProva | undefined
   readonly duracaoMin?: number | undefined
   readonly embaralhar: Embaralhar
+  /** A original de que esta é a segunda chamada (RF10); ausente na prova de primeira chamada. */
+  readonly segundaChamadaDe?: string | undefined
 }
 
 /**
@@ -58,6 +60,18 @@ export interface AplicacaoParaMudarAJanela {
   readonly avaliativa: boolean
   readonly janela: JanelaDaProva | undefined
   readonly duracaoMin: number | undefined
+  readonly embaralhar: Embaralhar
+}
+
+/** A original da segunda chamada, como a professora a alcança: o que decide se ela pode ser reaberta, e o que a segunda chamada herda dela. */
+export interface OriginalDaSegundaChamada {
+  readonly id: string
+  readonly turmaId: string
+  readonly artefatoId: string
+  readonly estado: EstadoDeAtividadeAplicada
+  readonly avaliativa: boolean
+  /** Nulo na original; a segunda chamada de uma segunda chamada não existe (RF10). */
+  readonly segundaChamadaDe: string | null
   readonly embaralhar: Embaralhar
 }
 
@@ -201,6 +215,7 @@ export class AtividadeAplicadaRepository {
         duracaoMin: nova.duracaoMin ?? null,
         embaralharQuestoes: nova.embaralhar.questoes,
         embaralharAlternativas: nova.embaralhar.alternativas,
+        segundaChamadaDe: nova.segundaChamadaDe ?? null,
       })
       .returning({ id: atividadeAplicada.id })
     if (criada === undefined) throw new InvariantException('atividade aplicada não criada')
@@ -349,5 +364,56 @@ export class AtividadeAplicadaRepository {
         duracaoMin: nova.duracaoMin ?? null,
       })
       .where(and(eq(atividadeAplicada.escolaId, requireEscolaId()), eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()), eq(atividadeAplicada.id, id), eq(atividadeAplicada.estado, 'aberta')))
+  }
+
+  /**
+   * A aplicação que se quer reabrir em segunda chamada, **no alcance da professora** (turma e disciplina dela; a de outra escola, outra turma, outra disciplina, outro ano e a inexistente não são achadas),
+   * sem trava: só a original **encerrada** é aceita, e `encerrada` não volta a `aberta`, então o estado lido aqui já é o definitivo.
+   */
+  async originalDaSegundaChamada(id: string): Promise<OriginalDaSegundaChamada | undefined> {
+    const [linha] = await this.banco
+      .select({
+        id: atividadeAplicada.id,
+        turmaId: atividadeAplicada.turmaId,
+        artefatoId: atividadeAplicada.artefatoId,
+        estado: atividadeAplicada.estado,
+        avaliativa: atividadeAplicada.avaliativa,
+        segundaChamadaDe: atividadeAplicada.segundaChamadaDe,
+        embaralharQuestoes: atividadeAplicada.embaralharQuestoes,
+        embaralharAlternativas: atividadeAplicada.embaralharAlternativas,
+      })
+      .from(atividadeAplicada)
+      .where(and(this.#noAlcance(), eq(atividadeAplicada.id, id)))
+    if (linha === undefined) return undefined
+    const { embaralharQuestoes, embaralharAlternativas, ...resto } = linha
+    return { ...resto, embaralhar: { questoes: embaralharQuestoes, alternativas: embaralharAlternativas } }
+  }
+
+  /**
+   * Dos alunos dados, quais já **enviaram** a prova: a tentativa com `enviada_em` da original **ou de qualquer segunda chamada dela**, seja o envio do aluno ou o do limite (a vencida conta como enviada, e o encerramento a grava com
+   * `enviada_em` = limite). Quem enviou uma segunda chamada já encerrada não é convocado de novo: a prova foi feita, e uma terceira daria duas correções da mesma prova. Quem nunca começou e quem a professora cortou antes do limite,
+   * levado com o salvo e sem `enviada_em`, não voltam: continuam convocáveis (Tech Spec §5.5 e §5.9).
+   */
+  async quemEnviou(originalId: string, alunoIds: readonly string[]): Promise<ReadonlySet<string>> {
+    const linhas = await this.banco
+      .select({ alunoId: tentativaAtividade.alunoId })
+      .from(tentativaAtividade)
+      .innerJoin(atividadeAplicada, and(eq(atividadeAplicada.escolaId, tentativaAtividade.escolaId), eq(atividadeAplicada.id, tentativaAtividade.atividadeAplicadaId)))
+      .where(
+        and(
+          eq(tentativaAtividade.escolaId, requireEscolaId()),
+          eq(tentativaAtividade.anoLetivoId, requireAnoEmCurso()),
+          or(eq(atividadeAplicada.id, originalId), eq(atividadeAplicada.segundaChamadaDe, originalId)),
+          inArray(tentativaAtividade.alunoId, [...alunoIds]),
+          isNotNull(tentativaAtividade.enviadaEm),
+        ),
+      )
+    return new Set(linhas.map((linha) => linha.alunoId))
+  }
+
+  /** Grava os convocados da segunda chamada, na mesma transação da aplicação. Que cada um é da turma e não enviou a original é conferência de quem chama. */
+  async saveConvocados(atividadeAplicadaId: string, alunoIds: readonly string[]): Promise<void> {
+    if (alunoIds.length === 0) return
+    await this.banco.insert(convocadoDaSegundaChamada).values(alunoIds.map((alunoId) => ({ escolaId: requireEscolaId(), anoLetivoId: requireAnoEmCurso(), atividadeAplicadaId, alunoId })))
   }
 }

@@ -15,12 +15,21 @@ import {
 } from '@educa/shared'
 import { paginar } from '../../http/pagination.js'
 import type { FuncaoSuspensionCheck } from '../../ia/funcao-suspension-check.js'
-import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoParaMudarAJanela } from './atividade-aplicada.repository.js'
+import { AtividadeAplicadaRepository, type AplicacaoLida, type AplicacaoParaMudarAJanela, type ArtefatoParaAplicar } from './atividade-aplicada.repository.js'
 
 const registro = new AuditoriaRecorder()
 
+/**
+ * As recusas de quem aplica, em um lugar só (o aplicar e a segunda chamada as usam): só atividade objetiva se aplica, e a versão adaptada só com a entrega dela `aprovada`. O gatilho do banco é a
+ * segunda barreira da versão adaptada.
+ */
+export function conferirArtefatoParaAplicar(alvo: ArtefatoParaAplicar): void {
+  if (alvo.tipo !== 'atividade_objetiva') throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
+  if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new DomainException(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
+}
+
 /** A atividade aplicada como a tela a recebe (DTO explícito; regra 20, item 4): só contagem de participação, nenhum aluno. */
-function paraATela(lida: AplicacaoLida): unknown {
+export function paraATela(lida: AplicacaoLida): unknown {
   return {
     id: lida.id,
     artefatoId: lida.artefatoId,
@@ -75,8 +84,7 @@ export class AtividadeAplicadaService {
       const alvo = await aplicacoes.artefatoParaAplicar(artefatoId)
       // O artefato fora do alcance e a turma sem vínculo na disciplina dele respondem igual: nenhum confirma o outro.
       if (alvo === undefined || !(await aplicacoes.canAplicarNaTurma(turmaId, alvo.disciplinaId))) throw new DomainException(ErrorCode.NAO_ENCONTRADO)
-      if (alvo.tipo !== 'atividade_objetiva') throw new DomainException(ErrorCode.ENTRADA_INVALIDA)
-      if (alvo.versaoAdaptada && alvo.entregaEstado !== 'aprovada') throw new DomainException(ErrorCode.VERSAO_ADAPTADA_NAO_APROVADA)
+      conferirArtefatoParaAplicar(alvo)
       // O aluno do tempo adicional é da turma: o de outra turma, de outra escola e o inexistente respondem igual, e nada se grava.
       await this.#conferirAlunosDaTurma(aplicacoes, turmaId, pedido.tempoAdicional)
       const id = await aplicacoes.create({ turmaId, artefatoId, avaliativa: pedido.avaliativa, janela: pedido.janela, duracaoMin: pedido.duracaoMin, embaralhar: pedido.embaralhar })

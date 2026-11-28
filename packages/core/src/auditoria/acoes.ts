@@ -807,6 +807,17 @@ export const ACOES_DE_AUDITORIA = {
     finalidade: null,
   },
   /**
+   * O professor reabriu a prova em segunda chamada para quem não a enviou (avaliacao-e-correcao, 9.0; RF10; Tech Spec §5.9). `entidadeId` é a aplicação **nova**; `depois` diz de qual original ela é,
+   * a turma e só as **contagens** (quantos convocados, quantos com tempo adicional): nunca o `alunoId` nem o percentual, porque quem faltou e quem tem tempo a mais é dado do aluno, e tempo adicional é
+   * adaptação, dado sensível (regra 20, item 3; D35). Quem foi convocado está na linha de `convocado_da_segunda_chamada`.
+   */
+  'atividade.segunda_chamada_aplicada': {
+    entidade: 'atividade_aplicada',
+    antes: null,
+    depois: z.strictObject({ segundaChamadaDe: z.uuid(), turmaId: z.uuid(), convocados: z.number().int().min(1), comTempoAdicional: z.number().int().nonnegative() }),
+    finalidade: null,
+  },
+  /**
    * A rotina do sistema encerrou uma prova vencida (avaliacao-e-correcao, 6.0; RF5 e RF6; Tech Spec §5.6 e §7). `entidadeId` é a atividade aplicada, e o autor é o operador `rotina`: nenhuma pessoa a encerrou.
    * **Uma por aplicação, nunca por tentativa nem por aluno**: `depois` leva a turma e só a **contagem** de tentativas que o limite tinha vencido, porque quem teve tempo a mais, quem faltou e quem saiu da aba
    * não é assunto da auditoria da escola (D35, D70). O lote que nasce da correção é o `entrega` pendente, que a professora aprova (regra 70, item 1): a rotina nunca decide nota.

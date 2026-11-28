@@ -70,6 +70,8 @@
 | RF10 | Convocado vê e começa; não convocado não vê na lista e recebe `NAO_ENCONTRADO` em `comecar`, `prova`, `tempo`, PUT e saídas | integração | lista ou rota sem o filtro |
 | RF10 | Com o lote da original **aprovado**, a segunda chamada encerra e corrige num lote próprio; o da original não muda | integração | corrigir no lote da original |
 | RF10 | Aluno que começou e venceu sem enviar não é convocável (conta como enviada); segunda chamada de uma segunda chamada: `ENTRADA_INVALIDA` | integração | olhar só `enviada_em`; aceitar encadear |
+| RF10 | Quem enviou uma segunda chamada, já encerrada, não é convocado de novo numa segunda chamada da mesma original (`ENTRADA_INVALIDA`, nada gravado); quem foi convocado e não enviou passa | integração | olhar só a tentativa da original |
+| RF10 | Original que não é avaliativa: `ENTRADA_INVALIDA` (e não erro do banco); a segunda chamada herda o embaralhamento da original, e a segunda aberta por original é `CONFLITO` | integração | gravar a segunda sem o embaralhamento; não conferir `avaliativa` |
 
 ## 1b. Acesso, ano letivo e vínculo
 

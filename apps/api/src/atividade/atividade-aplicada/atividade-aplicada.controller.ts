@@ -4,11 +4,13 @@ import {
   aplicarAtividadeRequestSchema,
   mudarJanelaRequestSchema,
   estenderTempoRequestSchema,
+  segundaChamadaRequestSchema,
   emptyOrMissingBodyRequestSchema,
   type AtividadesAplicadasQuery,
   type AplicarAtividadeLido,
   type MudarJanelaRequest,
   type EstenderTempoRequest,
+  type SegundaChamadaRequest,
   type AcompanhamentoResponse,
   type EmptyBodyRequest,
   type AtividadeAplicadaResponse,
@@ -21,9 +23,10 @@ import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Patch, Post
 import { AtividadeAplicadaService } from './atividade-aplicada.service.js'
 import { CorrecaoService } from '../correcao/correcao.service.js'
 import { ExtensaoService } from './extensao.service.js'
+import { SegundaChamadaService } from './segunda-chamada.service.js'
 
 /**
- * `/v1/atividades-aplicadas`, o lado da professora (MVP, A3): aplicar, listar, encerrar, mudar a janela da prova (antes de alguém começar), estender o tempo e acompanhar quem faz a prova, ler a correção do lote e abrir
+ * `/v1/atividades-aplicadas`, o lado da professora (MVP, A3): aplicar, listar, encerrar, mudar a janela da prova (antes de alguém começar), estender o tempo, acompanhar quem faz a prova, reabri-la em segunda chamada, ler a correção do lote e abrir
  * destaque. Todas as células são `turma_vinculada`, só do professor: coordenação e aluno são recusados pela guarda. O
  * corpo e a consulta passam pelo contrato estrito (escola, ano ou pessoa no corpo é `ENTRADA_INVALIDA`), e o id fora do
  * formato responde como o inexistente. A correção nomeia alunos e tem o gabarito: toda leitura sai com `no-store`. A
@@ -35,6 +38,7 @@ export class AtividadeAplicadaController {
     private readonly atividades: AtividadeAplicadaService,
     private readonly correcoes: CorrecaoService,
     private readonly extensoes: ExtensaoService,
+    private readonly segundasChamadas: SegundaChamadaService,
   ) {}
 
   @Post()
@@ -70,6 +74,12 @@ export class AtividadeAplicadaController {
   @Header('Cache-Control', 'no-store')
   estender(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(estenderTempoRequestSchema)) pedido: EstenderTempoRequest): Promise<AcompanhamentoResponse> {
     return this.extensoes.estender(atividadeAplicadaId, pedido)
+  }
+
+  @Post(':id/segunda-chamada')
+  @RequirePermissao('atividade_aplicada', 'segunda_chamada')
+  segundaChamada(@Param('id', IdPipe) atividadeAplicadaId: string, @Body(new ZodValidationPipe(segundaChamadaRequestSchema)) pedido: SegundaChamadaRequest): Promise<AtividadeAplicadaResponse> {
+    return this.segundasChamadas.aplicar(atividadeAplicadaId, pedido)
   }
 
   @Get(':id/acompanhamento')

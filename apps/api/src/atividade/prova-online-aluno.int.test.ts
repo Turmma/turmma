@@ -183,7 +183,8 @@ describe('prova online: o aluno começa e responde dentro do limite', () => {
         mudanca = rotas.mudarJanela(a.professora, id, { janela: janelaEm(-5, 120) })
         await parada.esperarParadas(1)
         comeco = rotas.comecar(bia, id)
-        await esperarNaTrava(bancada.pool, '%atividade_aplicada%for share%')
+        // O `pg_stat_activity` guarda só o começo do texto (1 kB) e o `for share` fica no fim da consulta de `prova`: a espera se acha pelo começo dela, que só o `comecar` deste caso tem parado.
+        await esperarNaTrava(bancada.pool, '%select "atividade_aplicada"."id", "artefato"."titulo"%')
         expect(await contarTentativas(id)).toBe(0)
       } finally {
         await parada.desarmar()

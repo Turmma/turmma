@@ -150,6 +150,17 @@ describe('mapa de ações da auditoria', () => {
     expect(estendido.depois.safeParse({ escopo: 'aluno', alunoId: UM_ID }).success, 'o aluno não entra').toBe(false)
   })
 
+  it('avaliacao-e-correcao 9.0: `atividade.segunda_chamada_aplicada` leva a original, a turma e só as contagens: nunca os convocados, o percentual nem os minutos', () => {
+    const segunda = ACOES_DE_AUDITORIA['atividade.segunda_chamada_aplicada']
+    expect([segunda.entidade, segunda.antes, segunda.finalidade]).toEqual(['atividade_aplicada', null, null])
+    const valido = { segundaChamadaDe: UM_ID, turmaId: UM_ID, convocados: 2, comTempoAdicional: 0 }
+    expect(segunda.depois.safeParse(valido).success).toBe(true)
+    expect(segunda.depois.safeParse({ ...valido, convocados: 0 }).success, 'sem convocado não há segunda chamada').toBe(false)
+    expect(segunda.depois.safeParse({ ...valido, comTempoAdicional: -1 }).success, 'contagem negativa').toBe(false)
+    expect(segunda.depois.safeParse({ ...valido, alunoIds: [UM_ID] }).success, 'os convocados não entram').toBe(false)
+    expect(segunda.depois.safeParse({ ...valido, percentual: 50 }).success, 'o percentual não entra').toBe(false)
+  })
+
   it('avaliacao-e-correcao 6.0: `atividade.encerrada_pelo_limite` leva a turma e a contagem de vencidas, uma por aplicação: nunca o aluno, o percentual nem os minutos', () => {
     const encerrada = ACOES_DE_AUDITORIA['atividade.encerrada_pelo_limite']
     expect([encerrada.entidade, encerrada.antes, encerrada.finalidade]).toEqual(['atividade_aplicada', null, null])

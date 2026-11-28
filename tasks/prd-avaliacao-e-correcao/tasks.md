@@ -53,9 +53,9 @@
   - [x] 8.2 Coluna "Saiu da aba" no Aprovar, com o aviso fixo; `docs/interface.md` §1.6
   - [x] 8.3 Testes: RF9, corrida (i)
 
-- [ ] **9.0 — Segunda chamada para quem não enviou, com lote próprio**
-  - [ ] 9.1 `segunda-chamada`; convocados; `minhas-atividades` e alcance pelo convocado
-  - [ ] 9.2 Testes: RF10, corrida (h)
+- [x] **9.0 — Segunda chamada para quem não enviou, com lote próprio**
+  - [x] 9.1 `segunda-chamada`; convocados; `minhas-atividades` e alcance pelo convocado
+  - [x] 9.2 Testes: RF10, corrida (h)
 
 - [x] **10.0 — Tela de aplicar a prova; a API passa a exigir a janela**
   - [x] 10.1 `AplicacaoDoArtefato.tsx` com janela, duração, embaralhar, tempo adicional e resumo; "Mudar janela"

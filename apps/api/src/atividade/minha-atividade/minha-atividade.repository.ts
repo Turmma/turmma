@@ -1,6 +1,7 @@
 import {
   artefato,
   atividadeAplicada,
+  convocadoDaSegundaChamada,
   correcao,
   disciplina,
   entrega,
@@ -129,12 +130,30 @@ const COLUNAS_DA_RESPOSTA = { questao: respostaAtividade.questao, alternativa: r
 export class MinhaAtividadeRepository {
   constructor(private readonly banco: Database | DatabaseTransaction) {}
 
-  /** Atividade da escola e do ano do contexto, de turma em que o aluno da sessão tem vínculo de aluno `confirmado`. */
+  /**
+   * Atividade da escola e do ano do contexto, de turma em que o aluno da sessão tem vínculo de aluno `confirmado`. **A segunda chamada só é do convocado** (RF10): a que tem `segunda_chamada_de` exige a linha dele em
+   * `convocado_da_segunda_chamada`, e este é o alcance de toda rota do aluno (lista, prova, tempo, resposta, envio, saída e diagnóstico), então o colega não convocado recebe o `NAO_ENCONTRADO` de quem não é da turma.
+   */
   #daMinhaTurma(): SQL | undefined {
     const { usuarioId } = requestSessao()
     return and(
       eq(atividadeAplicada.escolaId, requireEscolaId()),
       eq(atividadeAplicada.anoLetivoId, requireAnoEmCurso()),
+      or(
+        isNull(atividadeAplicada.segundaChamadaDe),
+        exists(
+          this.banco
+            .select({ um: convocadoDaSegundaChamada.id })
+            .from(convocadoDaSegundaChamada)
+            .where(
+              and(
+                eq(convocadoDaSegundaChamada.escolaId, atividadeAplicada.escolaId),
+                eq(convocadoDaSegundaChamada.atividadeAplicadaId, atividadeAplicada.id),
+                eq(convocadoDaSegundaChamada.alunoId, usuarioId),
+              ),
+            ),
+        ),
+      ),
       exists(
         this.banco
           .select({ um: vinculo.id })
@@ -231,7 +250,7 @@ export class MinhaAtividadeRepository {
 
   /**
    * O que a professora ligou nesta aplicação, no mesmo alcance de `prova`: lido só por quem vai **começar** (a ordem do aluno é sorteada uma vez, e só para o que está ligado). Fora de
-   * `prova` de propósito: o texto da consulta de `prova` já está perto do 1 kB que `pg_stat_activity` guarda, e o teste da trava `for share` (`prova-online-aluno.int.test.ts`, "mudar a janela × começar") acha a espera por um trecho do fim dele.
+   * `prova` de propósito: o texto da consulta de `prova` já passa do 1 kB que `pg_stat_activity` guarda, e o teste da trava `for share` (`prova-online-aluno.int.test.ts`, "mudar a janela × começar") acha a espera pelo começo dele.
    */
   async embaralhar(id: string): Promise<Embaralhar | undefined> {
     const [linha] = await this.banco

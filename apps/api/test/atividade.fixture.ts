@@ -119,6 +119,7 @@ export function rotasDaAtividade(api: TestApi) {
     listar: (sessao: TestSessao, consulta: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas${consulta}`),
     encerrar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/encerrar`, {}),
     mudarJanela: (sessao: TestSessao, id: string, corpo: unknown) => pedir(sessao, 'PATCH', `/v1/atividades-aplicadas/${id}/janela`, corpo),
+    segundaChamada: (sessao: TestSessao, id: string, corpo: unknown) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/segunda-chamada`, corpo),
     minhas: (sessao: TestSessao, consulta = '') => pedir(sessao, 'GET', `/v1/minhas-atividades${consulta}`),
     prova: (sessao: TestSessao, id: string) => pedir(sessao, 'GET', `/v1/atividades-aplicadas/${id}/prova`),
     comecar: (sessao: TestSessao, id: string) => pedir(sessao, 'POST', `/v1/atividades-aplicadas/${id}/comecar`, {}),
