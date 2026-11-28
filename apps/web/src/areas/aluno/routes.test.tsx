@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
 import { Suspense } from 'react'
 import { describe, expect, it } from 'vitest'
 import { Router } from 'wouter'
@@ -71,5 +71,20 @@ describe('os endereços do aluno', () => {
   it('um endereço que a área não tem responde "não encontrada"', async () => {
     abrir('/aluno/desempenho')
     expect(await screen.findByText(/não encontrada/i)).toBeTruthy()
+  })
+
+  it('"/aluno/prova/<id>" abre a prova em foco quando o id é um UUID, e responde "não encontrada" quando não é: o endereço não vai à API', async () => {
+    const id = '0197a1c0-0000-7000-8000-0000000005aa'
+    const rede = fakeNetwork()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, NAO_ACHADA)
+    abrir(`/aluno/prova/${id}`)
+    expect(await screen.findByText('Esta prova não está disponível')).toBeTruthy()
+    expect(rede.chamadas.some(({ caminho }) => caminho.includes(`/atividades-aplicadas/${id}/prova`))).toBe(true)
+    cleanup()
+
+    const outra = fakeNetwork()
+    abrir('/aluno/prova/nao-e-um-uuid')
+    expect(await screen.findByText(/não encontrada/i)).toBeTruthy()
+    expect(outra.chamadas).toHaveLength(0)
   })
 })

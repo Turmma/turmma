@@ -178,6 +178,9 @@ describe('o k6 repete as constantes do veredito', () => {
     expect(constante('PRIMEIRA_ESPERA_DA_FILA_MS')).toBe(doApp(respostas, /^export const PRIMEIRA_ESPERA_DA_FILA_MS = ([\d_]+)$/m))
     expect(constante('MAIOR_ESPERA_DA_FILA_MS')).toBe(doApp(respostas, /^export const MAIOR_ESPERA_DA_FILA_MS = ([\d_]+)$/m))
     expect(constante('JITTER_DA_FILA_PCT')).toBe(Math.round(100 * doApp(respostas, /^export const JITTER_DA_FILA = ([\d.]+)$/m)))
+    // A volta da rede: cada aluno sorteia de 0 a isto antes de reenviar, e o k6 sorteia com o mesmo teto (Tech Spec §9).
+    expect(constante('ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS')).toBe(doApp(respostas, /^export const ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS = ([\d_]+)$/m))
+    expect(script).toContain('Math.random() * ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS')
     expect(constante('PRAZO_DO_PUT_MS')).toBe(doApp('apps/web/src/api/client.ts', /PRAZOS_DA_CHAMADA_MS = \{[^}]*\bprova: ([\d_]+)/))
   })
 

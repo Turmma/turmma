@@ -147,10 +147,17 @@
 - **360 px:** Aplicar com a lista de tempo adicional em lista de uma coluna; Acompanhar em cartões por aluno (nome,
   situação, "Estender"); Aprovar com "Saiu da aba" dentro do cartão do aluno. Sem rolagem horizontal; alvos de 24 px, e
   de 44 px em Começar, Sair da prova, Estender e Confirmar. E2E `celular` das três (`professor-prova.spec.ts`).
-- Testes de unidade web: o resumo de Aplicar, o efeito antes de confirmar em Estender, os estados do Acompanhar.
-- Erro ao carregar a prova, o "Antes de começar" ou ao tocar em Começar (5xx, rede): "Não foi possível abrir a prova.
-  Tente de novo." com "Tentar de novo". Em Atividades, depois de "Sair" com fila pendente: "2 respostas ainda não
-  chegaram", até a fila esvaziar. Segunda chamada a 360 px: convocados em lista de uma coluna.
+- Testes de unidade web: o resumo de Aplicar, o efeito antes de confirmar em Estender, os estados do Acompanhar, e o
+  recomeço da prova (a sessão que acaba leva a fila junto, por `aoTrocarDeSessao`: a resposta que não chegou da primeira pessoa não sai com a
+  sessão da segunda; o navegador já prova essa troca em `aluno-atividade.spec.ts`, "o aluno seguinte vê as tarefas dele…").
+- Erro ao carregar a prova em foco ou ao tocar em Começar (5xx, rede): "Não foi possível abrir a prova.
+  Tente de novo." com "Tentar de novo". O erro ao carregar o "Antes de começar" (a porta da atividade, que também serve a
+  atividade sem prova online) diz o texto de erro de sempre da atividade, também com "Tentar de novo". Em Atividades,
+  depois de "Sair" com fila pendente: "2 respostas ainda não chegaram", até a fila esvaziar. Segunda chamada a 360 px:
+  convocados em lista de uma coluna.
+- O "Abre em…", o "Fechou" e o "Esta prova abre em…" são escritos pela janela lida e pelo relógio do computador (o aluno
+  ainda não tem o `agora` do servidor, que só existe com tentativa); a palavra final é do servidor: o "Começar" recusado
+  com `PROVA_FORA_DA_JANELA` troca o texto por "Esta prova não está aberta agora." e esconde o botão.
 
 ## 4b. E2E
 

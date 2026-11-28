@@ -166,6 +166,8 @@ export const ALUNO_ROUTES = {
   atividades: '/atividades',
   /** Uma atividade aberta: uma questão por vez e, depois de aprovada a correção, o diagnóstico. */
   atividade: '/atividades/:atividadeAplicadaId',
+  /** A prova em andamento, em tela de foco (avaliacao-e-correcao, 12.0; `isTelaDeFoco`): sem lateral nem barras, só a prova, o relógio e o "Sair da prova". */
+  prova: '/prova/:atividadeAplicadaId',
   /** "Eu": a turma, a série e a escola dele, e as linhas Privacidade e Sair. Era "Minha turma" (A1, 12.0; RF13), cujo endereço leva para cá. */
   eu: '/eu',
   /** O endereço de "Minha turma" até a X4: não é mais tela, e redireciona para `eu`, sem ficar no histórico. */
@@ -179,6 +181,11 @@ export const ALUNO_ROUTES = {
 /** O endereço de uma atividade aberta pelo aluno, **relativo à área**. */
 export function caminhoDaAtividadeDoAluno(atividadeAplicadaId: string): string {
   return ALUNO_ROUTES.atividade.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
+}
+
+/** O endereço da prova em andamento, **relativo à área**: a tela de foco (`ProvaEmFoco`). */
+export function caminhoDaProvaDoAluno(atividadeAplicadaId: string): string {
+  return ALUNO_ROUTES.prova.replace(':atividadeAplicadaId', encodeURIComponent(atividadeAplicadaId))
 }
 
 /** O nome do parâmetro que leva ao Tutor a questão em que o aluno estava: só o número dela. */
@@ -277,14 +284,17 @@ export const ROUTES = {
 
 /**
  * Os endereços de tela de foco: a casca some a lateral e as barras, e fica só o conteúdo, o "Sair" e o relógio de
- * inatividade (telas do aluno e primeiro acesso, Tech Spec seção 5). Hoje são as três introduções, uma por papel; a
- * prova em tela de foco (F6) entra aqui quando chegar.
+ * inatividade (telas do aluno e primeiro acesso, Tech Spec seção 5). São as três introduções, uma por papel, e a prova em
+ * andamento do aluno (`/aluno/prova/<id>`, avaliacao-e-correcao, 12.0), cujo endereço leva o id da prova.
  */
 const TELAS_DE_FOCO: readonly string[] = [ROUTES.bemVindoDoAluno, ROUTES.bemVindoDoProfessor, ROUTES.bemVindoDaCoordenacao]
 
+/** A prova em andamento: `/aluno/prova/<um trecho só>`. Um trecho a mais ou a menos é outra coisa. */
+const PROVA_EM_FOCO = new RegExp(`^${AREA_BASE_PATH.aluno}${ALUNO_ROUTES.prova.replace(':atividadeAplicadaId', '[^/]+')}$`)
+
 /** O caminho é o de uma tela de foco? Só o endereço exato: `/aluno/bem-vindo-velho` e `/aluno/bem-vindo/x` são outra coisa. */
 export function isTelaDeFoco(caminho: string): boolean {
-  return TELAS_DE_FOCO.includes(caminho)
+  return TELAS_DE_FOCO.includes(caminho) || PROVA_EM_FOCO.test(caminho)
 }
 
 /**

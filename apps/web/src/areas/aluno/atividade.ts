@@ -1,4 +1,5 @@
-import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@educa/shared'
+import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse, type QuestaoDaProva } from '@educa/shared'
+import type { TempoLido } from '../../api/atividades-do-aluno'
 import { ApiError } from '../../api/client'
 import { formatQuantity } from '../../format'
 import { pendenteDaQuestao, type EstadoDaFila } from './respostas'
@@ -20,6 +21,38 @@ export type FaseDaAtividade = 'respondendo' | 'enviada' | 'encerrada'
 export function faseDaAtividade(prova: Pick<ProvaResponse, 'estado' | 'enviadaEm'>): FaseDaAtividade {
   if (prova.enviadaEm !== null) return 'enviada'
   return prova.estado === 'encerrada' ? 'encerrada' : 'respondendo'
+}
+
+/**
+ * **A prova embaralhada é só de apresentação** (RF8; Tech Spec §4). `numero` é sempre o da questão original, e as questões vêm na ordem do aluno; `alternativas` vem na ordem em que a tela as mostra,
+ * e `ordemDasAlternativas[posicao]` é o **índice original** da alternativa daquela posição. É o índice original que o `PUT` manda e que o diagnóstico devolve: aqui mora a conta entre os dois.
+ */
+export function questaoPorNumero(prova: Pick<ProvaResponse, 'questoes'>, numero: number): QuestaoDaProva | undefined {
+  return prova.questoes.find((questao) => questao.numero === numero)
+}
+
+/** O índice original da alternativa que está na `posicao` da tela: é o que a resposta carrega. Sem a ordem (questão que não existe), a própria posição. */
+export function alternativaOriginal(questao: Pick<QuestaoDaProva, 'ordemDasAlternativas'> | undefined, posicao: number): number {
+  return questao?.ordemDasAlternativas[posicao] ?? posicao
+}
+
+/** A posição na tela da alternativa de índice original `original`: a conta inversa de `alternativaOriginal`. */
+export function posicaoDaAlternativa(questao: Pick<QuestaoDaProva, 'ordemDasAlternativas'> | undefined, original: number): number {
+  const posicao = questao?.ordemDasAlternativas.indexOf(original) ?? -1
+  return posicao === -1 ? original : posicao
+}
+
+/** A posição, a partir de 1, em que o aluno vê a questão de número `numero`: o que a tela chama de "Questão N". Sem embaralhar é o próprio número. */
+export function posicaoDaQuestao(prova: Pick<ProvaResponse, 'questoes'>, numero: number): number {
+  const indice = prova.questoes.findIndex((questao) => questao.numero === numero)
+  return indice === -1 ? numero : indice + 1
+}
+
+/** "B. Cinco": a alternativa de índice original `original`, com a letra e o texto **da posição em que o aluno a viu**, e não o da ordem original. */
+export function alternativaComTexto(questao: Pick<QuestaoDaProva, 'alternativas' | 'ordemDasAlternativas'> | undefined, original: number): string {
+  const posicao = posicaoDaAlternativa(questao, original)
+  const texto = questao?.alternativas[posicao]
+  return texto === undefined ? letraDaAlternativa(posicao) : `${letraDaAlternativa(posicao)}. ${texto}`
 }
 
 /** O que a leitura do diagnóstico trouxe, no mínimo que a regra precisa (é o formato de uma consulta do TanStack Query). */
@@ -163,9 +196,10 @@ export function impedimentoDoEnvio(contagem: Pick<ContagemDasRespostas, 'naoSalv
 }
 
 /** O que a tela diz quando a professora encerrou e ficaram escolhas que o servidor não chegou a receber. */
-export function avisoDeEscolhasPerdidas(fila: EstadoDaFila): string | undefined {
+export function avisoDeEscolhasPerdidas(fila: EstadoDaFila, naTela: (numero: number) => number = (numero) => numero): string | undefined {
   if (fila.falha !== 'encerrada' || fila.pendentes.length === 0) return undefined
-  const questoes = fila.pendentes.map((pendente) => pendente.questao).sort((a, b) => a - b)
+  // Pelo número que o aluno viu na tela: com a prova embaralhada, o número original da questão não é o dela.
+  const questoes = fila.pendentes.map((pendente) => naTela(pendente.questao)).sort((a, b) => a - b)
   const quais = questoes.length === 1 ? `a resposta da questão ${String(questoes[0])}` : `as respostas das questões ${questoes.slice(0, -1).join(', ')} e ${String(questoes.at(-1))}`
   return `A atividade foi encerrada antes de ${quais} ${questoes.length === 1 ? 'ser salva' : 'serem salvas'}. Se isso fizer diferença, avise quem dá a aula.`
 }
@@ -179,4 +213,72 @@ export function textoDoAcerto(acertos: number, total: number): string {
 export function questaoValida(numero: number, questoes: number): number {
   if (!Number.isInteger(numero)) return 1
   return Math.min(Math.max(numero, 1), Math.max(questoes, 1))
+}
+
+/**
+ * A prova em tela de foco (avaliacao-e-correcao, 12.0; `docs/interface.md` §2): o relógio, os avisos e os textos de erro. Aqui mora a regra, sem tela e sem rede. **O relógio é o do servidor** (RF6): o tempo que falta
+ * é o `limiteEm` menos o `Date.now()` corrigido pelo desvio que a leitura do `tempo` trouxe, e nunca o relógio da máquina sozinho.
+ */
+
+/** Quanto tempo falta, em ms (zero ou negativo: acabou), ou `undefined` sem tempo lido ou sem limite. */
+export function milissegundosQueFaltam(tempo: TempoLido | undefined, agora: number): number | undefined {
+  if (tempo?.limiteEm === null || tempo === undefined) return undefined
+  return Date.parse(tempo.limiteEm) - (agora + tempo.desvioMs)
+}
+
+/** O relógio da faixa: minutos inteiros, para cima, e nenhum segundo (a conta regressiva por segundo é pressão, D59). */
+export function textoDoRelogio(faltaMs: number): string {
+  if (faltaMs <= 0) return 'O tempo acabou'
+  if (faltaMs <= 60_000) return 'Falta menos de 1 min'
+  return `Faltam ${String(Math.ceil(faltaMs / 60_000))} min`
+}
+
+/** Os minutos em que o leitor de tela é avisado, uma vez cada: 10, 5 e 1 (`polite`). A 11 min, nenhum. */
+export const LIMIARES_DO_ANUNCIO_DO_RELOGIO_MIN = [10, 5, 1] as const
+
+export interface AnuncioDoRelogio {
+  /** Os limiares que este anúncio cobre: o aluno que abre a prova com 8 min recebe um aviso só, e não o de 10 e o de 5. */
+  readonly limiares: readonly number[]
+  readonly texto: string
+}
+
+/** O aviso do momento, se há: o tempo que falta cruzou um limiar que ainda não foi dito. Depois que a prova acaba, quem fala é o fim, e não este. */
+export function anuncioDoRelogio(faltaMs: number, jaAnunciados: ReadonlySet<number>): AnuncioDoRelogio | undefined {
+  if (faltaMs <= 0) return undefined
+  const minutos = Math.ceil(faltaMs / 60_000)
+  const alcancados = LIMIARES_DO_ANUNCIO_DO_RELOGIO_MIN.filter((limiar) => minutos <= limiar)
+  if (alcancados.length === 0 || alcancados.every((limiar) => jaAnunciados.has(limiar))) return undefined
+  return { limiares: alcancados, texto: minutos === 1 ? 'Falta 1 minuto.' : `Faltam ${String(minutos)} minutos.` }
+}
+
+export const TEXTO_DE_SAIR_DA_PROVA = 'Sair da prova'
+export const TEXTO_SEM_CONEXAO = 'Sem conexão. Suas respostas ficam guardadas e seguem quando a rede voltar. O tempo continua.'
+export const TEXTO_DO_FIM_DO_TEMPO = 'O tempo acabou. Suas respostas salvas foram enviadas.'
+export const TEXTO_DO_FIM_ENCERRADA = 'Quem dá a aula encerrou a prova. Suas respostas salvas foram enviadas.'
+export const TEXTO_DO_FIM_ENVIADA = 'Prova enviada. Quem dá a aula vê a correção antes de você.'
+export const TEXTO_DE_ERRO_AO_ABRIR_A_PROVA = 'Não foi possível abrir a prova. Tente de novo.'
+export const TEXTO_DE_AGUARDE = 'Aguarde um instante.'
+export const TEXTO_DO_ENVIO_QUE_NAO_SAIU = 'Não deu para enviar agora. Suas respostas estão guardadas; tente de novo em instantes. O tempo da queda volta para você.'
+
+/** "2 respostas não chegaram. Chame o professor.": o fim com a fila ainda pendente. */
+export function textoDasQueNaoChegaram(quantas: number): string {
+  return quantas === 1 ? '1 resposta não chegou. Chame o professor.' : `${String(quantas)} respostas não chegaram. Chame o professor.`
+}
+
+/** O que a lista "Tarefas" diz, depois do "Sair da prova", enquanto a fila não esvazia. */
+export function textoDasQueAindaNaoChegaram(quantas: number): string {
+  return quantas === 1 ? '1 resposta ainda não chegou' : `${String(quantas)} respostas ainda não chegaram`
+}
+
+/** O texto de uma falha ao abrir a prova ou ao tocar em "Começar": o limite por minuto pede para esperar, e o resto é "tente de novo". Nenhum código aparece (regra 50, item 12). */
+export function textoDoErroDaProva(erro: unknown): string {
+  return erro instanceof ApiError && erro.codigo === ErrorCode.LIMITE_EXCEDIDO ? TEXTO_DE_AGUARDE : TEXTO_DE_ERRO_AO_ABRIR_A_PROVA
+}
+
+/**
+ * O texto do "Enviar" que não saiu: o 503, a queda e o prazo que estourou dizem que as respostas estão guardadas (o que é verdade: a fila as tem), e o limite por minuto pede para esperar. A atividade
+ * encerrada nunca chega aqui: a tela a trata como o fim.
+ */
+export function textoDoEnvioQueFalhou(erro: unknown): string {
+  return erro instanceof ApiError && erro.codigo === ErrorCode.LIMITE_EXCEDIDO ? TEXTO_DE_AGUARDE : TEXTO_DO_ENVIO_QUE_NAO_SAIU
 }

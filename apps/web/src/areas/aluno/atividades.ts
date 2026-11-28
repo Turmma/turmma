@@ -28,6 +28,50 @@ export function estaParaResponder(atividade: Pick<MinhaAtividade, 'situacao'>): 
   return atividade.situacao === 'para_fazer' || atividade.situacao === 'em_andamento'
 }
 
+/** O fuso da escola (o mesmo de `FUSO_DO_USO` na API): "10:00" é a hora da parede da escola, e não a do computador. */
+export const FUSO_DA_ESCOLA = 'America/Sao_Paulo'
+
+function partesNaEscola(iso: string): Record<'day' | 'month' | 'hour' | 'minute', string> {
+  const partes = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO_DA_ESCOLA, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso))
+  const valor = (tipo: string): string => partes.find((parte) => parte.type === tipo)?.value ?? ''
+  return { day: valor('day'), month: valor('month'), hour: valor('hour'), minute: valor('minute') }
+}
+
+/** "24/11 às 10:00": o dia e a hora da escola. */
+export function diaEHoraNaEscola(iso: string): string {
+  const { day, month, hour, minute } = partesNaEscola(iso)
+  return `${day}/${month} às ${hour}:${minute}`
+}
+
+/** "11:40": a hora da escola. */
+export function horaNaEscola(iso: string): string {
+  const { hour, minute } = partesNaEscola(iso)
+  return `${hour}:${minute}`
+}
+
+/**
+ * Onde a janela da prova está em relação a agora, **pelo relógio deste computador**: `antes` (ainda não abriu), `aberta` e `depois` (já fechou). É o que a lista e "Antes de começar" dizem; quem decide, de
+ * verdade, é o servidor (`PROVA_FORA_DA_JANELA`), e a tela dele vale mais que esta conta. Sem janela, a atividade não tem prova online: `aberta`.
+ */
+export type SituacaoDaJanela = 'antes' | 'aberta' | 'depois'
+
+export function situacaoDaJanela(janela: MinhaAtividade['janela'], agora: number): SituacaoDaJanela {
+  if (janela === null) return 'aberta'
+  if (agora < Date.parse(janela.abreEm)) return 'antes'
+  return agora >= Date.parse(janela.fechaEm) ? 'depois' : 'aberta'
+}
+
+/**
+ * A linha da janela na lista (RF7): "Abre em 24/11 às 10:00" enquanto a prova não abriu, e "Fechou" quando passou sem o aluno ter começado. Quem já começou segue pela situação dele: a prova que ele
+ * ainda faz depois do fim da janela (a extensão, a queda) não "fechou" para ele. Sem janela, nada.
+ */
+export function textoDaJanelaNaLista(atividade: Pick<MinhaAtividade, 'janela' | 'situacao'>, agora: number): string | undefined {
+  if (atividade.janela === null || atividade.situacao !== 'para_fazer') return undefined
+  const situacao = situacaoDaJanela(atividade.janela, agora)
+  if (situacao === 'antes') return `Abre em ${diaEHoraNaEscola(atividade.janela.abreEm)}`
+  return situacao === 'depois' ? 'Fechou' : undefined
+}
+
 /** A linha de apoio da atividade: a disciplina e o tamanho. Sem prazo e sem tempo: o contrato não tem, e a tela não inventa. */
 export function resumoDaAtividade(atividade: Pick<MinhaAtividade, 'disciplina' | 'questoes'>): string {
   return `${atividade.disciplina.nome} · ${formatQuantity(atividade.questoes, 'questão', 'questões')}`

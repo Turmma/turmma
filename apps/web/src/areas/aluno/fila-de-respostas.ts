@@ -7,7 +7,7 @@ import { codigoDoErro } from '../../api/ciclo-de-execucao'
 import { euQueryOptions } from '../../api/eu'
 import { esquecerEspelhosDeOutroDono, saveEspelho, readEspelho } from '../../api/espelho-da-fila'
 import { aoAbrirSessao, aoTrocarDeSessao } from '../../api/sessao'
-import { adotarLeitura, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, haOutraEsperando, hidratarDoEspelho, proximoEnvio, type EstadoDaFila } from './respostas'
+import { adotarLeitura, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, haOutraEsperando, hidratarDoEspelho, esperaNaVoltaDaRede, proximoEnvio, type EstadoDaFila } from './respostas'
 
 /**
  * A fila de respostas de uma atividade, ligada à rede e ao relógio (regra 80, item 6). A regra é de `respostas.ts`; aqui
@@ -24,8 +24,13 @@ export interface FilaDeRespostas {
   readonly escolher: (questao: number, alternativa: number) => void
   /** A prova foi lida, ou o cache acertado: o que o servidor tem de mais novo que esta janela é adotado, com o aviso se a alternativa mudou. */
   readonly adotar: (lidas: readonly RespostaSalva[]) => void
-  /** Tenta agora, sem esperar o relógio: a rede voltou, a sessão voltou, ou a pessoa pediu. */
+  /** Tenta agora, sem esperar o relógio: a sessão voltou, o aluno pediu ("Tentar de novo") ou acabou de marcar. */
   readonly tryAgora: () => void
+  /**
+   * A rede voltou (`online`): **não manda na hora**. A rede da escola volta para a sala inteira no mesmo instante, e cada fila espera um sorteio de 0 a
+   * `ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS` antes de tentar (regra 80, item 6). Sem nada a mandar, não faz nada; a espera do recuo que já estava marcada dá lugar ao sorteio.
+   */
+  readonly redeVoltou: () => void
   /**
    * Traz de volta o que o espelho guardou (o F5, a sessão vencida e o mesmo aluno voltando), **só se o dono é quem está
    * na sessão agora**, e manda. Sem saber quem é, não faz nada: chame de novo quando souber.
@@ -41,6 +46,8 @@ interface PartesDaFila {
   readonly aoSalvar: (salva: QuestaoSalvaResponse) => void
   /** Chama a função depois da espera; devolve o cancelamento. No teste, um relógio que o teste adianta. */
   readonly agendar?: (funcao: () => void, esperaMs: number) => () => void
+  /** O sorteio de 0 a 1 da volta da rede (`Math.random` em produção); o teste fixa o que quer. */
+  readonly sortear?: () => number
   /**
    * O espelho em `sessionStorage` (53.0): de qual atividade é a fila, e quem é o aluno da sessão agora (`undefined`
    * enquanto não se sabe: nada é lido nem gravado). Sem isto, a fila vive só na memória.
@@ -53,7 +60,7 @@ function agendarNoRelogio(funcao: () => void, esperaMs: number): () => void {
   return () => clearTimeout(relogio)
 }
 
-export function createFilaDeRespostas({ save: salvar, aoSalvar, agendar = agendarNoRelogio, espelho }: PartesDaFila): FilaDeRespostas {
+export function createFilaDeRespostas({ save: salvar, aoSalvar, agendar = agendarNoRelogio, sortear = Math.random, espelho }: PartesDaFila): FilaDeRespostas {
   let estado = FILA_VAZIA
   let parada = false
   let cancelarEspera: (() => void) | undefined
@@ -121,6 +128,11 @@ export function createFilaDeRespostas({ save: salvar, aoSalvar, agendar = agenda
       publish(adotarLeitura(estado, lidas))
     },
     tryAgora: bombear,
+    redeVoltou: () => {
+      if (parada || proximoEnvio(estado) === undefined) return
+      cancelarEspera?.()
+      cancelarEspera = agendar(bombear, esperaNaVoltaDaRede(sortear))
+    },
     hidratar: () => {
       if (parada || espelho === undefined) return
       const dono = espelho.dono()
@@ -160,16 +172,39 @@ function tryTodas(): void {
   for (const fila of filas.values()) fila.tryAgora()
 }
 
+function redeVoltouEmTodas(): void {
+  for (const fila of filas.values()) fila.redeVoltou()
+}
+
+/** Quem acompanha as filas de **todas** as atividades (a lista "Tarefas" diz quantas respostas ainda não chegaram, mesmo depois do "Sair da prova"). */
+const ouvintesDasFilas = new Set<() => void>()
+
+export function assinarAsFilas(ouvinte: () => void): () => void {
+  ouvintesDasFilas.add(ouvinte)
+  return () => {
+    ouvintesDasFilas.delete(ouvinte)
+  }
+}
+
+/**
+ * Quantas respostas da atividade o servidor ainda não confirmou: 0 sem fila. É um número, e por isso serve de retrato estável para `useSyncExternalStore`.
+ * **Lê a fila pelo `atividadeAplicadaId`, sem conferir o dono da sessão** (regra 10, item 4): só está certo porque `aoTrocarDeSessao`, logo abaixo, esvazia as filas quando a sessão acaba. Quem mexer nessa limpeza mexe aqui.
+ */
+export function respostasQueNaoChegaram(atividadeAplicadaId: string): number {
+  return filas.get(atividadeAplicadaId)?.read().pendentes.length ?? 0
+}
+
 // A pessoa seguinte no Chromebook do carrinho não herda a escolha da anterior, e nada da anterior é mandado com a sessão dela.
 // Só a memória sai aqui: o espelho acompanha o fim da sessão no gancho de `api/espelho-da-fila.ts`, que não depende desta tela.
 aoTrocarDeSessao(() => {
   for (const fila of filas.values()) fila.stop()
   filas.clear()
+  for (const ouvinte of ouvintesDasFilas) ouvinte()
 })
 // A sessão voltou (o login por cima, a renovação): o que ficou esperando sai agora.
 aoAbrirSessao(tryTodas)
-// A rede voltou: não se espera o relógio.
-if (typeof window !== 'undefined') window.addEventListener('online', tryTodas)
+// A rede voltou: cada fila espera o sorteio dela, e a sala inteira não reenvia no mesmo segundo.
+if (typeof window !== 'undefined') window.addEventListener('online', redeVoltouEmTodas)
 
 /** A fila da atividade, criada na primeira vez que a tela a pede. */
 export function filaDaAtividade(cliente: QueryClient, atividadeAplicadaId: string): FilaDeRespostas {
@@ -186,5 +221,8 @@ export function filaDaAtividade(cliente: QueryClient, atividadeAplicadaId: strin
     },
   })
   filas.set(atividadeAplicadaId, fila)
+  fila.assinar(() => {
+    for (const ouvinte of ouvintesDasFilas) ouvinte()
+  })
   return fila
 }

@@ -190,7 +190,10 @@ Nenhum.
 - **Aprovar**: coluna "Saiu da aba" em avaliativa, sempre com o aviso fixo da D88 acima da tabela.
 - **Aluno**: "Antes de começar" (de `prova` sem tentativa) e "Começar"; `/aluno/prova/:id` **fora da casca**, com o relógio
   do servidor (corrigido pelo desvio), "Salvo"/"Salvando" e "Sair da prova", um clique. No celular, relógio e "Sair"
-  numa faixa de uma linha no topo.
+  numa faixa de uma linha no topo. A porta da atividade (`GET …/prova`) serve também à atividade sem prova online: o
+  erro dela diz o texto de sempre da atividade, e "Não foi possível abrir a prova" é só da tela de foco e do "Começar".
+  O "Abre em…", o "Fechou" e o "Esta prova abre em…" saem da janela lida pelo relógio do computador; o servidor decide
+  (`PROVA_FORA_DA_JANELA`), e a tela dá a palavra a ele.
 - A **fila de respostas vive no app**: 503, 5xx e rede mantêm o item; com pendência, relê `tempo` e reenvia mesmo
   depois do "Sair" e do fim; no fim, a tela diz quantas não chegaram.
 - **O reenvio é espalhado** (decisão do Joaquim, 27/11/2026, na 6.0; regra 80, item 6): 2.100 alunos atrás da mesma queda

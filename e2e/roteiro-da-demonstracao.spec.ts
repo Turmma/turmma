@@ -482,6 +482,11 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       await expect(naLista).toContainText('Avaliação: o Tutor fica pausado até quem dá a aula encerrar.', { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(naLista).toContainText(`${DISCIPLINA} · 5 questões`)
       await naLista.click()
+      // A avaliação com janela abre em "Antes de começar" (D70): o aviso vem antes de qualquer questão, e só o "Começar" abre a prova, numa tela de foco, fora da casca.
+      await expect(aluna.getByRole('heading', { name: 'Antes de começar' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+      await expect(principal(aluna)).toContainText('Esta prova tem 40 minutos, contados a partir de Começar.')
+      await aluna.getByRole('button', { name: 'Começar' }).click()
+      await expect(aluna).toHaveURL(new RegExp(`/aluno/prova/${aplicadaId}$`), { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(principal(aluna).getByRole('heading', { level: 1, name: PRIMEIRA })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       await expect(principal(aluna).getByRole('link', { name: 'Pedir ajuda ao Tutor nesta questão' })).toHaveCount(0)
       for (const [indice, alternativa] of respostasDaAna.entries()) {
@@ -494,16 +499,19 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       expect(await respostasNoBanco(escolaId, aplicadaId, anaId)).toEqual(respostasDaAna.map((alternativa, indice) => ({ questao: indice + 1, alternativa })))
       // A prova que a aluna recebeu não traz gabarito nem explicação.
       await expect(principal(aluna)).not.toContainText(/gabarito|explicação/i)
-      await principal(aluna).getByRole('button', { name: 'Enviar a atividade' }).click()
-      const enviar = aluna.getByRole('alertdialog', { name: 'Enviar a atividade?' })
+      await principal(aluna).getByRole('button', { name: 'Enviar a prova' }).click()
+      const enviar = aluna.getByRole('alertdialog', { name: 'Enviar a prova?' })
       await expect(enviar).toContainText('Nenhuma questão em branco')
-      await enviar.getByRole('button', { name: 'Enviar a atividade' }).click()
+      await enviar.getByRole('button', { name: 'Enviar a prova' }).click()
+      await expect(aluna.getByRole('alert').filter({ hasText: 'Prova enviada. Quem dá a aula vê a correção antes de você.' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
+      // Enviada, a atividade volta a ser a página comum, com o cartão de "enviada".
+      await aluna.goto(`/aluno/atividades/${aplicadaId}`)
       await expect(principal(aluna).getByRole('heading', { name: 'Atividade enviada' })).toBeVisible({ timeout: SIGN_IN_TIMEOUT_MS })
       // Antes da aprovação, o aluno não vê resultado nenhum.
       await expect(principal(aluna).locator('[data-resultado="aguardando"]')).toContainText('Quem dá a aula ainda vai revisar a correção.', { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(principal(aluna)).not.toContainText(/Seu resultado|Você acertou/)
 
-      // O Bruno responde tudo e envia; a Carla abre e não responde.
+      // O Bruno responde tudo e envia; a Carla começa a prova e não responde. Pela API, o `comecar` de `responderPelaApi` faz o que o toque em "Começar" faz (a tentativa nasce ali), e é ela que vira destaque.
       await responderPelaApi(request, await entrarComoAlunoPelaApi(request, { slug, ...bruno }), aplicadaId, primeira.questoes.map((questao) => questao.gabarito))
       await responderPelaApi(request, await entrarComoAlunoPelaApi(request, { slug, ...carla }), aplicadaId, primeira.questoes.map(() => null), { enviar: false })
       return aplicadaId

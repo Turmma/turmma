@@ -27,7 +27,9 @@ import { formatDayAndTime } from '../../format'
 import { usePageTitle } from '../../document-title'
 import { EXPLICACAO_SEM_HABILIDADE } from '../../components/habilidades/sem-habilidade'
 import {
+  alternativaComTexto,
   alternativaMarcada,
+  alternativaOriginal,
   AVISO_DE_OUTRA_JANELA,
   avisoDeEscolhasPerdidas,
   comemoracaoNaTela,
@@ -37,6 +39,8 @@ import {
   impedimentoDoEnvio,
   letraDaAlternativa,
   marcaDaQuestao,
+  posicaoDaQuestao,
+  questaoPorNumero,
   questaoValida,
   respostasSalvas,
   resultadoNaTela,
@@ -45,7 +49,9 @@ import {
   textoDasEmBranco,
   textoDasRespondidas,
   textoDoAcerto,
+  textoDoEnvioQueFalhou,
   TEXTO_DA_MARCA,
+  TEXTO_DE_SAIR_DA_PROVA,
   type MarcaDaQuestao,
 } from './atividade'
 import { AVISO_DA_AVALIACAO, TEXTO_DA_ESPERA_PELA_CORRECAO } from './atividades'
@@ -79,6 +85,8 @@ const CLASSES_DO_MAPA: Readonly<Record<MarcaDaQuestao, string>> = {
 }
 
 interface PropsDeQuemResponde {
+  /** A prova em tela de foco (`ProvaEmFoco`): sem o aviso do Tutor, com o ponto de parada da prova, o foco na primeira questão ao entrar e o "Enviar a prova". */
+  readonly emProva?: boolean
   readonly prova: ProvaResponse
   readonly fila: FilaDeRespostas
   readonly estadoDaFila: EstadoDaFila
@@ -95,10 +103,11 @@ interface PropsDeQuemResponde {
  *
  * **Cada escolha vai ao servidor na hora** (regra 80, item 6), pela fila de `fila-de-respostas.ts`. A tela diz "Resposta
  * salva" só quando o servidor confirmou; quando não consegue salvar, diz, mantém a escolha marcada e tenta de novo
- * sozinha. Nada aqui observa a janela, o foco ou a aba: sair e voltar não é medido (regra 70, item 7).
+ * sozinha. Este componente não observa a aba: na prova em foco, quem conta a saída é `ProvaEmFoco` (D70), e só durante a prova (regra 70, item 7).
  */
-function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar }: PropsDeQuemResponde) {
+export function Respondendo({ emProva = false, prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar }: PropsDeQuemResponde) {
   const cliente = useQueryClient()
+  // A posição, a partir de 1, da questão que o aluno vê. Com a prova embaralhada ela não é o `numero` da questão: o `numero` é o original, e é ele que a fila, o servidor e a correção usam.
   const [atual, definirAtual] = useState(1)
   const [confirmando, definirConfirmando] = useState(false)
   // Trocar de questão leva o foco ao enunciado dela: o leitor de tela lê "Questão N: …", e o "Próxima" que fica desligado
@@ -109,8 +118,9 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
     trocou.current = true
     definirAtual(alvo)
   }
-  const numero = questaoValida(atual, prova.questoes.length)
-  const questao = prova.questoes[numero - 1]
+  const posicao = questaoValida(atual, prova.questoes.length)
+  const questao = prova.questoes[posicao - 1]
+  const numero = questao?.numero ?? posicao
   const salvas = respostasSalvas(prova)
   const contagem = countRespostas(prova, estadoDaFila)
   const marca = marcaDaQuestao(numero, salvas, estadoDaFila)
@@ -122,7 +132,11 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
     if (!trocou.current) return
     trocou.current = false
     enunciado.current?.focus()
-  }, [numero])
+  }, [posicao])
+  // Ao entrar na prova em tela de foco, o foco vai ao enunciado da primeira questão (regra 50, item 11).
+  useEffect(() => {
+    if (emProva) enunciado.current?.focus()
+  }, [emProva])
 
   const envio = useMutation({
     mutationFn: () => sendAtividade(provaId),
@@ -145,31 +159,31 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
 
   return (
     <>
-      {prova.avaliativa && <Banner>{AVISO_DA_AVALIACAO}</Banner>}
+      {prova.avaliativa && !emProva && <Banner>{AVISO_DA_AVALIACAO}</Banner>}
 
       {/* Onde estou: o número em texto e uma marca por questão. Sem barra que enche para comemorar (D59). */}
       <nav aria-label="Questões" className="flex min-w-0 flex-col gap-3">
         <p className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <span className="text-base font-semibold text-tinta">
-            Questão {numero} de {prova.questoes.length}
+            Questão {posicao} de {prova.questoes.length}
           </span>
           <span className="text-sm text-sutil">{textoDasRespondidas(contagem)} com resposta</span>
         </p>
         <ol className="flex min-w-0 flex-wrap gap-1.5">
-          {prova.questoes.map((item) => {
+          {prova.questoes.map((item, indice) => {
             const marcaDoItem = marcaDaQuestao(item.numero, salvas, estadoDaFila)
-            const aberta = item.numero === numero
+            const aberta = indice + 1 === posicao
             return (
               <li key={item.numero}>
                 <button
                   type="button"
-                  onClick={() => irParaQuestao(item.numero)}
-                  aria-label={rotuloNoMapa(item.numero, marcaDoItem)}
+                  onClick={() => irParaQuestao(indice + 1)}
+                  aria-label={rotuloNoMapa(indice + 1, marcaDoItem)}
                   {...(aberta ? { 'aria-current': 'step' as const } : {})}
                   data-marca={marcaDoItem}
                   className={`relative grid size-11 place-items-center rounded-controle border text-base font-medium ${aberta ? 'border-noite bg-noite text-sobre-grafite' : CLASSES_DO_MAPA[marcaDoItem]}`}
                 >
-                  {item.numero}
+                  {indice + 1}
                   {marcaDoItem === 'salva' && <Check aria-hidden="true" size={12} strokeWidth={3} className="absolute top-0.5 right-0.5" />}
                   {marcaDoItem === 'nao_salva' && <CircleAlert aria-hidden="true" size={12} strokeWidth={2.4} className="absolute top-0.5 right-0.5" />}
                 </button>
@@ -181,22 +195,24 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
 
       <Card className="flex flex-col gap-4">
         <h2 ref={enunciado} tabIndex={-1} className={`min-w-0 rounded-controle leading-relaxed font-normal break-words whitespace-pre-wrap text-tinta ${ampliada ? 'text-2xl' : 'text-[1.0625rem]'}`}>
-          <span className="sr-only">Questão {numero}: </span>
+          <span className="sr-only">Questão {posicao}: </span>
           {questao.enunciado}
         </h2>
         {/* A `key` pela questão: outra questão é outro grupo de rádio, e o foco não fica na alternativa da anterior. */}
-        <fieldset key={numero} className="flex min-w-0 flex-col gap-2">
-          <legend className="sr-only">Alternativas da questão {numero}</legend>
+        <fieldset key={posicao} className="flex min-w-0 flex-col gap-2">
+          <legend className="sr-only">Alternativas da questão {posicao}</legend>
           {questao.alternativas.map((texto, indice) => {
-            const escolhida = marcada === indice
+            // A identidade da alternativa no contrato é o índice original, e a prova pode chegar embaralhada: `alternativas` vem na ordem da tela, e `ordemDasAlternativas[indice]` é o índice original
+            // da que está na posição `indice`. É esse que se marca e que a fila manda, e nunca a posição da tela.
+            const original = alternativaOriginal(questao, indice)
+            const escolhida = marcada === original
             return (
-              // A identidade da alternativa no contrato é o índice original, e a prova pode chegar embaralhada (`ordemDasAlternativas`): a tarefa 12.0 manda `ordemDasAlternativas[indice]`, e não a posição da tela.
               <label
                 key={indice}
                 data-alternativa={indice}
                 className={`flex min-h-14 min-w-0 cursor-pointer items-start gap-3 rounded-controle border p-3 ${escolhida ? 'border-noite bg-realce-suave' : 'border-borda-campo bg-superficie hover:bg-realce-suave'}`}
               >
-                <input type="radio" name={`questao-${String(numero)}`} value={indice} checked={escolhida} onChange={() => fila.escolher(numero, indice)} className="mt-1 size-5 shrink-0 accent-noite" />
+                <input type="radio" name={`questao-${String(posicao)}`} value={indice} checked={escolhida} onChange={() => fila.escolher(numero, original)} className="mt-1 size-5 shrink-0 accent-noite" />
                 <span className={`min-w-0 break-words text-tinta ${ampliada ? 'text-xl' : 'text-base'}`}>
                   <span className="font-semibold">{letraDaAlternativa(indice)}.</span> {texto}
                 </span>
@@ -208,7 +224,8 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
         {/* A ajuda é desta questão: fica no cartão dela, na linha do estado da resposta. Em avaliação o Tutor está pausado para a turma, e a tela não oferece um caminho que só levaria ao aviso. */}
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-3">
           {/* Sempre na tela, mesmo vazia: é uma região de status, e o leitor de tela anuncia o que entra nela. */}
-          <div role="status" data-resposta={marca} className="flex min-h-6 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-base">
+          {/* Na prova em tela de foco quem anuncia "Salvando…" e "Salvo" é a faixa do topo (`ProvaEmFoco`): dois avisos do mesmo fato, um em cada região, leriam duas vezes. */}
+          <div {...(emProva ? {} : { role: 'status' })} data-resposta={marca} className="flex min-h-6 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-base">
             {marca === 'salva' && (
               <span className="inline-flex min-w-0 items-center gap-1.5 text-ok">
                 <Check aria-hidden="true" size={18} strokeWidth={2.4} className="shrink-0" />
@@ -220,7 +237,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
             {marca === 'nao_salva' && estadoDaFila.falha === 'recusada' && <span className="min-w-0 break-words text-erro">Não foi possível salvar esta resposta. Chame quem dá a aula.</span>}
             {alteradaEmOutraJanela(estadoDaFila, numero) && <span className="min-w-0 break-words text-apoio">{AVISO_DE_OUTRA_JANELA}</span>}
           </div>
-          {!prova.avaliativa && (
+          {!prova.avaliativa && !emProva && (
             <Link to={caminhoDoTutorNaAtividade(provaId, numero)} className={`${SECONDARY_LINK_CLASSES} gap-2`}>
               <MessageCircleQuestion aria-hidden="true" size={18} className="shrink-0" />
               Pedir ajuda ao Tutor nesta questão
@@ -240,20 +257,22 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
       <div className="contents md:flex md:flex-wrap md:items-center md:gap-x-4 md:gap-y-3">
         <div className="flex min-w-0 justify-end border-t border-linha pt-4 md:justify-start md:border-t-0 md:pt-0">
           <Button variante="oficial" onClick={() => definirConfirmando(true)}>
-            Enviar a atividade
+            {emProva ? 'Enviar a prova' : 'Enviar a atividade'}
           </Button>
         </div>
         {/* O ponto de parada, dito: sair não custa nada, e voltar é do mesmo tamanho (D59). Sempre à vista: em janela larga, no vão entre "Enviar" e a navegação. */}
-        <p className="text-sm text-sutil md:min-w-56 md:flex-1">Pode parar quando quiser. O que você respondeu fica guardado, e dá para continuar depois.</p>
+        <p className="text-sm text-sutil md:min-w-56 md:flex-1">
+          {emProva ? `Para sair, use ${TEXTO_DE_SAIR_DA_PROVA}. O tempo continua.` : 'Pode parar quando quiser. O que você respondeu fica guardado, e dá para continuar depois.'}
+        </p>
 
         {/* Presa embaixo no celular: "Anterior" e "Próxima" ficam à mão enquanto a questão rola. */}
         <StickyFooter rotulo="Trocar de questão" className="md:static md:border-t-0 md:py-0">
           <div className="flex w-full min-w-0 items-center justify-between gap-3">
-            <Button variante="secundario" disabled={numero === 1} onClick={() => irParaQuestao(numero - 1)}>
+            <Button variante="secundario" disabled={posicao === 1} onClick={() => irParaQuestao(posicao - 1)}>
               <ArrowLeft aria-hidden="true" size={18} className="shrink-0" />
               Anterior
             </Button>
-            <Button variante="secundario" disabled={numero === prova.questoes.length} onClick={() => irParaQuestao(numero + 1)}>
+            <Button variante="secundario" disabled={posicao === prova.questoes.length} onClick={() => irParaQuestao(posicao + 1)}>
               Próxima
               <ArrowRight aria-hidden="true" size={18} className="shrink-0" />
             </Button>
@@ -263,10 +282,10 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
 
       {confirmando && (
         <ConfirmDialog
-          titulo="Enviar a atividade?"
+          titulo={emProva ? 'Enviar a prova?' : 'Enviar a atividade?'}
           familia="oficial"
           resumo={[
-            { rotulo: 'Atividade', valor: prova.titulo },
+            { rotulo: emProva ? 'Prova' : 'Atividade', valor: prova.titulo },
             { rotulo: 'Com resposta', valor: textoDasRespondidas(contagem) },
             { rotulo: 'Em branco', valor: textoDasEmBranco(contagem.emBranco) },
           ]}
@@ -276,7 +295,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
             : contagem.emBranco > 0
               ? { aviso: `${textoDasEmBranco(contagem.emBranco)}. Dá para voltar e responder antes de enviar.` }
               : {})}
-          rotuloDeConfirmar="Enviar a atividade"
+          rotuloDeConfirmar={emProva ? 'Enviar a prova' : 'Enviar a atividade'}
           rotuloConfirmando="Enviando…"
           rotuloDeCancelar="Continuar respondendo"
           aoConfirmar={() => envio.mutate()}
@@ -286,7 +305,7 @@ function Respondendo({ prova, fila, estadoDaFila, focoDepoisDeEnviar, aoEntregar
           }}
           confirmando={envio.isPending}
           impedido={impedimento !== undefined}
-          {...(envio.isError ? { falha: errorMessage(envio.error) } : {})}
+          {...(envio.isError ? { falha: emProva ? textoDoEnvioQueFalhou(envio.error) : errorMessage(envio.error) } : {})}
           focoDeReserva={focoDepoisDeEnviar}
         />
       )}
@@ -332,16 +351,16 @@ function Diagnostico({ diagnostico, prova }: { diagnostico: MeuDiagnosticoRespon
           </h3>
           <div {...(listaRola ? { role: 'group', 'aria-label': 'Questões corrigidas', tabIndex: 0 } : {})} className={`min-w-0 ${LISTA_QUE_ROLA}`}>
             <ol className="flex min-w-0 flex-col gap-3">
-              {diagnostico.questoes.map((questao) => {
-                const alternativas = prova.questoes.find((item) => item.numero === questao.numero)?.alternativas ?? []
-                const comTexto = (indice: number): string => {
-                  const texto = alternativas[indice]
-                  return texto === undefined ? letraDaAlternativa(indice) : `${letraDaAlternativa(indice)}. ${texto}`
-                }
+              {/* Na ordem e com o número que o aluno viu na prova: a questão do diagnóstico leva o `numero` original, e as alternativas, o índice original (a prova pode ter chegado embaralhada). */}
+              {[...diagnostico.questoes]
+                .sort((a, b) => posicaoDaQuestao(prova, a.numero) - posicaoDaQuestao(prova, b.numero))
+                .map((questao) => {
+                const daProva = questaoPorNumero(prova, questao.numero)
+                const comTexto = (original: number): string => alternativaComTexto(daProva, original)
                 return (
                   <li key={questao.numero} data-questao-corrigida={questao.correta ? 'certa' : 'outra'} className="flex min-w-0 flex-col items-start gap-1.5 rounded-controle border border-linha p-3">
                     <p className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="font-semibold text-tinta">Questão {questao.numero}</span>
+                      <span className="font-semibold text-tinta">Questão {posicaoDaQuestao(prova, questao.numero)}</span>
                       {questao.correta ? <StatusBadge familia="ok">Você acertou</StatusBadge> : <StatusBadge familia="info">{questao.alternativa === null ? 'Ficou em branco' : 'Para rever'}</StatusBadge>}
                     </p>
                     {questao.alternativa !== null && <p className="min-w-0 break-words text-apoio">Você marcou: {comTexto(questao.alternativa)}</p>}
@@ -376,7 +395,7 @@ function SemMaisRespostas({ prova, estadoDaFila, entregueAgora }: PropsDoFim) {
   const diagnostico = useQuery(meuDiagnosticoQueryOptions(prova.atividadeAplicadaId))
   const resultado = resultadoNaTela(fase, diagnostico)
   const contagem = countRespostas(prova, { ...estadoDaFila, pendentes: [] })
-  const perdidas = avisoDeEscolhasPerdidas(estadoDaFila)
+  const perdidas = avisoDeEscolhasPerdidas(estadoDaFila, (numero) => posicaoDaQuestao(prova, numero))
 
   return (
     <>

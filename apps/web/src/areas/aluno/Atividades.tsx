@@ -1,6 +1,7 @@
 import type { MinhaAtividade } from '@educa/shared'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { minhasAtividadesInfiniteQueryOptions } from '../../api/atividades-do-aluno'
 import { caminhoDaAtividadeDoAluno } from '../../paths'
 import { Button } from '../../components/ui/Button'
@@ -10,14 +11,20 @@ import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { SectionHeader, Page } from '../../components/ui/Page'
 import { usePageTitle } from '../../document-title'
-import { AVISO_DA_AVALIACAO, detalheDaSituacao, estaParaResponder, resumoDaAtividade, separarAtividades, TEXTO_DA_SITUACAO, VAZIO_DE_CADA_GRUPO } from './atividades'
+import { textoDasQueAindaNaoChegaram } from './atividade'
+import { AVISO_DA_AVALIACAO, detalheDaSituacao, estaParaResponder, resumoDaAtividade, separarAtividades, TEXTO_DA_SITUACAO, textoDaJanelaNaLista, VAZIO_DE_CADA_GRUPO } from './atividades'
+import { assinarAsFilas, respostasQueNaoChegaram } from './fila-de-respostas'
 import { caraDaMateria } from './materia'
+import { useAgora } from './use-agora'
 
-/** Uma tarefa na lista: a linha inteira é o link, com o ladrilho da matéria, o estado em texto no selo e o detalhe de hoje. */
-function LinhaDaTarefa({ atividade }: { atividade: MinhaAtividade }) {
+/** Uma tarefa na lista: a linha inteira é o link, com o ladrilho da matéria, o estado em texto no selo e o detalhe de hoje. `agora` é o relógio do computador, lido uma vez pela lista (um só intervalo no computador fraco). */
+function LinhaDaTarefa({ atividade, agora }: { atividade: MinhaAtividade; agora: number }) {
   const { familia, Icone } = caraDaMateria(atividade.disciplina.nome)
+  // As respostas que o servidor ainda não confirmou ficam na fila da aba, que segue depois do "Sair da prova": a lista as conta até a fila esvaziar.
+  const naoChegaram = useSyncExternalStore(assinarAsFilas, () => respostasQueNaoChegaram(atividade.id))
+  const janela = textoDaJanelaNaLista(atividade, agora)
   return (
-    <li data-atividade={atividade.situacao}>
+    <li data-atividade={atividade.situacao} data-atividade-id={atividade.id}>
       <ListItem
         titulo={atividade.titulo}
         para={caminhoDaAtividadeDoAluno(atividade.id)}
@@ -29,7 +36,13 @@ function LinhaDaTarefa({ atividade }: { atividade: MinhaAtividade }) {
         abaixo={
           <>
             <span className="block">{resumoDaAtividade(atividade)}</span>
+            {janela !== undefined && <span className="block font-medium text-tinta">{janela}</span>}
             <span className="block">{detalheDaSituacao(atividade)}</span>
+            {naoChegaram > 0 && (
+              <span role="status" className="block font-medium text-erro">
+                {textoDasQueAindaNaoChegaram(naoChegaram)}
+              </span>
+            )}
             {atividade.avaliativa && estaParaResponder(atividade) && <span className="block font-medium text-tinta">{AVISO_DA_AVALIACAO}</span>}
           </>
         }
@@ -45,10 +58,11 @@ interface PropsDoGrupo {
   readonly titulo: string
   readonly vazio: string
   readonly atividades: readonly MinhaAtividade[]
+  readonly agora: number
 }
 
 /** Um grupo da lista: o título, as tarefas numa moldura só, ou a linha tracejada que diz que não há nenhuma. */
-function GrupoDeTarefas({ id, titulo, vazio, atividades }: PropsDoGrupo) {
+function GrupoDeTarefas({ id, titulo, vazio, atividades, agora }: PropsDoGrupo) {
   return (
     <section aria-labelledby={id} className="flex min-w-0 flex-col gap-3">
       <SectionHeader id={id} titulo={titulo} />
@@ -60,7 +74,7 @@ function GrupoDeTarefas({ id, titulo, vazio, atividades }: PropsDoGrupo) {
       ) : (
         <ul className="divide-y-2 divide-borda overflow-hidden rounded-cartao border-2 border-borda bg-superficie">
           {atividades.map((atividade) => (
-            <LinhaDaTarefa key={atividade.id} atividade={atividade} />
+            <LinhaDaTarefa key={atividade.id} atividade={atividade} agora={agora} />
           ))}
         </ul>
       )}
@@ -81,8 +95,19 @@ function GrupoDeTarefas({ id, titulo, vazio, atividades }: PropsDoGrupo) {
 export default function Atividades() {
   usePageTitle('Tarefas')
   const atividades = useInfiniteQuery(minhasAtividadesInfiniteQueryOptions)
+  const agora = useAgora()
   const itens = atividades.data?.pages.flatMap((pagina) => pagina.itens) ?? []
   const { paraFazer, entregues, corrigidas } = separarAtividades(itens)
+  const volteiDaProva = useRef(false)
+  // Quem saiu da prova volta com o foco na linha dela (o "Sair da prova" leva o id no estado do histórico): sem isto o foco cairia no `body`.
+  useEffect(() => {
+    if (volteiDaProva.current || itens.length === 0) return
+    const estado: unknown = window.history.state
+    const id = typeof estado === 'object' && estado !== null && 'voltouDaProva' in estado ? estado.voltouDaProva : undefined
+    if (typeof id !== 'string') return
+    volteiDaProva.current = true
+    for (const linha of document.querySelectorAll<HTMLElement>('[data-atividade-id]')) if (linha.dataset['atividadeId'] === id) linha.querySelector<HTMLElement>('a')?.focus()
+  }, [itens.length])
 
   return (
     <Page titulo="Tarefas" largura="conversa">
@@ -96,9 +121,9 @@ export default function Atividades() {
 
       {itens.length > 0 && (
         <>
-          <GrupoDeTarefas id="titulo-para-fazer" titulo="Para fazer" vazio={VAZIO_DE_CADA_GRUPO.paraFazer} atividades={paraFazer} />
-          <GrupoDeTarefas id="titulo-entregues" titulo="Entregues" vazio={VAZIO_DE_CADA_GRUPO.entregues} atividades={entregues} />
-          <GrupoDeTarefas id="titulo-corrigidas" titulo="Corrigidas" vazio={VAZIO_DE_CADA_GRUPO.corrigidas} atividades={corrigidas} />
+          <GrupoDeTarefas id="titulo-para-fazer" titulo="Para fazer" vazio={VAZIO_DE_CADA_GRUPO.paraFazer} atividades={paraFazer} agora={agora} />
+          <GrupoDeTarefas id="titulo-entregues" titulo="Entregues" vazio={VAZIO_DE_CADA_GRUPO.entregues} atividades={entregues} agora={agora} />
+          <GrupoDeTarefas id="titulo-corrigidas" titulo="Corrigidas" vazio={VAZIO_DE_CADA_GRUPO.corrigidas} atividades={corrigidas} agora={agora} />
         </>
       )}
 

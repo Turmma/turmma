@@ -560,6 +560,21 @@ uma linha de Eu, e o "Sair" fica à vista na casca em todo lugar e também é um
   fixa chega, com o caminho para um adulto (D36; D80, item 7)
 - **Tarefas** são as atividades e as provas atribuídas pelo professor, em Para fazer, Entregues e
   Corrigidas, e a tarefa aberta, no endereço de Atividades (X4). O desenho das duas está na 11.5
+- **A prova online, do lado do aluno** (avaliacao-e-correcao, tarefa 12.0; RF5 a RF8). Na lista, a prova com janela diz **"Abre em
+  24/11 às 10:00"** antes de abrir e **"Fechou"** depois (a hora é a da escola; o servidor tem a palavra final), e a linha da prova diz
+  **"N respostas ainda não chegaram"** enquanto a fila do app ainda tem escolha a enviar. Abrir a prova que não começou leva a
+  **"Antes de começar"**: a duração (**a do aluno, sem a palavra "adicional"**), a hora em que a janela fecha, o aviso de que **sair da aba
+  aparece para o professor e que nada acontece com a prova**, e como sair (D70). **Nenhuma questão aparece antes do "Começar"**, e o endereço
+  da prova digitado antes de começar leva de volta a "Antes de começar": o aviso não se pula. "Começar" cria a tentativa e abre
+  **`/aluno/prova/:id`**, uma **tela de foco, fora da casca** (sem lateral, sem barra de baixo, sem o Tutor, que fica pausado na avaliação). No alto, uma **faixa de uma linha**
+  também a 360 px: o relógio ("Faltam 38 min", em minutos inteiros, **contado pelo relógio do servidor**, e não pelo do computador), o
+  "Salvando…" ou "Salvo" e o **"Sair da prova", de um clique e sem confirmação** (D59: sair nunca é mais difícil que entrar; o relógio segue, e voltar
+  mostra o mesmo). Sem rede, a tela diz **"Sem conexão. Suas respostas ficam guardadas e seguem quando a rede voltar. O tempo continua."**: a resposta
+  nunca se perde na queda (regra 80, item 6), a fila segue depois do "Sair", e na volta da rede cada computador espera de 0 a 5 s antes de reenviar, para a
+  sala inteira não bater na API no mesmo segundo. O fim (o tempo acabou, a professora encerrou, o aluno enviou) tira a questão da tela e leva o foco
+  a um aviso que se lê na hora, com o número das respostas que ainda não chegaram. **A prova embaralhada** (a ordem das questões e das alternativas é a do aluno) mostra as
+  letras na ordem que ele vê, e o que a tela manda e o diagnóstico mostram é pelo índice original da alternativa. Acessibilidade: o relógio **não** fica em região viva
+  (leria sozinho a cada minuto); o leitor de tela recebe um aviso educado a 10, 5 e 1 min, e o fim é o único aviso imediato
 - **Eu** é **"Como estou indo"**, só do próprio aluno: uma linha por tarefa de correção aprovada,
   com "N de M certas" e as habilidades a rever (a questão sem habilidade da BNCC conta no "N de M", e **não ganha linha** em
   "Para rever": a API só manda habilidade com código, D66; classificacao-bncc, 12.0); as linhas **Privacidade** ("Meus dados", do F3),

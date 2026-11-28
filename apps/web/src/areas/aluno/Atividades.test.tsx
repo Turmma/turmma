@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { minhaAtividadeSchema } from '@educa/shared'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
-import { setupScreen, fakeNetwork, renderScreen } from '../../__fixtures__/render-screen'
+import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../__fixtures__/render-screen'
+import { createQueryClient } from '../../api/query-client'
 import Atividades from './Atividades'
+import { filaDaAtividade } from './fila-de-respostas'
 import { AVISO_DA_AVALIACAO, TEXTO_DA_ESPERA_PELA_CORRECAO, VAZIO_DE_CADA_GRUPO } from './atividades'
 
 /**
@@ -228,5 +230,149 @@ describe('Tarefas do aluno', () => {
     expect(await within(grupo('Corrigidas')).findByText('Lista sintética 02')).toBeTruthy()
     expect(within(grupo('Para fazer')).getByText('Lista sintética 01')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Ver mais tarefas|Carregando…/ })).toBeNull()
+  })
+})
+
+describe('Tarefas do aluno: a prova online (avaliacao-e-correcao, 12.0)', () => {
+  const MIN = 60_000
+  const janela = (abreEmMin: number, fechaEmMin: number) => ({ abreEm: new Date(Date.now() + abreEmMin * MIN).toISOString(), fechaEm: new Date(Date.now() + fechaEmMin * MIN).toISOString() })
+
+  it('a prova que ainda não abriu diz "Abre em <dia> às <hora>", a que já fechou diz "Fechou", e a aberta não diz nada da janela', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minhas-atividades', {
+      status: 200,
+      corpo: { itens: [atividade('21', { avaliativa: true, janela: janela(30, 90) }), atividade('22', { avaliativa: true, janela: janela(-90, -30) }), atividade('23', { avaliativa: true, janela: janela(-30, 30) })] },
+    })
+    montar()
+
+    const abre = await screen.findByText(/^Abre em \d\d\/\d\d às \d\d:\d\d$/)
+    expect(abre.closest('li')?.getAttribute('data-atividade-id')).toBe('0192a4c0-5b1e-7c3d-8e4f-000000000021')
+    expect(screen.getAllByText('Fechou')).toHaveLength(1)
+    expect(screen.getByText('Fechou').closest('li')?.getAttribute('data-atividade-id')).toBe('0192a4c0-5b1e-7c3d-8e4f-000000000022')
+    expect(screen.queryAllByText(/^Abre em/)).toHaveLength(1)
+    // A aberta não tem nem a linha vazia da janela.
+    expect(Array.from(document.querySelectorAll('[data-atividade-id$="23"] span.block')).filter((linha) => linha.textContent === '')).toHaveLength(0)
+  })
+
+  it('as respostas que o servidor ainda não confirmou (a fila segue depois do "Sair da prova") aparecem na linha da prova, na região de status, a contagem anda e some quando o servidor confirma', async () => {
+    const id = '0192a4c0-5b1e-7c3d-8e4f-000000000031'
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('31', { avaliativa: true, janela: janela(-30, 30), situacao: 'em_andamento', respondidas: 0 })] } })
+    // O servidor só responde quando o caso manda: as duas escolhas ficam na fila da aba, e a fila grava uma por vez.
+    const seguradas: (() => void)[] = []
+    rede.responderPor(
+      new RegExp(`/v1/atividades-aplicadas/${id}/respostas/\\d+$`),
+      (caminho) =>
+        new Promise<FakeResponse>((resolver) => {
+          const questao = Number(/respostas\/(\d+)$/.exec(caminho)?.[1])
+          seguradas.push(() => resolver({ status: 200, corpo: { questao, alternativa: 0, sequencia: 1, respondidaEm: new Date().toISOString() } }))
+        }),
+    )
+    const fila = filaDaAtividade(createQueryClient(), id)
+    fila.escolher(1, 0)
+    fila.escolher(2, 1)
+    montar()
+
+    expect((await screen.findByText('2 respostas ainda não chegaram')).getAttribute('role')).toBe('status')
+    act(() => seguradas[0]?.())
+    expect((await screen.findByText('1 resposta ainda não chegou')).getAttribute('role')).toBe('status')
+    await waitFor(() => expect(seguradas).toHaveLength(2))
+    act(() => seguradas[1]?.())
+    await waitFor(() => expect(screen.queryByText(/ainda não chegaram?/)).toBeNull())
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('a lista lê o relógio do computador uma vez só: um intervalo de 30 s para todas as linhas, e não um por linha', async () => {
+    const intervalos = vi.spyOn(globalThis, 'setInterval')
+    try {
+      const rede = fakeNetwork()
+      rede.responderPor('/v1/minhas-atividades', {
+        status: 200,
+        corpo: { itens: [atividade('61', { avaliativa: true, janela: janela(30, 90) }), atividade('62', { avaliativa: true, janela: janela(-90, -30) }), atividade('63')] },
+      })
+      montar()
+      await screen.findByText('Lista sintética 63')
+
+      expect(intervalos.mock.calls.filter(([, espera]) => espera === 30_000)).toHaveLength(1)
+    } finally {
+      intervalos.mockRestore()
+    }
+  })
+
+  it('a linha de quem não tem resposta na fila não diz nada de "chegar": nem "0 respostas", nem região de status', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('32', { avaliativa: true, janela: janela(-30, 30), situacao: 'em_andamento' })] } })
+    montar()
+
+    await screen.findByText('Lista sintética 32')
+    expect(screen.queryByText(/ainda não chegaram?/)).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('voltando do "Sair da prova", o foco vai ao link da prova na lista', async () => {
+    const id = '0192a4c0-5b1e-7c3d-8e4f-000000000041'
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('40'), atividade('41', { avaliativa: true, janela: janela(-30, 30), situacao: 'em_andamento' })] } })
+    window.history.replaceState({ voltouDaProva: id }, '')
+    try {
+      montar()
+      await screen.findByText('Lista sintética 41')
+      const link = within(screen.getByText('Lista sintética 41').closest('li') as HTMLElement).getByRole('link')
+      await waitFor(() => expect(document.activeElement).toBe(link))
+    } finally {
+      window.history.replaceState(null, '')
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('sem o "voltouDaProva" no histórico, o foco não é movido para linha nenhuma', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('42', { avaliativa: true, janela: janela(-30, 30), situacao: 'em_andamento' })] } })
+    window.history.replaceState({ outraCoisa: '0192a4c0-5b1e-7c3d-8e4f-000000000042' }, '')
+    try {
+      montar()
+      await screen.findByText('Lista sintética 42')
+      await new Promise((resolver) => setTimeout(resolver, 50))
+      expect(document.activeElement).toBe(document.body)
+    } finally {
+      window.history.replaceState(null, '')
+    }
+  })
+
+  it('a primeira entrada da aba, com o estado do histórico nulo, abre a lista e não move o foco', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minhas-atividades', { status: 200, corpo: { itens: [atividade('43', { avaliativa: true, janela: janela(-30, 30), situacao: 'em_andamento' })] } })
+    window.history.replaceState(null, '')
+    montar()
+
+    expect(await screen.findByText('Lista sintética 43')).toBeTruthy()
+    await new Promise((resolver) => setTimeout(resolver, 50))
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('o foco volta ao link uma vez só: ao pedir mais tarefas, a lista que cresce não o toma de novo', async () => {
+    const id = '0192a4c0-5b1e-7c3d-8e4f-000000000051'
+    const rede = fakeNetwork()
+    let chamadas = 0
+    rede.responderPor('/v1/minhas-atividades', () => {
+      chamadas += 1
+      return chamadas === 1
+        ? { status: 200, corpo: { itens: [atividade('51', { avaliativa: true, janela: janela(-30, 30), situacao: 'em_andamento' })], proxima: PAGINA_SEGUINTE } }
+        : { status: 200, corpo: { itens: [atividade('52')] } }
+    })
+    window.history.replaceState({ voltouDaProva: id }, '')
+    try {
+      montar()
+      const link = within((await screen.findByText('Lista sintética 51')).closest('li') as HTMLElement).getByRole('link')
+      await waitFor(() => expect(document.activeElement).toBe(link))
+
+      const mais = screen.getByRole('button', { name: 'Ver mais tarefas' })
+      mais.focus()
+      fireEvent.click(mais)
+      await screen.findByText('Lista sintética 52')
+      expect(document.activeElement).not.toBe(link)
+    } finally {
+      window.history.replaceState(null, '')
+    }
   })
 })

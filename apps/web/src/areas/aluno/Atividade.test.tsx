@@ -11,6 +11,7 @@ import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResp
 import { createQueryClient } from '../../api/query-client'
 import { euQueryOptions } from '../../api/eu'
 import { AVISO_DE_OUTRA_JANELA, FALA_DA_ENTREGA, ROTULO_DE_VOLTAR_AS_TAREFAS } from './atividade'
+import { AVISO_DA_AVALIACAO } from './atividades'
 import Atividade from './Atividade'
 
 /**
@@ -722,5 +723,114 @@ describe('a tarefa aberta: os quatro estados (X4, 6.1; RF20)', () => {
     expect(screen.getByText(/Pode parar quando quiser/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Pedir ajuda ao Tutor nesta questão' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Enviar a atividade' })).toBeTruthy()
+    // A atividade comum não é prova: nenhum aviso de avaliação, e o "Pedir ajuda" está à mão.
+    expect(screen.queryByText(AVISO_DA_AVALIACAO)).toBeNull()
+    expect(screen.getByRole('status').getAttribute('data-resposta')).toBe('sem_resposta')
+  })
+
+  it('a atividade avaliativa (sem a prova em foco) avisa que o Tutor fica pausado e não oferece o caminho até ele', async () => {
+    const id = idDaAtividade(34)
+    const rede = redeDaProva()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [], { avaliativa: true }))
+    montar(id)
+
+    await screen.findByRole('heading', { level: 1, name: 'Lista sintética' })
+    expect(screen.getByText(AVISO_DA_AVALIACAO)).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Pedir ajuda ao Tutor nesta questão' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Enviar a atividade' })).toBeTruthy()
+  })
+})
+
+describe('a prova embaralhada na tela (avaliacao-e-correcao, 12.7; RF8)', () => {
+  const REPETIDA = [0, 1, 2, 3]
+  /**
+   * Um aluno que recebeu a questão 3 primeiro, com as alternativas fora da ordem original: na posição 0 está o índice original 2 ("Seis"), na 1 o 0 ("Quatro"), na 2 o 3 ("Sete") e na 3 o 1 ("Cinco").
+   * O gabarito da questão 3 é o índice original 0 ("Quatro"), que o aluno vê na posição 1 ("B").
+   */
+  const questoesDoAluno = [
+    { numero: 3, enunciado: 'Enunciado da questão original 3', alternativas: ['Seis', 'Quatro', 'Sete', 'Cinco'], ordemDasAlternativas: [2, 0, 3, 1] },
+    { numero: 1, enunciado: 'Enunciado da questão original 1', alternativas: ALTERNATIVAS, ordemDasAlternativas: REPETIDA },
+    { numero: 2, enunciado: 'Enunciado da questão original 2', alternativas: ALTERNATIVAS, ordemDasAlternativas: REPETIDA },
+  ]
+
+  it('o aluno que marca pelo texto a alternativa certa manda o índice original no `PUT`, e a questão sai pelo número original', async () => {
+    const usuario = userEvent.setup()
+    const id = idDaAtividade(120)
+    const rede = redeDaProva()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [], { questoes: questoesDoAluno }))
+    // O servidor grava o que veio: o índice original 0, na questão de número 3.
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/respostas/3`, { status: 200, corpo: { questao: 3, alternativa: 0, sequencia: 1, respondidaEm: '2026-10-22T13:10:00.000Z' } })
+    montar(id)
+
+    // A primeira questão na tela é a de número 3, e as alternativas estão na ordem do aluno: "B. Quatro" é a certa.
+    expect((await screen.findByRole('heading', { level: 2 })).textContent).toContain('Enunciado da questão original 3')
+    expect(screen.getByText('Questão 1 de 3')).toBeTruthy()
+    await usuario.click(screen.getByRole('radio', { name: /^B\. Quatro/ }))
+
+    await waitFor(() => expect(regiaoDeStatus().textContent).toContain('Resposta salva'))
+    // O que saiu foi o índice original (0), e nunca a posição da tela (1), para a questão de número 3.
+    expect(rede.chamadas.filter(({ metodo }) => metodo === 'PUT').map(({ caminho }) => caminho.replace(/^.*\/v1/, '/v1'))).toEqual([`/v1/atividades-aplicadas/${id}/respostas/3`])
+    expect(envios(rede)).toEqual([{ alternativa: 0, sequencia: 1 }])
+    // E a que fica marcada é a mesma que o aluno tocou: a posição 1.
+    expect(marcada()).toBe(1)
+  })
+
+  it('a resposta já salva volta marcada na posição certa: o índice original gravado é mostrado na posição em que o aluno o viu', async () => {
+    const id = idDaAtividade(121)
+    const rede = redeDaProva()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [{ questao: 3, alternativa: 0, sequencia: 1 }], { questoes: questoesDoAluno }))
+    montar(id)
+
+    await screen.findByRole('radio', { name: /^B\. Quatro/ })
+    expect(marcada()).toBe(1)
+    expect(rede.chamadas.some(({ metodo }) => metodo === 'PUT')).toBe(false)
+  })
+
+  it('depois do lote aprovado, "sua resposta" e "a certa" são o texto do índice original, na letra em que o aluno viu, e a lista segue a ordem da prova dele', async () => {
+    const id = idDaAtividade(122)
+    const rede = redeDaProva()
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, prova(id, [{ questao: 3, alternativa: 2, sequencia: 1 }, { questao: 1, alternativa: 2, sequencia: 1 }], { questoes: questoesDoAluno, enviadaEm: ENVIADA_EM }))
+    const citacao = { materialId: '0190f5a0-0000-7000-8000-0000000000b1', pagina: 3, trecho: 'Trecho sintético.' }
+    const corpo: MeuDiagnosticoResponse = {
+      atividadeAplicadaId: id,
+      titulo: 'Lista sintética',
+      acertos: 0,
+      total: 2,
+      porHabilidade: [],
+      // Na ordem original: a questão 1 vem antes da 3. As duas estão erradas, para a "a certa" aparecer nas duas: na 3, que foi sorteada, e na 1, que não.
+      questoes: [
+        { numero: 1, alternativa: 2, gabarito: 1, correta: false, explicacao: 'A certa é a segunda.', citacao },
+        { numero: 3, alternativa: 2, gabarito: 0, correta: false, explicacao: 'A certa é a primeira.', citacao },
+      ],
+      aprovadoPor: { nome: 'Professora Sintética' },
+      aprovadoEm: '2026-10-22T15:00:00.000Z',
+    }
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/meu-diagnostico`, { status: 200, corpo })
+    montar(id)
+
+    const itens = await screen.findAllByRole('listitem').then((lista) => lista.filter((item) => item.hasAttribute('data-questao-corrigida')))
+    expect(itens).toHaveLength(2)
+    // O aluno viu a questão 3 primeiro: ela é a "Questão 1" dele. Marcou o índice original 2 ("A. Seis", na letra em que o viu) e a certa é o índice 0 ("B. Quatro"): o texto vem do índice original, na letra da posição.
+    expect(itens[0]?.textContent).toContain('Questão 1')
+    expect(itens[0]?.textContent).toContain('Você marcou: A. Seis')
+    expect(itens[0]?.textContent).toContain('A resposta é: B. Quatro')
+    // A questão original 1 é a "Questão 2" dele, sem embaralhar as alternativas: marcou o índice 2 ("C. Seis") e a certa é o índice 1 ("B. Cinco").
+    expect(itens[1]?.textContent).toContain('Questão 2')
+    expect(itens[1]?.textContent).toContain('Você marcou: C. Seis')
+    expect(itens[1]?.textContent).toContain('A resposta é: B. Cinco')
+  })
+
+  it('a prova com um campo a mais que o contrato não conhece (um campo novo da API) ainda abre: a web tolera o que sobra', async () => {
+    const id = idDaAtividade(123)
+    const rede = redeDaProva()
+    const normal = prova(id)
+    const corpo = normal.corpo as { questoes: Record<string, unknown>[]; tempo: Record<string, unknown> }
+    rede.responderPor(`/v1/atividades-aplicadas/${id}/prova`, {
+      status: 200,
+      corpo: { ...corpo, campoNovoDaApi: 'x', questoes: corpo.questoes.map((item) => ({ ...item, dicaNova: 1 })), tempo: { ...corpo.tempo, outroCampoNovo: true } },
+    })
+    montar(id)
+
+    expect(await screen.findByRole('radio', { name: /^B\./ })).toBeTruthy()
   })
 })

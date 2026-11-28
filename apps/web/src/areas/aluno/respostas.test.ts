@@ -2,7 +2,7 @@ import { ErrorCode, type QuestaoSalvaResponse } from '@educa/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
 import { createFilaDeRespostas, provaComRespostaSalva } from './fila-de-respostas'
-import { adotarLeitura, alteradaEmOutraJanela, comecarEnvio, confirmarEnvio, escolher, esperaAntesDeTentar, falharEnvio, FILA_VAZIA, hidratarDoEspelho, MAIOR_ESPERA_DA_FILA_MS, proximoEnvio, tipoDaFalha, type EstadoDaFila } from './respostas'
+import { adotarLeitura, alteradaEmOutraJanela, comecarEnvio, confirmarEnvio, escolher, ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS, esperaAntesDeTentar, esperaNaVoltaDaRede, falharEnvio, FILA_VAZIA, hidratarDoEspelho, MAIOR_ESPERA_DA_FILA_MS, proximoEnvio, tipoDaFalha, type EstadoDaFila } from './respostas'
 
 /** A confirmação do servidor de uma escolha que ele gravou como veio. */
 const gravada = (questao: number, alternativa: number, sequencia: number) => ({ questao, alternativa, sequencia })
@@ -296,7 +296,7 @@ describe('o reenvio das respostas', () => {
     expect(servidor.chamadas.map((chamada) => chamada.sequencia)).toEqual([1, 1, 1])
   })
 
-  it('"tentar agora" (a rede voltou, a sessão voltou) não espera o relógio, e cancela a espera para não mandar duas vezes', async () => {
+  it('"tentar agora" (a sessão voltou, o "Tentar de novo" da tela) não espera o relógio, e cancela a espera para não mandar duas vezes', async () => {
     const servidor = servidorDeMentira()
     const relogio = relogioDeMentira()
     const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
@@ -309,6 +309,82 @@ describe('o reenvio das respostas', () => {
     // Com um envio no ar, pedir de novo não manda outro.
     fila.tryAgora()
     expect(servidor.chamadas).toHaveLength(2)
+  })
+
+  /** Três escolhas que o servidor ainda não confirmou, sem nada no ar: a rede caiu, e a fila só espera. */
+  async function tresPendentesSemRede(sorteio: number) {
+    const servidor = servidorDeMentira()
+    const relogio = relogioDeMentira()
+    const salvas: number[] = []
+    const fila = createFilaDeRespostas({ save: servidor.salvar, aoSalvar: (salva) => salvas.push(salva.questao), agendar: relogio.agendar, sortear: () => sorteio })
+    fila.escolher(1, 0)
+    servidor.chamadas[0]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    await assentar()
+    fila.escolher(2, 1)
+    servidor.chamadas[1]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    await assentar()
+    fila.escolher(3, 2)
+    servidor.chamadas[2]?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    await assentar()
+    expect(fila.read().pendentes.map((pendente) => pendente.questao)).toEqual([1, 2, 3])
+    expect(fila.read().noAr).toBeUndefined()
+    return { servidor, relogio, fila, salvas }
+  }
+
+  it('a rede que volta (`online`) não manda na hora: a fila espera o sorteio (4 s), e as três pendentes saem uma por vez, sem nada antes', async () => {
+    const { servidor, relogio, fila, salvas } = await tresPendentesSemRede(0.8)
+    const mandadasAntes = servidor.chamadas.length
+
+    fila.redeVoltou()
+    // Nada saiu: o `online` só marca a hora, 0,8 de 5 s, e a espera do recuo que já estava marcada deu lugar a ela.
+    expect(servidor.chamadas).toHaveLength(mandadasAntes)
+    const marcada = relogio.agendados.at(-1)
+    expect(marcada?.esperaMs).toBe(4_000)
+    expect(relogio.agendados.at(-2)?.cancelado).toBe(true)
+
+    marcada?.funcao()
+    expect(servidor.chamadas).toHaveLength(mandadasAntes + 1)
+    expect(servidor.chamadas.at(-1)).toMatchObject({ questao: 1, alternativa: 0 })
+    servidor.chamadas.at(-1)?.aceitar()
+    await assentar()
+    expect(servidor.chamadas.at(-1)).toMatchObject({ questao: 2, alternativa: 1 })
+    servidor.chamadas.at(-1)?.aceitar()
+    await assentar()
+    expect(servidor.chamadas.at(-1)).toMatchObject({ questao: 3, alternativa: 2 })
+    servidor.chamadas.at(-1)?.aceitar()
+    await assentar()
+    expect(salvas).toEqual([1, 2, 3])
+    expect(fila.read()).toMatchObject({ pendentes: [], noAr: undefined })
+  })
+
+  it('o sorteio da volta da rede fica entre 0 e 5 s (`ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS`), e uma fila que não tem o que mandar não agenda nada', async () => {
+    expect(ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS).toBe(5_000)
+    expect(esperaNaVoltaDaRede(() => 0)).toBe(0)
+    expect(esperaNaVoltaDaRede(() => 0.5)).toBe(2_500)
+    expect(esperaNaVoltaDaRede(() => 1)).toBe(ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS)
+    const relogio = relogioDeMentira()
+    const vazia = createFilaDeRespostas({ save: servidorDeMentira().salvar, aoSalvar: () => undefined, agendar: relogio.agendar })
+    vazia.redeVoltou()
+    expect(relogio.agendados).toHaveLength(0)
+  })
+
+  it('o "Tentar de novo", a escolha que o aluno acabou de marcar e a sessão que volta saem na hora, mesmo com o sorteio da volta da rede marcado', async () => {
+    const { servidor, relogio, fila } = await tresPendentesSemRede(0.8)
+    fila.redeVoltou()
+    const sorteio = relogio.agendados.at(-1)
+    const antes = servidor.chamadas.length
+
+    // O botão: sai já, e o sorteio é cancelado para a pendente não ir duas vezes.
+    fila.tryAgora()
+    expect(servidor.chamadas).toHaveLength(antes + 1)
+    expect(sorteio?.cancelado).toBe(true)
+    servidor.chamadas.at(-1)?.recusar(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO)
+    await assentar()
+
+    // A escolha nova: também na hora (e a mais antiga é a que sai).
+    fila.redeVoltou()
+    fila.escolher(4, 3)
+    expect(servidor.chamadas).toHaveLength(antes + 2)
   })
 
   it('a escolha feita com a rede fora entra atrás das que já esperavam, e todas saem quando a rota volta, uma por vez', async () => {

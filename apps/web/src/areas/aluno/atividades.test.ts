@@ -1,6 +1,6 @@
 import { SITUACOES_DA_MINHA_ATIVIDADE, type MinhaAtividade } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { AVISO_DA_AVALIACAO, detalheDaSituacao, estaParaResponder, resumoDaAtividade, separarAtividades, TEXTO_DA_ESPERA_PELA_CORRECAO, TEXTO_DA_SITUACAO, VAZIO_DE_CADA_GRUPO } from './atividades'
+import { AVISO_DA_AVALIACAO, detalheDaSituacao, diaEHoraNaEscola, estaParaResponder, horaNaEscola, resumoDaAtividade, separarAtividades, situacaoDaJanela, TEXTO_DA_ESPERA_PELA_CORRECAO, TEXTO_DA_SITUACAO, textoDaJanelaNaLista, VAZIO_DE_CADA_GRUPO } from './atividades'
 
 const atividade = (final: string, campos: Partial<MinhaAtividade> = {}): MinhaAtividade => ({
   id: `0190f5a0-0000-7000-8000-0000000000${final}`,
@@ -73,5 +73,37 @@ describe('a lista de atividades do aluno', () => {
 
   it('o vazio de cada grupo diz um fato, sem cobrar nem desculpar (D59)', () => {
     expect(VAZIO_DE_CADA_GRUPO).toEqual({ paraFazer: 'Nada para fazer agora.', entregues: 'Nada esperando quem dá a aula.', corrigidas: 'Nenhuma corrigida ainda.' })
+  })
+})
+
+describe('a janela da prova na lista do aluno (avaliacao-e-correcao, 12.1)', () => {
+  const janela = { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }
+  const antes = Date.parse('2026-11-24T12:59:00.000Z')
+  const dentro = Date.parse('2026-11-24T13:30:00.000Z')
+  const depois = Date.parse('2026-11-24T14:40:00.000Z')
+
+  it('escreve o dia e a hora na parede da escola, e não na do computador', () => {
+    // 13:00 UTC é 10:00 em São Paulo.
+    expect(diaEHoraNaEscola(janela.abreEm)).toBe('24/11 às 10:00')
+    expect(horaNaEscola(janela.fechaEm)).toBe('11:40')
+  })
+
+  it('"Abre em 24/11 às 10:00" antes de abrir, "Fechou" depois de fechar, e nada enquanto está aberta', () => {
+    const paraFazer = atividade('01', { avaliativa: true, janela })
+    expect(textoDaJanelaNaLista(paraFazer, antes)).toBe('Abre em 24/11 às 10:00')
+    expect(textoDaJanelaNaLista(paraFazer, dentro)).toBeUndefined()
+    expect(textoDaJanelaNaLista(paraFazer, depois)).toBe('Fechou')
+  })
+
+  it('a atividade sem janela não diz nada, e quem já começou não "fechou" (a extensão e a queda andam o tempo dele)', () => {
+    expect(textoDaJanelaNaLista(atividade('02'), depois)).toBeUndefined()
+    expect(textoDaJanelaNaLista(atividade('03', { avaliativa: true, janela, situacao: 'em_andamento' }), depois)).toBeUndefined()
+    expect(textoDaJanelaNaLista(atividade('04', { avaliativa: true, janela, situacao: 'enviada' }), antes)).toBeUndefined()
+  })
+
+  it('a situação da janela: o instante exato da abertura está dentro, e o do fechamento já é depois', () => {
+    expect(situacaoDaJanela(janela, Date.parse(janela.abreEm))).toBe('aberta')
+    expect(situacaoDaJanela(janela, Date.parse(janela.fechaEm))).toBe('depois')
+    expect(situacaoDaJanela(null, 0)).toBe('aberta')
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AREA_BASE_PATH, caminhoDaEtapaDaEntrada, caminhoDaTrocaDaProvisoria, caminhoDoPedidoDoTitular, isTelaDeFoco, ROUTES, COORDENACAO_ROUTES, ALUNO_ROUTES } from './paths'
+import { AREA_BASE_PATH, caminhoDaEtapaDaEntrada, caminhoDaProvaDoAluno, caminhoDaTrocaDaProvisoria, caminhoDoPedidoDoTitular, isTelaDeFoco, ROUTES, COORDENACAO_ROUTES, ALUNO_ROUTES } from './paths'
 
 describe('o endereço do pedido de titular (F3, 17.0)', () => {
   it('leva só o id do pedido, na aba Pedidos da Privacidade, e nada além dele vira trecho do endereço', () => {
@@ -49,6 +49,13 @@ describe('isTelaDeFoco', () => {
     expect(isTelaDeFoco('/aluno/bem-vindo-velho')).toBe(false)
     expect(isTelaDeFoco('/aluno/bem-vindo/x')).toBe(false)
     expect(isTelaDeFoco('/bem-vindo')).toBe(false)
+  })
+
+  it('a prova em andamento é tela de foco, e só no endereço `/aluno/prova/<id>`: um trecho a mais, a lista e a atividade seguem dentro da casca', () => {
+    const id = '0197a1c0-0000-7000-8000-000000000001'
+    expect(caminhoDaProvaDoAluno(id)).toBe(`/prova/${id}`)
+    expect(isTelaDeFoco(`${AREA_BASE_PATH.aluno}${caminhoDaProvaDoAluno(id)}`)).toBe(true)
+    for (const caminho of ['/aluno/prova', '/aluno/prova/', `/aluno/prova/${id}/x`, `/aluno/atividades/${id}`, `/professor/prova/${id}`, `/aluno/provas/${id}`, `/x/aluno/prova/${id}`]) expect(isTelaDeFoco(caminho), caminho).toBe(false)
   })
 
   it('é falsa em toda tela de dentro da casca, as do aluno inclusive', () => {

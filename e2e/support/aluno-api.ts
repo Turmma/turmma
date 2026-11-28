@@ -68,3 +68,28 @@ export async function sairDaAbaPelaApi(request: APIRequestContext, token: string
   const saida = await request.post(`/v1/atividades-aplicadas/${atividadeAplicadaId}/saidas-da-aba`, { headers: comToken(token), data: { chave: randomUUID() } })
   expect(saida.status(), 'a saída da aba é aceita').toBe(204)
 }
+
+/** O aluno começa a prova (`POST .../comecar`, que cria a tentativa e põe o relógio dele a andar): o caso que não é sobre o "Começar" abre depois direto a tela de foco. */
+export async function comecarPelaApi(request: APIRequestContext, token: string, atividadeAplicadaId: string): Promise<void> {
+  const comecou = await request.post(`/v1/atividades-aplicadas/${atividadeAplicadaId}/comecar`, { headers: comToken(token), data: {} })
+  expect(comecou.status(), 'o aluno começa a prova').toBe(200)
+}
+
+/** Uma resposta pelo **número original** da questão e o **índice original** da alternativa: o que a tela manda numa prova embaralhada (a posição na tela não entra). */
+export async function responderPelaApiOriginal(request: APIRequestContext, token: string, atividadeAplicadaId: string, questao: number, alternativa: number): Promise<void> {
+  const salva = await request.put(`/v1/atividades-aplicadas/${atividadeAplicadaId}/respostas/${String(questao)}`, { headers: comToken(token), data: { alternativa } })
+  expect(salva.status(), `resposta da questão ${String(questao)}`).toBe(200)
+}
+
+/** O aluno envia a prova (`POST .../enviar`). */
+export async function enviarPelaApi(request: APIRequestContext, token: string, atividadeAplicadaId: string): Promise<void> {
+  const enviada = await request.post(`/v1/atividades-aplicadas/${atividadeAplicadaId}/enviar`, { headers: comToken(token), data: {} })
+  expect(enviada.ok(), 'o aluno envia a prova').toBe(true)
+}
+
+/** A prova como o aluno a recebe (`GET .../prova`, já começada): as questões na ordem dele, com as alternativas na ordem dele. */
+export async function lerAProvaPelaApi(request: APIRequestContext, token: string, atividadeAplicadaId: string): Promise<{ questoes: { numero: number; alternativas: string[]; ordemDasAlternativas: number[] }[] }> {
+  const lida = await request.get(`/v1/atividades-aplicadas/${atividadeAplicadaId}/prova`, { headers: comToken(token) })
+  expect(lida.status(), 'a leitura da prova').toBe(200)
+  return (await lida.json()) as { questoes: { numero: number; alternativas: string[]; ordemDasAlternativas: number[] }[] }
+}

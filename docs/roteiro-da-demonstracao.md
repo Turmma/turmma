@@ -225,12 +225,16 @@ aluno e sugere uma nota" (a resposta explica que a IA não corrige redação nem
    **Aparece:** "Aberta para a turma · avaliativa · 0 de 3 alunos enviaram".
 2. Perfil **Aluno** (Ana) → **Tarefas** → em "Para fazer", a atividade aparece com "Avaliação: o Tutor fica pausado até
    quem dá a aula encerrar". **Diga:** "Na avaliação o Tutor pausa sozinho, no servidor."
-3. Ana abre a atividade e responde **uma questão por vez**, com "Resposta salva" a cada escolha. Erre de propósito
-   uma ou duas questões (é o que o Tutor vai lembrar no passo 6). **Enviar a atividade** → confirme.
-   **Aparece:** primeiro a comemoração "Atividade entregue. Quem dá a aula vê a correção antes de você." e, abaixo do
-   cartão "Atividade enviada", "Quem dá a aula ainda vai revisar a correção." **Diga:** "O aluno não vê resultado antes de a
+3. Ana abre a atividade e cai em **Antes de começar**: "Esta prova tem 40 minutos, contados a partir de Começar.", com o aviso de
+   que sair da aba aparece para o professor. **Diga:** "O aluno é avisado antes, e nada acontece com a prova por isso." **Começar** abre
+   a prova numa tela só dela, sem menu: o relógio ("Faltam 40 min", o do servidor), "Salvo" a cada escolha e **Sair da prova**, que
+   é um clique e não pede confirmação. Ela responde **uma questão por vez**. Erre de propósito
+   uma ou duas questões (é o que o Tutor vai lembrar no passo 6). **Enviar a prova** → confirme.
+   **Aparece:** "Prova enviada. Quem dá a aula vê a correção antes de você." e **Voltar às tarefas**; ao reabrir a tarefa, o
+   cartão "Atividade enviada" diz "Quem dá a aula ainda vai revisar a correção." **Diga:** "O aluno não vê resultado antes de a
    professora aprovar."
-4. Bruno (Aluno 2) responde e envia. Carla (Aluno 3) só abre a atividade e não responde: ela vai virar destaque.
+4. Bruno (Aluno 2) responde e envia. Carla (Aluno 3) abre a prova, lê o **Antes de começar**, toca **Começar** e sai sem responder (**Sair da prova**):
+   a tentativa só nasce no **Começar**, e é ela que vai virar destaque. Quem só abre a tarefa e não toca em **Começar** não tem tentativa, e a correção não a conta.
 
 ## 6. Passo 4: a correção, aprovada com a validação registrada (Professora, 5 min)
 

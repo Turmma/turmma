@@ -179,6 +179,18 @@ export const MAIOR_ESPERA_DA_FILA_MS = 15_000
 export const JITTER_DA_FILA = 0.25
 
 /**
+ * A rede da escola volta para a sala inteira no mesmo instante (`online`): 2.100 alunos atrás da mesma queda não podem reenviar no mesmo segundo (regra 80, item 6).
+ * Cada fila espera um sorteio uniforme de 0 a isto antes de tentar. O "Tentar de novo", a escolha que o aluno acabou de marcar e a sessão que volta não esperam:
+ * são um aluno, e não a sala. O k6 da prova repete este número (`infra/test/carga-prova.test.ts`).
+ */
+export const ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS = 5_000
+
+/** Quanto esperar quando a rede volta: o sorteio (de 0 a 1, `Math.random` em produção) vezes `ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS`. */
+export function esperaNaVoltaDaRede(sorteio: () => number = Math.random): number {
+  return Math.round(sorteio() * ESPERA_MAXIMA_NA_VOLTA_DA_REDE_MS)
+}
+
+/**
  * Quanto esperar antes da tentativa seguinte: 2 s, 4 s, 8 s e, daí em diante, 15 s, cada uma com **±25 % de jitter** e
  * nunca acima do teto. Com a escola inteira atrás da mesma rede que caiu, trinta alunos tentando a cada segundo é o que
  * impediria a API de voltar (regra 80); e trinta alunos que falharam no mesmo instante, com a mesma espera exata,

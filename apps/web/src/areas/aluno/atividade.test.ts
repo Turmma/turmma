@@ -2,7 +2,10 @@ import { ErrorCode, type MeuDiagnosticoResponse, type ProvaResponse } from '@edu
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../api/client'
 import {
+  alternativaComTexto,
   alternativaMarcada,
+  alternativaOriginal,
+  anuncioDoRelogio,
   avisoDeEscolhasPerdidas,
   comemoracaoNaTela,
   countRespostas,
@@ -11,6 +14,10 @@ import {
   impedimentoDoEnvio,
   letraDaAlternativa,
   marcaDaQuestao,
+  milissegundosQueFaltam,
+  posicaoDaAlternativa,
+  posicaoDaQuestao,
+  questaoPorNumero,
   questaoValida,
   respostasSalvas,
   resultadoNaTela,
@@ -18,8 +25,16 @@ import {
   rotuloNoMapa,
   textoDasEmBranco,
   textoDasRespondidas,
+  textoDasQueAindaNaoChegaram,
+  textoDasQueNaoChegaram,
   textoDoAcerto,
+  textoDoEnvioQueFalhou,
+  textoDoErroDaProva,
+  textoDoRelogio,
   TEXTO_DA_MARCA,
+  TEXTO_DE_AGUARDE,
+  TEXTO_DE_ERRO_AO_ABRIR_A_PROVA,
+  TEXTO_DO_ENVIO_QUE_NAO_SAIU,
 } from './atividade'
 import { FILA_VAZIA, type EstadoDaFila } from './respostas'
 
@@ -209,5 +224,121 @@ describe('as falas da comemoração (regra 70, item 4a; D58; D59)', () => {
 
   it('o botão leva de volta às tarefas, e não é promessa: o "voltar" é do aluno, no imperativo da tela', () => {
     expect(ROTULO_DE_VOLTAR_AS_TAREFAS).toBe('Voltar às tarefas')
+  })
+})
+
+describe('a prova embaralhada: o índice original e a posição na tela (avaliacao-e-correcao, 12.7)', () => {
+  /** A questão 3 chegou na primeira posição, com as alternativas na ordem C, A, D, B (índices originais 2, 0, 3, 1). */
+  const embaralhada = prova({
+    questoes: [
+      { numero: 3, enunciado: 'Terceira', alternativas: ['Seis', 'Quatro', 'Sete', 'Cinco'], ordemDasAlternativas: [2, 0, 3, 1] },
+      { numero: 1, enunciado: 'Primeira', alternativas: ['Quatro', 'Cinco', 'Seis', 'Sete'], ordemDasAlternativas: [0, 1, 2, 3] },
+    ],
+  })
+
+  it('acha a questão pelo número original, e não pela posição na lista', () => {
+    expect(questaoPorNumero(embaralhada, 3)?.enunciado).toBe('Terceira')
+    expect(questaoPorNumero(embaralhada, 1)?.enunciado).toBe('Primeira')
+    expect(questaoPorNumero(embaralhada, 2)).toBeUndefined()
+    expect(posicaoDaQuestao(embaralhada, 3)).toBe(1)
+    expect(posicaoDaQuestao(embaralhada, 1)).toBe(2)
+    // A questão que a prova não traz fica onde o número a põe: nunca "posição 0".
+    expect(posicaoDaQuestao(embaralhada, 9)).toBe(9)
+  })
+
+  it('a alternativa da posição vira o índice original (é o que o `PUT` leva), e a conta inversa volta à posição', () => {
+    const terceira = questaoPorNumero(embaralhada, 3)
+    expect([0, 1, 2, 3].map((posicao) => alternativaOriginal(terceira, posicao))).toEqual([2, 0, 3, 1])
+    expect([0, 1, 2, 3].map((original) => posicaoDaAlternativa(terceira, original))).toEqual([1, 3, 0, 2])
+    // Sem a questão, a posição é o próprio índice, nos dois sentidos.
+    expect(alternativaOriginal(undefined, 2)).toBe(2)
+    expect(posicaoDaAlternativa(undefined, 2)).toBe(2)
+  })
+
+  it('o diagnóstico lê o texto e a letra pela posição em que o aluno viu a alternativa: "sua resposta" e "a certa" são as do índice original', () => {
+    const terceira = questaoPorNumero(embaralhada, 3)
+    // O índice original 2 ("Seis") estava na posição 0, e a tela mostrou "A. Seis".
+    expect(alternativaComTexto(terceira, 2)).toBe('A. Seis')
+    expect(alternativaComTexto(terceira, 0)).toBe('B. Quatro')
+    // Sem a questão (a prova não a traz), só a letra, e nunca um texto de outra.
+    expect(alternativaComTexto(undefined, 1)).toBe('B')
+  })
+
+  it('o aviso da resposta que não chegou diz o número que o aluno viu na tela, e não o original', () => {
+    const fila: EstadoDaFila = { ...FILA_VAZIA, falha: 'encerrada', pendentes: [{ questao: 3, alternativa: 2, sequencia: 1 }] }
+    expect(avisoDeEscolhasPerdidas(fila, (numero) => posicaoDaQuestao(embaralhada, numero))).toContain('questão 1 ')
+    expect(avisoDeEscolhasPerdidas(fila)).toContain('questão 3 ')
+  })
+})
+
+describe('o relógio da prova, com o desvio do servidor (RF6)', () => {
+  const agoraDoServidor = Date.parse('2026-11-28T13:00:00.000Z')
+  const limiteEm = '2026-11-28T13:30:00.000Z'
+
+  it('o tempo que falta sai do limite menos o relógio do servidor: o computador 10 min adiantado não tira 10 min da prova', () => {
+    // O computador marca 13:10 quando o servidor marca 13:00: o desvio é de -10 min.
+    const tempo = { limiteEm, envio: null, desvioMs: -10 * 60_000 }
+    expect(milissegundosQueFaltam(tempo, agoraDoServidor + 10 * 60_000)).toBe(30 * 60_000)
+    // Sem o desvio, o mesmo relógio diria 20 min.
+    expect(milissegundosQueFaltam({ ...tempo, desvioMs: 0 }, agoraDoServidor + 10 * 60_000)).toBe(20 * 60_000)
+  })
+
+  it('sem tempo lido ou sem limite, não há o que contar', () => {
+    expect(milissegundosQueFaltam(undefined, agoraDoServidor)).toBeUndefined()
+    expect(milissegundosQueFaltam({ limiteEm: null, envio: null, desvioMs: 0 }, agoraDoServidor)).toBeUndefined()
+  })
+
+  it('o texto é de minutos inteiros, para cima, e nunca de segundos', () => {
+    expect(textoDoRelogio(12 * 60_000)).toBe('Faltam 12 min')
+    expect(textoDoRelogio(11 * 60_000 + 1)).toBe('Faltam 12 min')
+    expect(textoDoRelogio(60_000)).toBe('Falta menos de 1 min')
+    expect(textoDoRelogio(1_000)).toBe('Falta menos de 1 min')
+    expect(textoDoRelogio(0)).toBe('O tempo acabou')
+    expect(textoDoRelogio(-5_000)).toBe('O tempo acabou')
+  })
+
+  it('o leitor de tela é avisado a 10, 5 e 1 min, uma vez cada, e a 11 min não é avisado', () => {
+    const dito = new Set<number>()
+    expect(anuncioDoRelogio(11 * 60_000, dito)).toBeUndefined()
+    expect(anuncioDoRelogio(10 * 60_000, dito)).toEqual({ limiares: [10], texto: 'Faltam 10 minutos.' })
+    dito.add(10)
+    expect(anuncioDoRelogio(9 * 60_000, dito)).toBeUndefined()
+    expect(anuncioDoRelogio(5 * 60_000, dito)).toEqual({ limiares: [10, 5], texto: 'Faltam 5 minutos.' })
+    dito.add(5)
+    expect(anuncioDoRelogio(60_000, dito)).toEqual({ limiares: [10, 5, 1], texto: 'Falta 1 minuto.' })
+    dito.add(1)
+    expect(anuncioDoRelogio(30_000, dito)).toBeUndefined()
+    // O fim é do aviso `assertive`, e não deste.
+    expect(anuncioDoRelogio(0, new Set())).toBeUndefined()
+  })
+
+  it('quem abre a prova com 8 min recebe um aviso só, e não o de 10 e o de 5', () => {
+    const dito = new Set<number>()
+    const aviso = anuncioDoRelogio(8 * 60_000, dito)
+    expect(aviso).toEqual({ limiares: [10], texto: 'Faltam 8 minutos.' })
+    for (const limiar of aviso?.limiares ?? []) dito.add(limiar)
+    expect(anuncioDoRelogio(7 * 60_000, dito)).toBeUndefined()
+  })
+})
+
+describe('os textos da prova em tela de foco (cenarios.md, seção 4)', () => {
+  it('diz quantas respostas não chegaram, no fim e na lista, no singular e no plural', () => {
+    expect(textoDasQueNaoChegaram(2)).toBe('2 respostas não chegaram. Chame o professor.')
+    expect(textoDasQueNaoChegaram(1)).toBe('1 resposta não chegou. Chame o professor.')
+    expect(textoDasQueAindaNaoChegaram(2)).toBe('2 respostas ainda não chegaram')
+    expect(textoDasQueAindaNaoChegaram(1)).toBe('1 resposta ainda não chegou')
+  })
+
+  it('abrir a prova que falha diz para tentar de novo, e o limite por minuto pede para esperar; nenhum código aparece', () => {
+    expect(textoDoErroDaProva(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(TEXTO_DE_ERRO_AO_ABRIR_A_PROVA)
+    expect(textoDoErroDaProva(new Error('x'))).toBe('Não foi possível abrir a prova. Tente de novo.')
+    expect(textoDoErroDaProva(new ApiError(ErrorCode.LIMITE_EXCEDIDO))).toBe(TEXTO_DE_AGUARDE)
+    expect(TEXTO_DE_AGUARDE).toBe('Aguarde um instante.')
+  })
+
+  it('"Enviar" que não saiu diz que as respostas estão guardadas e que o tempo da queda volta; o 429 pede para esperar', () => {
+    expect(textoDoEnvioQueFalhou(new ApiError(ErrorCode.INDISPONIVEL_TENTE_DE_NOVO))).toBe(TEXTO_DO_ENVIO_QUE_NAO_SAIU)
+    expect(TEXTO_DO_ENVIO_QUE_NAO_SAIU).toBe('Não deu para enviar agora. Suas respostas estão guardadas; tente de novo em instantes. O tempo da queda volta para você.')
+    expect(textoDoEnvioQueFalhou(new ApiError(ErrorCode.LIMITE_EXCEDIDO))).toBe(TEXTO_DE_AGUARDE)
   })
 })

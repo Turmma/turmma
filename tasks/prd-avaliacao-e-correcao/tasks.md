@@ -66,14 +66,14 @@
   - [x] 11.1 Acompanhar, Estender, Segunda chamada e Encerrar com quantos fazem
   - [x] 11.2 Testes: §4 Acompanhar, Estender, Segunda chamada, Encerrar; `professor-prova.spec.ts`
 
-- [ ] **12.0 — Tela do aluno: "Antes de começar" e a prova em foco**
-  - [ ] 12.1 Atividades e "Antes de começar"
-  - [ ] 12.2 `/aluno/prova/:id` fora da casca; relógio do servidor
-  - [ ] 12.3 Fila de respostas no app
-  - [ ] 12.4 Fila de saídas em série
-  - [ ] 12.5 Acessibilidade e os textos de erro
-  - [ ] 12.6 Roteiro da demonstração; `docs/interface.md` §2
-  - [ ] 12.7 Testes: RF6 e RF7 da tela, §4 do aluno; `aluno-prova.spec.ts`
+- [x] **12.0 — Tela do aluno: "Antes de começar" e a prova em foco**
+  - [x] 12.1 Atividades e "Antes de começar"
+  - [x] 12.2 `/aluno/prova/:id` fora da casca; relógio do servidor
+  - [x] 12.3 Fila de respostas no app
+  - [x] 12.4 Fila de saídas em série
+  - [x] 12.5 Acessibilidade e os textos de erro
+  - [x] 12.6 Roteiro da demonstração; `docs/interface.md` §2
+  - [x] 12.7 Testes: RF6 e RF7 da tela, §4 do aluno; `aluno-prova.spec.ts`
 
 ## Dependências e paralelismo
 

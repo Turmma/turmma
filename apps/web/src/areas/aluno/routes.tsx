@@ -11,7 +11,10 @@ import { NotFoundContent } from '../../components/NotFound'
 const Inicio = lazy(() => import('./Inicio'))
 const Eu = lazy(() => import('./Eu'))
 const Atividades = lazy(() => import('./Atividades'))
-const Atividade = lazy(() => import('./Atividade'))
+/** A porta de entrada da atividade: "Antes de começar" da prova online, ou a tela de hoje (`./Atividade`), e a prova em andamento leva à tela de foco. */
+const Atividade = lazy(() => import('./AntesDeComecar'))
+/** A prova em tela de foco (avaliacao-e-correcao, 12.0): fora da casca (`isTelaDeFoco`), só a prova, o relógio e o "Sair da prova". */
+const ProvaEmFoco = lazy(() => import('./ProvaEmFoco'))
 const Tutor = lazy(() => import('./Tutor'))
 /** A introdução do aluno (9.0): tela de foco, dentro da casca; só quem a abre baixa o pedaço. */
 const BemVindo = lazy(() => import('./introducao/BemVindo'))
@@ -49,6 +52,9 @@ export default function RotasDoAluno() {
       <Route path={ALUNO_ROUTES.atividades} component={Atividades} />
       <Route path={ALUNO_ROUTES.atividade}>
         {(parametros) => (UUID.test(parametros.atividadeAplicadaId) ? <Atividade key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} /> : <NotFoundContent />)}
+      </Route>
+      <Route path={ALUNO_ROUTES.prova}>
+        {(parametros) => (UUID.test(parametros.atividadeAplicadaId) ? <ProvaEmFoco key={parametros.atividadeAplicadaId} atividadeAplicadaId={parametros.atividadeAplicadaId} /> : <NotFoundContent />)}
       </Route>
       <Route path={ALUNO_ROUTES.eu} component={Eu} />
       <Route path={ALUNO_ROUTES.bemVindo} component={BemVindo} />
