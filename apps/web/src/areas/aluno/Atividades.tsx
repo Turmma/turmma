@@ -12,7 +12,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { SectionHeader, Page } from '../../components/ui/Page'
 import { usePageTitle } from '../../document-title'
 import { textoDasQueAindaNaoChegaram } from './atividade'
-import { AVISO_DA_AVALIACAO, detalheDaSituacao, estaParaResponder, resumoDaAtividade, separarAtividades, TEXTO_DA_SITUACAO, textoDaJanelaNaLista, VAZIO_DE_CADA_GRUPO } from './atividades'
+import { avisoDaAvaliacao, detalheDaSituacao, estaParaResponder, resumoDaAtividade, separarAtividades, TEXTO_DA_SITUACAO, textoDaJanelaNaLista, VAZIO_DE_CADA_GRUPO } from './atividades'
 import { assinarAsFilas, respostasQueNaoChegaram } from './fila-de-respostas'
 import { caraDaMateria } from './materia'
 import { useAgora } from './use-agora'
@@ -43,7 +43,7 @@ function LinhaDaTarefa({ atividade, agora }: { atividade: MinhaAtividade; agora:
                 {textoDasQueAindaNaoChegaram(naoChegaram)}
               </span>
             )}
-            {atividade.avaliativa && estaParaResponder(atividade) && <span className="block font-medium text-tinta">{AVISO_DA_AVALIACAO}</span>}
+            {atividade.avaliativa && estaParaResponder(atividade) && <span className="block font-medium text-tinta">{avisoDaAvaliacao(atividade)}</span>}
           </>
         }
         /* O estado em texto, no selo: `ok` só quando a correção foi aprovada; o resto é cinza, porque nada aqui é alarme. */

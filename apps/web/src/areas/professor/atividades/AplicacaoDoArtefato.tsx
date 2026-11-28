@@ -15,7 +15,7 @@ import { LoadingState } from '../../../components/states/index'
 import { SectionHeader } from '../../../components/ui/Page'
 import { formatDateTime } from '../../../format'
 import { ordemDeNome } from '../turmas/alunos-da-turma'
-import { AVISO_DA_AVALIATIVA_ABERTA, EFEITO_DE_APLICAR, ESCOLHA_DE_AVALIATIVA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
+import { avisoDaAvaliativaAberta, EFEITO_DE_APLICAR, ESCOLHA_DE_AVALIATIVA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
 import { conferirAProva, FORMULARIO_VAZIO_DA_PROVA, resumoDaProva, type CamposDaJanela, type ErrosDaProva, type FormularioDaProva, type PedidoDaProva } from './prova-online'
@@ -319,7 +319,7 @@ export function AplicacaoDoArtefato({ artefato, nomeDaTurma }: PropsDaAplicacao)
                   {turma} · aplicada em {formatDateTime(aplicada.aplicadaEm)}
                   {aplicada.encerradaEm !== null && ` · encerrada em ${formatDateTime(aplicada.encerradaEm)}`}
                 </p>
-                {aplicada.avaliativa && aplicada.estado === 'aberta' && <p className="text-sm break-words text-sutil">{AVISO_DA_AVALIATIVA_ABERTA}</p>}
+                {aplicada.avaliativa && aplicada.estado === 'aberta' && <p className="text-sm break-words text-sutil">{avisoDaAvaliativaAberta(aplicada)}</p>}
                 {motivo !== undefined && (
                   <p data-sem-correcao={motivo} className="text-sm break-words text-sutil">
                     {TEXTO_SEM_CORRECAO[motivo]}

@@ -40,7 +40,7 @@ export function usoDoDia(uso: ConversaDoTutorResponse['uso']): UsoDoDia {
 
 /**
  * Por que o Tutor não responde agora, quando não responde:
- * - `avaliacao`: há avaliação aberta para a turma; ele volta quando a professora encerrar.
+ * - `avaliacao`: há avaliação aberta para a turma (a prova com janela, da abertura até ela fechar); ele volta quando a avaliação termina.
  * - `limite_do_dia`: o aluno fez as perguntas de hoje; amanhã volta.
  * - `pacote_do_mes`: a turma usou as perguntas do mês.
  * - `fora`: a escola deixou o Tutor desligado neste horário.
@@ -62,7 +62,7 @@ export function avisoDaPausa(pausa: PausaDoTutor, contexto: { readonly avaliacao
     return {
       pausa,
       titulo: 'O Tutor está pausado durante a avaliação.',
-      texto: `${contexto.avaliacao === undefined ? 'A sua turma tem uma avaliação aberta agora.' : `A sua turma tem uma avaliação aberta agora: ${contexto.avaliacao}.`} Ele volta quando quem dá a aula encerrar.`,
+      texto: `${contexto.avaliacao === undefined ? 'A sua turma tem uma avaliação aberta agora.' : `A sua turma tem uma avaliação aberta agora: ${contexto.avaliacao}.`} Ele volta quando a avaliação terminar.`,
     }
   if (pausa === 'limite_do_dia')
     return {

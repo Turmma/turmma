@@ -9,7 +9,7 @@ import { AgentSignature } from '../../components/ui/ai/AgentSignature'
 import { SECONDARY_LINK_CLASSES } from '../../components/ui/button-variants'
 import { SectionHeader, Page } from '../../components/ui/Page'
 import { usePageTitle } from '../../document-title'
-import { AVISO_DA_AVALIACAO, resumoDaAtividade } from './atividades'
+import { avisoDaAvaliacao, resumoDaAtividade } from './atividades'
 import { FaixaDeSupervisao } from './FaixaDeSupervisao'
 import { saudacaoDoAluno, tarefasParaFazer, TEXTO_DO_VAZIO, TITULO_DO_VAZIO } from './inicio'
 
@@ -29,7 +29,7 @@ function TarefaParaFazer({ atividade }: { atividade: MinhaAtividade }) {
           <span className="min-w-0 break-words">{atividade.titulo}</span>
         </Link>
         <p className="min-w-0 text-sm break-words text-sutil">{resumoDaAtividade(atividade)}</p>
-        {atividade.avaliativa && <p className="min-w-0 text-sm break-words text-apoio">{AVISO_DA_AVALIACAO}</p>}
+        {atividade.avaliativa && <p className="min-w-0 text-sm break-words text-apoio">{avisoDaAvaliacao(atividade)}</p>}
       </div>
       <Link to={caminhoDoTutorNaAtividade(atividade.id)} className={`${SECONDARY_LINK_CLASSES} self-start md:shrink-0`}>
         Pedir ajuda ao Tutor

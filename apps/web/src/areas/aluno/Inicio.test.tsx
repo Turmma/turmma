@@ -6,7 +6,7 @@ import { Router } from 'wouter'
 import { MINHAS_ATIVIDADES_QUERY_KEY } from '../../api/chaves-do-aluno'
 import { createQueryClient } from '../../api/query-client'
 import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork } from '../../__fixtures__/render-screen'
-import { AVISO_DA_AVALIACAO } from './atividades'
+import { AVISO_DA_AVALIACAO, AVISO_DA_PROVA } from './atividades'
 import Inicio from './Inicio'
 import { TEXTO_DO_VAZIO, TITULO_DO_VAZIO } from './inicio'
 import { TEXTO_DA_SUPERVISAO } from './tutor'
@@ -281,6 +281,18 @@ describe('o Início do aluno', () => {
     expect(within(aberta).getByRole('link', { name: 'Pedir ajuda ao Tutor' }).getAttribute('href')).toBe('/aluno/tutor/0192a4c0-5b1e-7c3d-8e4f-000000000001')
     expect(comum.textContent).not.toContain(AVISO_DA_AVALIACAO)
     expect(within(comum).getByRole('link', { name: 'Pedir ajuda ao Tutor' })).toBeTruthy()
+  })
+
+  it('a prova com janela traz o aviso da prova (o Tutor pausa só durante ela), e a avaliativa sem janela o de antes', async () => {
+    const janela = { abreEm: '2030-03-12T13:00:00.000Z', fechaEm: '2030-03-12T14:40:00.000Z' }
+    rede([atividade('01', { avaliativa: true, janela, duracaoMin: 40 }), atividade('02', { avaliativa: true })])
+    montar()
+
+    const [prova, antiga] = within(await screen.findByRole('list')).getAllByRole('listitem') as [HTMLElement, HTMLElement]
+    expect(prova.textContent).toContain(AVISO_DA_PROVA)
+    expect(prova.textContent).not.toContain(AVISO_DA_AVALIACAO)
+    expect(antiga.textContent).toContain(AVISO_DA_AVALIACAO)
+    expect(antiga.textContent).not.toContain(AVISO_DA_PROVA)
   })
 })
 

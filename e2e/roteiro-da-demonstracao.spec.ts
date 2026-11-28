@@ -479,7 +479,7 @@ test.describe('o roteiro da demonstração, de ponta a ponta', () => {
       await aluna.goto('/aluno/atividades')
       const naLista = principal(aluna).getByRole('region', { name: 'Para fazer' }).getByRole('link', { name: new RegExp(PRIMEIRA) })
       // Avaliação: o Tutor fica pausado, e a lista avisa antes de abrir.
-      await expect(naLista).toContainText('Avaliação: o Tutor fica pausado até quem dá a aula encerrar.', { timeout: SIGN_IN_TIMEOUT_MS })
+      await expect(naLista).toContainText('Avaliação: o Tutor fica pausado durante a prova, da abertura até ela fechar.', { timeout: SIGN_IN_TIMEOUT_MS })
       await expect(naLista).toContainText(`${DISCIPLINA} · 5 questões`)
       await naLista.click()
       // A avaliação com janela abre em "Antes de começar" (D70): o aviso vem antes de qualquer questão, e só o "Começar" abre a prova, numa tela de foco, fora da casca.

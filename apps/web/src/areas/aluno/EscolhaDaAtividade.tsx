@@ -7,7 +7,7 @@ import { caminhoDoTutorNaAtividade } from '../../paths'
 import { LoadingState, ErrorState, EmptyState } from '../../components/states'
 import { Button } from '../../components/ui/Button'
 import { SectionHeader } from '../../components/ui/Page'
-import { AVISO_DA_AVALIACAO, estaParaResponder, resumoDaAtividade } from './atividades'
+import { avisoDaAvaliacao, estaParaResponder, resumoDaAtividade } from './atividades'
 
 /** Uma atividade da escolha: o link inteiro leva ao Tutor dela, e a avaliação que espera resposta é avisada antes de abrir. */
 function LinhaDaEscolha({ atividade }: { atividade: MinhaAtividade }) {
@@ -18,7 +18,7 @@ function LinhaDaEscolha({ atividade }: { atividade: MinhaAtividade }) {
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="min-w-0 text-base font-semibold break-words">{atividade.titulo}</span>
           <span className="min-w-0 text-sm break-words text-sutil">{resumoDaAtividade(atividade)}</span>
-          {avisar && <span className="min-w-0 text-sm break-words text-apoio">{AVISO_DA_AVALIACAO}</span>}
+          {avisar && <span className="min-w-0 text-sm break-words text-apoio">{avisoDaAvaliacao(atividade)}</span>}
         </span>
         <ChevronRight aria-hidden="true" size={20} strokeWidth={1.75} className="shrink-0 text-sutil" />
       </Link>

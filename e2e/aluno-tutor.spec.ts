@@ -292,7 +292,7 @@ test.describe('o Tutor pausado explica, não parece erro, e não trava a caixa',
     await expect(pausa(page)).toHaveAttribute('data-pausa-do-tutor', 'avaliacao', { timeout: SCREEN_TIMEOUT_MS })
     await expect(pausa(page)).toContainText('O Tutor está pausado durante a avaliação.')
     await expect(pausa(page)).toContainText('Prova de estequiometria')
-    await expect(pausa(page)).toContainText('Ele volta quando quem dá a aula encerrar.')
+    await expect(pausa(page)).toContainText('Ele volta quando a avaliação terminar.')
     // É aviso, e não erro: sem alerta, sem "Tentar de novo", sem vermelho.
     await expect(principal(page).getByRole('alert')).toHaveCount(0)
     await expect(principal(page).getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0)

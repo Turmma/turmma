@@ -17,8 +17,19 @@ export const TEXTO_DA_SITUACAO: Readonly<Record<SituacaoDaMinhaAtividade, string
   com_diagnostico: 'Corrigida',
 }
 
-/** O aviso da atividade avaliativa, dito **antes** de o aluno abrir: enquanto ela está aberta, o Tutor da turma para. */
+/** O aviso da avaliativa **sem janela** (a de antes da F6), dito **antes** de o aluno abrir: enquanto ela está aberta, o Tutor da turma para. */
 export const AVISO_DA_AVALIACAO = 'Avaliação: o Tutor fica pausado até quem dá a aula encerrar.'
+
+/**
+ * O aviso da prova **com janela**: o Tutor pausa só durante a prova, da abertura até ela fechar (Tech Spec §5.10, item 10: até o fim da janela ou o limite do aluno, o que vier depois).
+ * Não diz "o fim do seu tempo": quem tem tempo adicional lê o mesmo texto, e a tela não revela que há adaptação (D35).
+ */
+export const AVISO_DA_PROVA = 'Avaliação: o Tutor fica pausado durante a prova, da abertura até ela fechar.'
+
+/** O aviso da avaliação na lista e no Início: o da prova quando ela tem janela, o de antes da F6 quando não tem. */
+export function avisoDaAvaliacao(atividade: Pick<MinhaAtividade, 'janela'>): string {
+  return atividade.janela === null ? AVISO_DA_AVALIACAO : AVISO_DA_PROVA
+}
 
 /** O que se diz enquanto a correção espera a professora: é o que separa "entregue" de "corrigida" (regra 70, item 3). */
 export const TEXTO_DA_ESPERA_PELA_CORRECAO = 'Quem dá a aula ainda vai revisar a correção.'

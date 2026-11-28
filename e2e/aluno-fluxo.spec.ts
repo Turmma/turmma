@@ -174,7 +174,7 @@ test.describe('o fluxo do aluno contra a API real', () => {
     // No Início (3.0) o cartão da tarefa tem dois links, o do título e o "Pedir ajuda ao Tutor", e o aviso fica no cartão, fora dos dois.
     // O cartão é o item da lista cujo link tem exatamente o título: outro item que só o citasse no texto não o confunde.
     const naLista = principal(page).getByRole('listitem').filter({ has: page.getByRole('link', { name: titulo, exact: true }) })
-    await expect(naLista).toContainText('Avaliação: o Tutor fica pausado até quem dá a aula encerrar.', { timeout: SCREEN_TIMEOUT_MS })
+    await expect(naLista).toContainText('Avaliação: o Tutor fica pausado durante a prova, da abertura até ela fechar.', { timeout: SCREEN_TIMEOUT_MS })
 
     // Pelo Início: pede ajuda ao Tutor naquela atividade, e ele explica que está pausado, com o título da avaliação.
     await activate(naLista.getByRole('link', { name: 'Pedir ajuda ao Tutor' }), hasTouch)

@@ -7,7 +7,7 @@ import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../..
 import { createQueryClient } from '../../api/query-client'
 import Atividades from './Atividades'
 import { filaDaAtividade } from './fila-de-respostas'
-import { AVISO_DA_AVALIACAO, TEXTO_DA_ESPERA_PELA_CORRECAO, VAZIO_DE_CADA_GRUPO } from './atividades'
+import { AVISO_DA_AVALIACAO, AVISO_DA_PROVA, TEXTO_DA_ESPERA_PELA_CORRECAO, VAZIO_DE_CADA_GRUPO } from './atividades'
 
 /**
  * "Tarefas" do aluno nos quatro estados e nos três grupos (telas do aluno e primeiro acesso, 4.0; RF6, RF10, RF20):
@@ -252,6 +252,25 @@ describe('Tarefas do aluno: a prova online (avaliacao-e-correcao, 12.0)', () => 
     expect(screen.queryAllByText(/^Abre em/)).toHaveLength(1)
     // A aberta não tem nem a linha vazia da janela.
     expect(Array.from(document.querySelectorAll('[data-atividade-id$="23"] span.block')).filter((linha) => linha.textContent === '')).toHaveLength(0)
+  })
+
+  it('a prova com janela diz que o Tutor pausa só durante a prova, e não "até quem dá a aula encerrar"; a avaliação sem janela mantém o texto de antes (Tech Spec §5.10)', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor('/v1/minhas-atividades', {
+      status: 200,
+      corpo: { itens: [atividade('24', { avaliativa: true, janela: janela(30, 90) }), atividade('25', { avaliativa: true, janela: janela(-30, 30), situacao: 'em_andamento' }), atividade('26', { avaliativa: true })] },
+    })
+    montar()
+
+    await screen.findByRole('region', { name: 'Para fazer' })
+    const linha = (final: string) => within(grupo('Para fazer')).getByRole('link', { name: new RegExp(`Lista sintética ${final}`) })
+    // A de amanhã também: o aviso diz o que vai ser, e o servidor só trava a partir do `abre_em`.
+    for (const final of ['24', '25']) {
+      expect(linha(final).textContent, final).toContain(AVISO_DA_PROVA)
+      expect(linha(final).textContent, final).not.toContain(AVISO_DA_AVALIACAO)
+    }
+    expect(linha('26').textContent).toContain(AVISO_DA_AVALIACAO)
+    expect(linha('26').textContent).not.toContain(AVISO_DA_PROVA)
   })
 
   it('as respostas que o servidor ainda não confirmou (a fila segue depois do "Sair da prova") aparecem na linha da prova, na região de status, a contagem anda e some quando o servidor confirma', async () => {

@@ -8,7 +8,7 @@ import { memoryLocation } from 'wouter/memory-location'
 import { fakeNetwork, renderScreen, setupScreen, type FakeNetwork, type FakeResponse } from '../../__fixtures__/render-screen'
 import { ApiError, errorMessage } from '../../api/client'
 import { encerrarPorInatividade, openSessaoPeloCookie, sair } from '../../api/sessao'
-import { AVISO_DA_AVALIACAO } from './atividades'
+import { AVISO_DA_AVALIACAO, AVISO_DA_PROVA } from './atividades'
 import { TEXTO_DE_ERRO_AO_ABRIR_A_PROVA, TEXTO_DO_ENVIO_QUE_NAO_SAIU, TEXTO_DO_FIM_DO_TEMPO, TEXTO_DO_FIM_ENCERRADA, TEXTO_DO_FIM_ENVIADA, TEXTO_SEM_CONEXAO, textoDasQueNaoChegaram } from './atividade'
 import AbrirAtividade from './AntesDeComecar'
 import { respostasQueNaoChegaram } from './fila-de-respostas'
@@ -427,6 +427,22 @@ describe('"Antes de começar" (RF7)', () => {
     expect(screen.queryByRole('alert')).toBeNull()
     // Janela aberta e sem recusa: nenhuma região de status vazia.
     expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('a prova com janela nunca mostra o aviso de avaliação sem janela, nem em "Antes de começar" nem na tela de foco em que a tentativa em andamento cai (Tech Spec §5.10)', async () => {
+    const antesDeComecar = idDaProva(90)
+    montarAntes(antesDeComecar, antes(antesDeComecar, janela(-5, 55)))
+    await screen.findByRole('heading', { name: 'Antes de começar' })
+    expect(screen.queryByText(AVISO_DA_AVALIACAO)).toBeNull()
+    expect(screen.queryByText(AVISO_DA_PROVA)).toBeNull()
+    cleanup()
+
+    // A tentativa já em andamento, com o relógio dela, entra pela mesma porta: vai para `/prova/:id`, e a tela da atividade comum (a do banner antigo) não é montada.
+    const emCurso = idDaProva(91)
+    const { localizacao } = montarAntes(emCurso, emAndamento(emCurso))
+    await waitFor(() => expect(localizacao.history?.at(-1)).toBe(`/prova/${emCurso}`))
+    expect(screen.queryByText(AVISO_DA_AVALIACAO)).toBeNull()
+    expect(screen.queryByText(/Pode parar quando quiser/)).toBeNull()
   })
 
   it('"Começar" cria a tentativa uma vez e leva à prova em foco, sem voltar ao "Antes de começar" pelo "Voltar"', async () => {

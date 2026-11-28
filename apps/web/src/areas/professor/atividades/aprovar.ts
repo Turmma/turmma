@@ -138,11 +138,27 @@ export function situacaoDaAplicacao(aplicada: Pick<AtividadeAplicada, 'estado' |
 /** O que a professora escolhe ao aplicar, e o que cada escolha faz com o Tutor (D36, regra 70, item 4c). */
 export const ESCOLHA_DE_AVALIATIVA = [
   { valor: 'pratica', avaliativa: false, rotulo: 'É prática', descricao: 'O Tutor continua disponível para a turma, conduzindo por perguntas.' },
-  { valor: 'avaliativa', avaliativa: true, rotulo: 'É avaliativa', descricao: 'O Tutor fica pausado para a turma até você encerrar a atividade.' },
+  { valor: 'avaliativa', avaliativa: true, rotulo: 'É avaliativa', descricao: 'O Tutor fica pausado para a turma durante a prova, da abertura até a prova fechar (ou até o fim do tempo de quem recebeu mais).' },
 ] as const
 
-/** A atividade avaliativa que está aberta: o Tutor da turma fica pausado até a professora encerrar (regra 70, item 4c). */
+/**
+ * A avaliativa **sem janela** (a de antes da F6) que está aberta: o Tutor da turma fica pausado até a professora encerrar (regra 70, item 4c).
+ * A avaliativa com janela é a de `AVISO_DA_PROVA_ABERTA`: o Tutor trava só dentro dela (Tech Spec §5.10).
+ */
 export const AVISO_DA_AVALIATIVA_ABERTA = 'É avaliativa: o Tutor está pausado para a turma até você encerrar.'
+
+/** A prova com janela que está aberta: o Tutor pausa da abertura até a prova fechar (ou até o fim do tempo de quem recebeu mais), e não até a professora encerrar (Tech Spec §5.10, item 10). */
+export const AVISO_DA_PROVA_ABERTA = 'É avaliativa: o Tutor fica pausado para a turma durante a prova, da abertura até a prova fechar (ou até o fim do tempo de quem recebeu mais).'
+
+/** A aplicação é uma prova com janela? `janela` é opcional no contrato (a resposta de antes da F6 não a trazia) e nula na atividade sem prova online. */
+export function hasJanela(aplicada: Pick<AtividadeAplicada, 'janela'>): boolean {
+  return aplicada.janela !== null && aplicada.janela !== undefined
+}
+
+/** O aviso da avaliativa aberta: o da prova quando ela tem janela, o de antes da F6 quando não tem. */
+export function avisoDaAvaliativaAberta(aplicada: Pick<AtividadeAplicada, 'janela'>): string {
+  return hasJanela(aplicada) ? AVISO_DA_PROVA_ABERTA : AVISO_DA_AVALIATIVA_ABERTA
+}
 
 /**
  * A atividade encerrada que não tem correção para revisar, e por quê. A API encerra sem corrigir em dois casos: ninguém

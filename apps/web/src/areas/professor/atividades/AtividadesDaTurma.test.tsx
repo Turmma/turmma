@@ -11,7 +11,7 @@ import { createQueryClient } from '../../../api/query-client'
 import { caminhoDaCorrecaoDoProfessor, caminhoDoArtefatoDoProfessor } from '../../../paths'
 import { setupScreen, fakeNetwork, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import * as textosDaTela from './aprovar'
-import { AVISO_DA_AVALIATIVA_ABERTA, TEXTO_SEM_CORRECAO } from './aprovar'
+import { AVISO_DA_AVALIATIVA_ABERTA, AVISO_DA_PROVA_ABERTA, avisoDaAvaliativaAberta, ESCOLHA_DE_AVALIATIVA, hasJanela, TEXTO_SEM_CORRECAO } from './aprovar'
 import AtividadesDaTurma, {
   atividadeDoEndereco,
   enderecoComAAtividade,
@@ -144,11 +144,41 @@ describe('o estado de cada linha (D46, D55)', () => {
 
   it('cada situação diz o que fazer com as palavras dela, e as que encerraram sem correção dizem por quê', () => {
     expect(oQueFazer(ABERTA)).toContain('encerre a atividade')
+    expect(oQueFazer(AVALIATIVA)).toContain('encerre a atividade')
     expect(oQueFazer(PARA_REVISAR)).toContain('Revise os destaques e aprove')
     expect(oQueFazer(CORRIGIDA)).toContain('Você aprovou a correção')
     expect(oQueFazer(LOTE_REJEITADO)).toBe(TEXTO_SEM_CORRECAO.lote_rejeitado)
     expect(oQueFazer(NINGUEM_RESPONDEU)).toBe(TEXTO_SEM_CORRECAO.ninguem_respondeu)
     expect(oQueFazer(FUNCAO_SUSPENSA)).toBe(TEXTO_SEM_CORRECAO.correcao_suspensa)
+  })
+
+  it('a prova com janela encerra sozinha no fim, e diz isso em vez de mandar esperar a turma terminar; a avaliativa sem janela e a prática mantêm o texto de hoje (validação da F6, §4)', () => {
+    const janela = { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }
+    const prova = { ...AVALIATIVA, janela, duracaoMin: 40 }
+    expect(oQueFazer(prova)).toContain('encerra sozinha quando a janela fecha')
+    expect(oQueFazer(prova)).not.toContain('Quando a turma terminar')
+    expect(oQueFazer({ ...AVALIATIVA, janela: null })).toBe(oQueFazer(ABERTA))
+    expect(oQueFazer(ABERTA)).not.toContain('encerra sozinha')
+    // A prova encerrada não promete mais encerramento nenhum: o texto é o da correção.
+    expect(oQueFazer({ ...prova, estado: 'encerrada', entrega: PENDENTE })).toContain('Revise os destaques')
+  })
+
+  it('o Tutor da prova com janela fica pausado da abertura até a prova fechar, e nada diz "até você encerrar"; sem janela, o texto de antes da F6 (Tech Spec §5.10)', () => {
+    const janela = { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }
+    expect(hasJanela({ ...AVALIATIVA, janela })).toBe(true)
+    expect(hasJanela({ ...AVALIATIVA, janela: null })).toBe(false)
+    expect(hasJanela(AVALIATIVA)).toBe(false)
+    expect(avisoDaAvaliativaAberta({ ...AVALIATIVA, janela })).toBe(AVISO_DA_PROVA_ABERTA)
+    expect(AVISO_DA_PROVA_ABERTA).toContain('da abertura até a prova fechar')
+    expect(AVISO_DA_PROVA_ABERTA).not.toContain('até você encerrar')
+    expect(avisoDaAvaliativaAberta({ ...AVALIATIVA, janela: null })).toBe(AVISO_DA_AVALIATIVA_ABERTA)
+    expect(avisoDaAvaliativaAberta(AVALIATIVA)).toBe(AVISO_DA_AVALIATIVA_ABERTA)
+    expect(AVISO_DA_AVALIATIVA_ABERTA).toContain('até você encerrar')
+    // Quem aplica uma avaliativa hoje sempre dá janela (RF1): a descrição da escolha é a da prova.
+    const avaliativa = ESCOLHA_DE_AVALIATIVA.find((opcao) => opcao.avaliativa)
+    expect(avaliativa?.descricao).toContain('da abertura até a prova fechar')
+    expect(avaliativa?.descricao).not.toContain('até você encerrar')
+    expect(ESCOLHA_DE_AVALIATIVA.find((opcao) => !opcao.avaliativa)?.descricao).toContain('continua disponível')
   })
 
   it('na lista, cada linha mostra o título, a situação de hoje com quantos enviaram e o selo, sem número de acerto', async () => {
@@ -431,6 +461,11 @@ describe('as ações do painel', () => {
     const completa = aplicada(9, { avaliativa: true, estado: 'aberta', encerradaEm: null, entrega: null, janela, duracaoMin: 40, comTempoAdicional: 2, participacao: { alunos: 30, iniciaram: 0, enviaram: 0 } })
     const { aberto, unmount } = await abrirPainelDe(completa)
     expect(frase(aberto)).toBe('7º A · abre 24/11 às 10:00 · fecha às 11:40 · 40 min · 2 alunos com tempo adicional')
+    // O painel da prova diz o que o Tutor faz de verdade (pausado só na janela) e que ela encerra sozinha, e não manda esperar a turma.
+    expect(within(aberto).getByText(AVISO_DA_PROVA_ABERTA)).toBeTruthy()
+    expect(within(aberto).queryByText(AVISO_DA_AVALIATIVA_ABERTA)).toBeNull()
+    expect(aberto.textContent).not.toContain('até você encerrar')
+    expect(aberto.textContent).toContain('encerra sozinha')
     expect(within(aberto).getByRole('button', { name: 'Mudar janela' })).toBeTruthy()
     unmount()
 
@@ -691,8 +726,9 @@ describe('trocar de turma recomeça a aba', () => {
 
 describe('é diagnóstico, não nota: nenhum texto da aba fala em nota, média, conceito nem pontuação, e nada ordena por acerto (D46, D55, D69)', () => {
   it('os textos fixos e os que cada situação gera', () => {
-    const gerados = DAS_SITUACOES.flatMap((atividade) => [oQueFazer(atividade), SELO_DA_ATIVIDADE[estadoDaAtividade(atividade)].texto, textosDaTela.situacaoDaAplicacao(atividade)])
-    const fixos = [...FILTROS_DAS_ATIVIDADES.map((opcao) => opcao.rotulo), AVISO_DA_AVALIATIVA_ABERTA, ...Object.values(TEXTO_SEM_CORRECAO)]
+    const prova = { ...AVALIATIVA, janela: { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }, duracaoMin: 40 }
+    const gerados = [...DAS_SITUACOES, prova].flatMap((atividade) => [oQueFazer(atividade), SELO_DA_ATIVIDADE[estadoDaAtividade(atividade)].texto, textosDaTela.situacaoDaAplicacao(atividade)])
+    const fixos = [...FILTROS_DAS_ATIVIDADES.map((opcao) => opcao.rotulo), AVISO_DA_AVALIATIVA_ABERTA, AVISO_DA_PROVA_ABERTA, ...Object.values(TEXTO_SEM_CORRECAO)]
     expect(gerados.length).toBeGreaterThan(15)
     for (const texto of [...gerados, ...fixos]) expect(texto).not.toMatch(VOCABULARIO_PROIBIDO)
   })

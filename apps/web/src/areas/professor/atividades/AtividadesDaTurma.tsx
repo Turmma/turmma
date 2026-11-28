@@ -15,7 +15,7 @@ import { StatusBadge, type StatusFamily } from '../../../components/ui/StatusBad
 import { errorText } from '../../../components/error-text'
 import { SectionHeader } from '../../../components/ui/Page'
 import { formatDateTime } from '../../../format'
-import { AVISO_DA_AVALIATIVA_ABERTA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
+import { avisoDaAvaliativaAberta, semCorrecao, situacaoDaAplicacao, hasJanela, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { enderecoComFiltros } from '../artefatos/criados'
 import { Acompanhamento } from './Acompanhamento'
@@ -49,8 +49,11 @@ export const SELO_DA_ATIVIDADE: Readonly<Record<EstadoDaAtividade, { readonly fa
 }
 
 /** O que a professora faz com a atividade nesse estado, em texto: é a frase do painel, logo abaixo da situação. */
-export function oQueFazer(aplicada: Pick<AtividadeAplicada, 'estado' | 'entrega' | 'participacao'>): string {
+export function oQueFazer(aplicada: Pick<AtividadeAplicada, 'estado' | 'entrega' | 'participacao' | 'janela'>): string {
   const estado = estadoDaAtividade(aplicada)
+  // A prova com janela encerra sozinha quando a janela fecha, ou quando acaba o tempo de quem recebeu mais (Tech Spec §5.10, item 6); encerrar antes continua possível.
+  if (estado === 'aberta' && hasJanela(aplicada)) return 'Os alunos estão respondendo. A prova encerra sozinha quando a janela fecha (ou quando acaba o tempo de quem recebeu mais), e o Assistente corrige. Se a turma terminar antes, você pode encerrar agora: as respostas param.'
+  // A atividade sem janela (a avaliativa de antes da F6, e a prática) só termina quando a professora encerra.
   if (estado === 'aberta') return 'Os alunos estão respondendo. Quando a turma terminar, encerre a atividade: as respostas param e o Assistente corrige.'
   if (estado === 'para_revisar') return 'O Assistente corrigiu, e a correção espera você. Revise os destaques e aprove antes de os alunos verem o diagnóstico.'
   if (estado === 'aprovada') return 'Você aprovou a correção. O diagnóstico por habilidade já chegou aos alunos da turma.'
@@ -315,7 +318,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
           {nomeDaTurma} · aplicada em {formatDateTime(aplicada.aplicadaEm)}
           {aplicada.encerradaEm !== null && ` · encerrada em ${formatDateTime(aplicada.encerradaEm)}`}
         </p>
-        {aplicada.avaliativa && aplicada.estado === 'aberta' && <p className="min-w-0 rounded-controle bg-info-cx p-3 break-words text-info">{AVISO_DA_AVALIATIVA_ABERTA}</p>}
+        {aplicada.avaliativa && aplicada.estado === 'aberta' && <p className="min-w-0 rounded-controle bg-info-cx p-3 break-words text-info">{avisoDaAvaliativaAberta(aplicada)}</p>}
         <ProvaDaAtividade aplicada={aplicada} nomeDaTurma={nomeDaTurma} />
         <section ref={reserva} tabIndex={-1} aria-label="O que fazer" className="flex min-w-0 flex-col gap-3 rounded-cartao outline-offset-4">
           <p data-o-que-fazer={estado} className="min-w-0 break-words text-tinta">

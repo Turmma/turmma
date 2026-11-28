@@ -1,6 +1,6 @@
 import { SITUACOES_DA_MINHA_ATIVIDADE, type MinhaAtividade } from '@educa/shared'
 import { describe, expect, it } from 'vitest'
-import { AVISO_DA_AVALIACAO, detalheDaSituacao, diaEHoraNaEscola, estaParaResponder, horaNaEscola, resumoDaAtividade, separarAtividades, situacaoDaJanela, TEXTO_DA_ESPERA_PELA_CORRECAO, TEXTO_DA_SITUACAO, textoDaJanelaNaLista, VAZIO_DE_CADA_GRUPO } from './atividades'
+import { AVISO_DA_AVALIACAO, AVISO_DA_PROVA, avisoDaAvaliacao, detalheDaSituacao, diaEHoraNaEscola, estaParaResponder, horaNaEscola, resumoDaAtividade, separarAtividades, situacaoDaJanela, TEXTO_DA_ESPERA_PELA_CORRECAO, TEXTO_DA_SITUACAO, textoDaJanelaNaLista, VAZIO_DE_CADA_GRUPO } from './atividades'
 
 const atividade = (final: string, campos: Partial<MinhaAtividade> = {}): MinhaAtividade => ({
   id: `0190f5a0-0000-7000-8000-0000000000${final}`,
@@ -34,9 +34,22 @@ describe('a lista de atividades do aluno', () => {
 
   it('nenhum texto da lista fala em nota, conceito, colega, turma ou posição, nem cobra com urgência (D46, D59; regra 50, item 9)', () => {
     for (const situacao of SITUACOES_DA_MINHA_ATIVIDADE) {
-      const texto = `${TEXTO_DA_SITUACAO[situacao]} ${detalheDaSituacao(atividade('04', { situacao, respondidas: 2 }))} ${resumoDaAtividade(atividade('04'))} ${AVISO_DA_AVALIACAO}`
+      const texto = `${TEXTO_DA_SITUACAO[situacao]} ${detalheDaSituacao(atividade('04', { situacao, respondidas: 2 }))} ${resumoDaAtividade(atividade('04'))} ${AVISO_DA_AVALIACAO} ${AVISO_DA_PROVA}`
       expect(texto).not.toMatch(/\bnotas?\b|conceito|colega|média|posição|ranking|atrasad|corra|rápido|!/i)
     }
+  })
+
+  it('o aviso da avaliação com janela diz que o Tutor pausa só durante a prova, da abertura até o fim do tempo dele; sem janela, o texto de antes da F6 (Tech Spec §5.10)', () => {
+    const janela = { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }
+    expect(avisoDaAvaliacao(atividade('06', { avaliativa: true, janela }))).toBe(AVISO_DA_PROVA)
+    expect(AVISO_DA_PROVA).toContain('durante a prova')
+    expect(AVISO_DA_PROVA).toContain('da abertura até ela fechar')
+    expect(AVISO_DA_PROVA).not.toMatch(/seu tempo|adicional/i)
+    expect(AVISO_DA_PROVA).not.toContain('até quem dá a aula encerrar')
+    expect(avisoDaAvaliacao(atividade('07', { avaliativa: true, janela: null }))).toBe(AVISO_DA_AVALIACAO)
+    expect(AVISO_DA_AVALIACAO).toContain('até quem dá a aula encerrar')
+    // Nem pressa nem cobrança, nem fala de colega ou de nota (D46, D59; regra 50, item 9).
+    expect(AVISO_DA_PROVA).not.toMatch(/\bnotas?\b|conceito|colega|média|posição|ranking|atrasad|corra|rápido|!/i)
   })
 
   it('quem começou vê quantas respondeu e que dá para continuar, sem contagem de tempo', () => {

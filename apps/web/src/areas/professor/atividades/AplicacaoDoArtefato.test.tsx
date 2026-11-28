@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { setupScreen, fakeNetwork, renderScreen, type FakeNetwork, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { AplicacaoDoArtefato } from './AplicacaoDoArtefato'
+import { AVISO_DA_AVALIATIVA_ABERTA, AVISO_DA_PROVA_ABERTA } from './aprovar'
 import { MudarJanela, TEXTO_DE_NINGUEM_COMECOU, TEXTO_DO_TEMPO_ADICIONAL_JA_MARCADO } from './MudarJanela'
 import { TEXTO_DO_ABRE_VAZIO, TEXTO_DO_FECHA_VAZIO, TEXTO_DO_TEMPO_ADICIONAL_SEM_DURACAO } from './prova-online'
 
@@ -586,5 +587,28 @@ describe('mudar a janela, só antes do primeiro início', () => {
     await waitFor(() => expect(patches(rede)).toHaveLength(2))
     await waitFor(() => expect(screen.getAllByRole('alert').some((aviso) => /não estão corretos/i.test(aviso.textContent ?? ''))).toBe(true))
     expect(screen.queryByText(TEXTO_DO_TEMPO_ADICIONAL_JA_MARCADO)).toBeNull()
+  })
+})
+
+describe('o aviso do Tutor nas aplicações abertas da lista (validação da F6, §4)', () => {
+  it('a prova com janela diz que o Tutor pausa só durante ela; a avaliativa sem janela o texto de antes; a prática e a encerrada, nenhum', async () => {
+    const rede = fakeNetwork()
+    const semJanela = { ...APLICADA, id: id(11), janela: null, duracaoMin: null }
+    const pratica = { ...APLICADA, id: id(12), avaliativa: false, janela: null, duracaoMin: null }
+    const encerrada = { ...APLICADA, id: id(13), estado: 'encerrada' as const, encerradaEm: '2026-11-24T14:40:00.000Z' }
+    rede.responderPor('/v1/atividades-aplicadas', ok({ itens: [APLICADA, semJanela, pratica, encerrada] }))
+    renderScreen(<AplicacaoDoArtefato artefato={ARTEFATO} nomeDaTurma="7ºA" />)
+
+    const linhas = (await screen.findAllByText(/Aberta para a turma|Encerrada/)).map((situacao) => situacao.closest('li') as HTMLElement)
+    expect(linhas).toHaveLength(4)
+    const [prova, antiga, comum, fechada] = linhas as [HTMLElement, HTMLElement, HTMLElement, HTMLElement]
+    expect(within(prova).getByText(AVISO_DA_PROVA_ABERTA)).toBeTruthy()
+    expect(within(prova).queryByText(AVISO_DA_AVALIATIVA_ABERTA)).toBeNull()
+    expect(within(antiga).getByText(AVISO_DA_AVALIATIVA_ABERTA)).toBeTruthy()
+    expect(within(antiga).queryByText(AVISO_DA_PROVA_ABERTA)).toBeNull()
+    for (const linha of [comum, fechada]) {
+      expect(within(linha).queryByText(AVISO_DA_AVALIATIVA_ABERTA)).toBeNull()
+      expect(within(linha).queryByText(AVISO_DA_PROVA_ABERTA)).toBeNull()
+    }
   })
 })

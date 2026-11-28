@@ -71,7 +71,7 @@ test.describe('aplicar à turma e encerrar, no artefato (A3)', () => {
     await expect(dialogo.getByRole('radio')).toHaveCount(2)
     await expect(dialogo.getByRole('radio', { checked: true })).toHaveCount(0)
     await expect(dialogo).toContainText('O Tutor continua disponível para a turma, conduzindo por perguntas.')
-    await expect(dialogo).toContainText('O Tutor fica pausado para a turma até você encerrar a atividade.')
+    await expect(dialogo).toContainText('O Tutor fica pausado para a turma durante a prova, da abertura até a prova fechar (ou até o fim do tempo de quem recebeu mais).')
     // Sem escolher, nada é aplicado.
     await activate(dialogo.getByRole('button', { name: 'Aplicar à turma' }), hasTouch)
     await expect(dialogo.getByText('Escolha se a atividade é prática ou avaliativa.')).toBeVisible()
@@ -162,7 +162,7 @@ test.describe('aplicar à turma e encerrar, no artefato (A3)', () => {
     ])
     const aplicada = naTurma.locator('[data-atividade-aplicada="aberta"]')
     await expect(aplicada).toContainText('Aberta para a turma · avaliativa · 0 de 30 alunos enviaram', { timeout: SCREEN_TIMEOUT_MS })
-    await expect(aplicada).toContainText('É avaliativa: o Tutor está pausado para a turma até você encerrar.')
+    await expect(aplicada).toContainText('É avaliativa: o Tutor fica pausado para a turma durante a prova, da abertura até a prova fechar (ou até o fim do tempo de quem recebeu mais).')
     // Aberta para a turma, não se aplica de novo.
     await expect(page.getByRole('button', { name: 'Aplicar à turma' })).toHaveCount(0)
     await expect(naTurma).toBeFocused()

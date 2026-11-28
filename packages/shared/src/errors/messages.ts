@@ -27,7 +27,7 @@ export const MENSAGENS_DE_ERRO: Readonly<Record<ErrorCode, string>> = {
   FUNCAO_SUSPENSA: 'Esta função da IA está suspensa na sua escola. Fale com a coordenação para saber quando ela volta.',
   LIMITE_DIARIO_DO_TUTOR: 'Você chegou ao limite de perguntas ao Tutor por hoje. Amanhã ele volta; se precisar agora, chame o professor.',
   PACOTE_DO_TUTOR_ESGOTADO: 'A sua turma usou todas as perguntas ao Tutor deste mês. Chame o professor para continuar a atividade.',
-  TUTOR_PAUSADO_EM_AVALIACAO: 'O Tutor fica pausado enquanto a avaliação está aberta. Ele volta quando o professor encerrar a avaliação.',
+  TUTOR_PAUSADO_EM_AVALIACAO: 'O Tutor fica pausado durante a avaliação. Ele volta quando a avaliação terminar.',
   DESTAQUES_NAO_ABERTOS: 'Ainda há casos destacados sem abrir. Abra cada um deles antes de aprovar o lote.',
   ENTREGA_JA_DECIDIDA: 'Esta entrega já foi decidida. Atualize a tela para ver como ela ficou.',
   VERSAO_ADAPTADA_NAO_APROVADA: 'A versão adaptada ainda não foi aprovada. Aprove a versão em "Seu time" antes de aplicar à turma.',

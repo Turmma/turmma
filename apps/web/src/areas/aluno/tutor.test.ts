@@ -65,7 +65,11 @@ describe('o Tutor pausado é aviso que explica, e não erro', () => {
   it('em avaliação diz o título dela e quando o Tutor volta; no limite, que por hoje acabou e que amanhã volta', () => {
     const avaliacao = avisoDaPausa('avaliacao', { avaliacao: 'Prova de estequiometria' })
     expect(avaliacao.titulo).toBe('O Tutor está pausado durante a avaliação.')
-    expect(avaliacao.texto).toBe('A sua turma tem uma avaliação aberta agora: Prova de estequiometria. Ele volta quando quem dá a aula encerrar.')
+    expect(avaliacao.texto).toBe('A sua turma tem uma avaliação aberta agora: Prova de estequiometria. Ele volta quando a avaliação terminar.')
+    // Na prova com janela o Tutor volta quando ela fecha, e a prova encerra sozinha: nenhum dos dois textos faz o aluno esperar pela professora (Tech Spec §5.10).
+    expect(avaliacao.texto).not.toMatch(/encerr|quem dá a aula|professor/i)
+    expect(MENSAGENS_DE_ERRO.TUTOR_PAUSADO_EM_AVALIACAO).toBe('O Tutor fica pausado durante a avaliação. Ele volta quando a avaliação terminar.')
+    expect(MENSAGENS_DE_ERRO.TUTOR_PAUSADO_EM_AVALIACAO).not.toMatch(/encerr|quem dá a aula|professor/i)
     const limite = avisoDaPausa('limite_do_dia', { limiteDoDia: 60 })
     expect(limite.titulo).toBe('Por hoje acabou.')
     expect(limite.texto).toBe('Você fez as 60 perguntas de hoje. Amanhã o Tutor volta. As suas atividades continuam abertas.')
