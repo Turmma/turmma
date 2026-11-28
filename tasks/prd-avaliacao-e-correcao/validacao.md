@@ -1,5 +1,165 @@
 # Validação — avaliacao-e-correcao (F6, prova online)
 
+## Rodada 2 — 28/11/2026
+
+**Escopo:** funcionalidade completa (RF1 a RF10; os RF11 a RF20 são a F6d)
+**Commit validado:** `da9a83ca`
+**Veredito: APROVADA COM RESSALVAS**
+
+Revalidação depois das três correções da rodada 1: `3cf62a54` (o `EXPLAIN` da rotina, só teste), `c83ad085` (o
+`professor-prova.spec.ts` perto do prazo, só teste) e `aa21262e` (os textos do Tutor na prova com janela, só tela e a
+mensagem de `TUTOR_PAUSADO_EM_AVALIACAO`). De `cb64ca5f` a `da9a83ca` nenhum arquivo de `apps/api`, `apps/worker/src` nem
+`packages/core` mudou (`git diff --stat cb64ca5f..da9a83ca`): o código dos RF no servidor é o que a rodada 1 leu, e eu o
+reli nos pontos de cada RF (as linhas abaixo conferem com a árvore). O crítico e os dois maiores da rodada 1 estão
+resolvidos. Ficam dois maiores, nenhum crítico: um que a rodada 1 não viu (a participação da professora não conta a
+tentativa vencida) e um que a correção dos textos deixou (o roteiro da demonstração diz o texto antigo).
+
+### 1. RF a RF
+
+Fotos em `.processo/vitrine/` (fora do git), da web reconstruída da árvore de `da9a83ca` (o e2e abaixo subiu o ambiente às
+11:59; a web que estava de pé era das 10:13, de antes da correção dos textos, e não serviu). Escola cheia da vitrine, com
+uma prova nova aplicada pela API da professora (`01a222ac-ae5a…`, janela de 11:31 a 15:01, 40 min, embaralhando) e a
+"(foco)" da rodada 1, aberta até amanhã, com a tentativa do Caio vencida. Todas lidas como imagem, a 1366 e a 360. Nenhuma
+tela da prova rola a 1366 × 768; só `/aluno/atividades` rola (792 px), lista sem RF que exija caber.
+
+| RF | Situação | Código | Teste | Observação |
+|---|---|---|---|---|
+| RF1 | ATENDIDO | `packages/shared/src/atividade/limite-da-tentativa.ts:109-113` (`limiteBaseDaTentativa`, o `min` com o `fecha_em`); `minha-atividade.service.ts:220-240` (`comecar`: alcance, depois a janela no `now()` do banco, `agora >= fecha_em` já fechou) | `prova-online-aluno.int.test.ts` ("antes de `abre_em` e depois de `fecha_em` é PROVA_FORA_DA_JANELA…", "a 10 min do `fecha_em` com duração 40 o limite é o `fecha_em`…"); `prova-online.int.test.ts` ("a avaliativa nova sem janela é ENTRADA_INVALIDA…") | Mutação nesta rodada (abaixo). Fotos: `professora--professor-artefatos-01a2224c-84e0…--Na-turma-button-name-Aplicar-à-turma-input-value-avaliativa--{computador,celular}.png` (Abre em, Fecha em, "No horário da escola", e o texto novo do Tutor na escolha); `aluno--aluno-atividades-01a222ac-ae5a…--{computador,celular}.png` ("Esta prova tem 40 minutos…", "Ela fecha às 15:01.") |
+| RF2 | ATENDIDO | `atividade-aplicada.service.ts:110-151` (`mudarAJanela`: `for update`, relê, `PROVA_JA_COMECOU`) | `prova-online.int.test.ts` ("com uma tentativa iniciada, a mudança é PROVA_JA_COMECOU, em cada campo…", corridas "(b)" e "(k)"); `prova-online-aluno.int.test.ts` "(b) mudar a janela × começar" | Depois do começo o painel só oferece "Estender" (foto `professora--turma-painel-prova-nova--computador.png`, com o Caio fazendo: sem "Mudar janela") |
+| RF3 | ATENDIDO | `atividade-aplicada.service.ts:79-101`; `duracaoDoAlunoEmMinutos`; schema `.strictObject` sem motivo | `prova-online.int.test.ts` ("+25%, +50% e +100% sobre 40 min…", "…chave a mais (motivo)…"); `prova-online-aluno.int.test.ts` ("o tempo adicional do aluno vira só a duração dele: 60…, e o colega lê 40") | O painel diz só "1 aluno com tempo adicional", sem nome nem percentual (foto `professora--turma-painel-prova-vencida--computador.png`) |
+| RF4 | ATENDIDO | `extensao.service.ts:34` (`estender`, chave por aplicação, `for share`); `limiteDaTentativa` (soma só a do aluno e a da turma), e de novo na consulta do aluno (`minha-atividade.repository.ts:325`) | `extensao.int.test.ts` ("10 min só para a Ana…", "a turma toda…", "(d) estender × estender"); `limite-da-tentativa.test.ts` ("a extensão do aluno e a da turma somam, e a de outro aluno não entra"); `encerrar-provas.int.test.ts` ("não encerra enquanto o aluno estendido tem tempo…"); e2e `professor-prova.spec.ts:90` | Mutação nesta rodada (abaixo). Foto: `professora--turma-painel-prova-nova--{computador,celular}.png` ("Fazendo · termina às 12:41", "Estender", "Estender a turma toda") |
+| RF5 | ATENDIDO | `minha-atividade.service.ts:264-279` (PUT, `TEMPO_ESGOTADO` sem gravar); `packages/core/src/atividade/encerramento.ts` (a vencida recebe `enviada_em` = limite e `envio = 'limite'`); a rotina do worker | `prova-online-aluno.int.test.ts` ("um minuto antes do limite grava; depois dele é TEMPO_ESGOTADO, sem linha…"); `encerrar-provas.int.test.ts` ("a vencida sem envio entra na correção com o que salvou…"); `ProvaEmFoco.test.tsx` | O critério do PRD (o item depois do limite fica fora da correção; o aluno vê por quê) está provado. **Mas** a contagem "enviaram" da professora não conta a vencida enquanto a janela não fecha: maior, seção 4. Fotos: `aluno--aluno-atividades--computador.png` (a "(foco)" vencida já em "Entregues"); `professora--turma-painel-prova-vencida--computador.png` ("Tempo esgotado" no acompanhamento, "0 de 1 aluno enviaram" na linha de cima) |
+| RF6 | ATENDIDO | `apps/api/src/atividade/pulso/*`; `limiteDaTentativa` (ponto fixo, lacuna aberta); `apps/web/src/areas/aluno/fila-de-respostas.ts`, `respostas.ts` | `pulso.int.test.ts`; `prova-online-aluno.int.test.ts` ("a indisponibilidade fechada de 5 min devolve o tempo…", "a lacuna aberta montada à mão…"); `encerrar-provas.int.test.ts` ("com o pulso velho o job para sem encerrar…", "(l) pulso × rotina"); e2e `aluno-prova.spec.ts:146` (rodado na rodada 1, arquivo sem mudança desde então) | A carga: a rodada de `carga:prova` do `estado.md` (28/11 ~10:15): 42.000 enviadas = 42.000 gravadas, fila vazia em 23,9 s, a queda de 100 s andou o limite em 100 s. Não refeita (nada do caminho mudou depois dela) |
+| RF7 | ATENDIDO | `apps/web/src/areas/aluno/routes.tsx` (`/aluno/prova/:id` fora da casca); `ProvaEmFoco.tsx`; `AntesDeComecar.tsx` | `ProvaEmFoco.test.tsx` (rodado: verde); e2e `aluno-prova.spec.ts` (rodada 1) | Fotos: `aluno--aluno-atividades-01a222ac-ae5a…--{computador,celular}.png` ("Antes de começar": duração, a aba, como sair, Começar); `aluno--aluno-prova-01a222ac-ae5a…--{computador,celular}.png` (só a prova, "Faltam 40 min" e "Sair da prova", sem lateral nem Tutor). No celular, com um enunciado de três linhas, o "Enviar a prova" fica pela metade na borda do miolo, que rola (menor, seção 4) |
+| RF8 | ATENDIDO | `apps/api/src/atividade/minha-atividade/ordem-da-prova.ts:47-80` (`sortearOrdem`, `naOrdemDoAluno`) | `embaralhamento.int.test.ts` ("sorteio fixo, dois alunos…: acerta nos dois pelo índice original", "o desempenho por habilidade… são os da ordem original", "retomada…") | Mutação nesta rodada (abaixo). Foto: a prova nova embaralhada, a 1ª questão é a 3 do artefato (`aluno--aluno-prova-01a222ac-ae5a…--computador.png`) |
+| RF9 | ATENDIDO | `minha-atividade.service.ts:309-319` (`registrarSaida`); `saida-da-aba.repository.ts`; `fila-de-saidas.ts`; `aprovar.ts` (`AVISO_DA_SAIDA_DA_ABA`) e `Aprovar.tsx` | `saida-da-aba.int.test.ts` (19 casos); `arquivo-do-titular.int.test.ts`; e2e `professor-prova.spec.ts:138` ("o lote da prova traz '1' na coluna 'Saiu da aba' e o aviso fixo…", rodado aqui) | A tela do Aprovar não mudou desde a rodada 1 (foto dela lá: a coluna e o aviso fixo, no computador e no celular); nesta rodada a prova é o e2e acima, contra a API real, nos dois projetos |
+| RF10 | ATENDIDO | `segunda-chamada.service.ts:23-59`; o alcance pelo convocado em `minha-atividade.repository.ts:140-156` | `segunda-chamada.int.test.ts` (18 casos); e2e `professor-prova.spec.ts:192` (rodado aqui) | Tela sem mudança desde a rodada 1 (foto do diálogo lá) |
+
+RF: 10 atendidos, 0 parciais, 0 não atendidos, 0 não verificáveis.
+
+Provas de mutação, diferentes das três da rodada 1 (cada uma aplicada, o teste rodado isolado e o arquivo restaurado com
+`git checkout --`; a árvore terminou limpa):
+
+| RF | Cláusula removida | Teste que ficou vermelho |
+|---|---|---|
+| RF4 (só o estendido segue) | o filtro `extensao.alunoId === null \|\| extensao.alunoId === entrada.alunoId` de `limiteDaTentativa` vira `() => true` | `limite-da-tentativa.test.ts` › "a extensão do aluno e a da turma somam, e a de outro aluno não entra" (`expected 1796124300000 to be 1796122500000`); `extensao.int.test.ts` › "10 min só para a Ana…" (`expected 600000 to be +0`). Pelo caminho do aluno (`prova-online-aluno.int.test.ts`, "a extensão do aluno e a da turma somam…") a mesma mutação **passa**: a consulta do aluno já filtra por ele (`minha-atividade.repository.ts:325`). É defesa em dobro, e não teste fraco: a função é que serve a rotina, o acompanhamento e o Tutor, que passam todas as extensões |
+| RF1 (quem começa tarde tem só o que sobra) | o `Math.min(…, fechaEm)` de `limiteBaseDaTentativa` | `prova-online-aluno.int.test.ts` › "a 10 min do `fecha_em` com duração 40 o limite é o `fecha_em`…" (`expected '…15:47:18' to be '…15:17:18'`) |
+| RF8 (correção pela ordem original) | em `naOrdemDoAluno`, a ordem das alternativas pela **posição** da questão na tela, e não pelo número dela | `embaralhamento.int.test.ts` › "sorteio fixo, dois alunos…" (`expected [ [ 1, 2, +0, 3 ], …(4) ] to deeply equal …`) |
+
+### 2. Regras de negócio, casos de borda e critério de pronto
+
+Sem mudança de código no servidor desde a rodada 1, as linhas dela continuam valendo; abaixo, só o que esta rodada
+conferiu de novo ou mudou de situação.
+
+| Item | Situação | Evidência |
+|---|---|---|
+| Regras de negócio do PRD §6 (as oito) | cumpridas | como na rodada 1; os testes de cada uma rodados de novo aqui (seção 3), verdes |
+| Regra: prova aberta trava o Tutor da turma, e a tela diz quando | cumprida | `tutor-trava-da-prova.int.test.ts` (verde); os textos agora dizem "durante a prova, da abertura até ela fechar" na prova com janela e mantêm o de antes da F6 sem janela (`atividades.ts:27`, `aprovar.ts:151`, `avisoDaAvaliacao`, `avisoDaAvaliativaAberta`; `Atividades.test.tsx`, `AtividadesDaTurma.test.tsx`, `atividades.test.ts`). Fotos: `aluno--aluno-atividades--computador.png`, `aluno--aluno-inicio--computador.png`, `professora--turma-painel-prova-nova--computador.png` e o diálogo de aplicar |
+| Casos de borda do PRD §7 (os sete) | seis cobertos, um justificado | como na rodada 1 (o leitor de tela segue como premissa da Tech Spec §12, para a etapa 5 da AIA, F6d) |
+| Pronto: RF1 a RF10 | cumprido | seção 1 |
+| Pronto: o Tutor travado para cada aluno até o fim da prova dele | cumprido | `tutor-trava-da-prova.int.test.ts`; o maior da rodada 1 (os três textos "até você encerrar") resolvido |
+| Pronto: o roteiro da demonstração conferido contra `e2e/roteiro-da-demonstracao.spec.ts` | cumprido na 10.0 e na 12.0, e desfeito pela correção dos textos | o e2e passou a esperar "o Tutor fica pausado durante a prova, da abertura até ela fechar" (`roteiro-da-demonstracao.spec.ts:482`), e `docs/roteiro-da-demonstracao.md:226-227` ainda manda ler "até quem dá a aula encerrar": maior, seção 4 |
+| Pronto: etapa 1 da AIA da correção de objetiva | cumprido | `docs/aia/correcao-de-objetiva.md`, sem mudança |
+| "Pronto quando" do roadmap | cumprido | e2e `aluno-prova.spec.ts:146` (rodada 1); `saida-da-aba.int.test.ts` (verde aqui) |
+
+### 3. Portão
+
+| Portão | Resultado |
+|---|---|
+| `npm run typecheck` | não rodado: suíte inteira, na esteira (D79) |
+| `npm run lint` | não rodado: idem |
+| `npm run test` | não rodado inteiro. Rodados isolados, como evidência: `apps/worker/test/encerrar-provas.int.test.ts` **duas vezes seguidas no mesmo banco**, sem `EDUCA_BANCO_NOVO` (38 ✅ e 38 ✅; o banco tinha um ano `encerrado` e um `planejado`, e o arquivo agora planta os dele); `prova-online` (API e schema), `prova-online-aluno`, `extensao`, `embaralhamento`, `saida-da-aba`, `segunda-chamada`, `tutor-trava-da-prova`, `pulso` e `arquivo-do-titular` (10 arquivos, 231 ✅); os testes de unidade da correção dos textos e da tela da prova (`Atividades`, `atividades`, `EscolhaDaAtividade`, `Inicio`, `tutor`, `ProvaEmFoco`, `AtividadesDaTurma`, `AplicacaoDoArtefato`: 204 ✅); 3 mutações, todas vermelhas |
+| `npm run test:e2e` | rodado `e2e/professor-prova.spec.ts` (`node tools/ci/e2e.ts --manter-ambiente`): 12 ✅ em chromebook e celular, de 7,4 a 12,3 s por caso (eram 13,6 a 15,5 s na rodada 1; o limite do portão é 15 s) |
+| `npm run test:infra` | não rodado (esteira) |
+| Esteira do GitHub | conferida no fechamento, pelo Orquestrador: não entra no veredito |
+| Revisões com veto registradas e aprovadas | ✅ as 12 tarefas como na rodada 1 (nenhum `N_task.md` mudou); as três correções têm rodada de cada revisor obrigatório, com a última APROVADO (`2026-11-28-encerrar-provas-explain-banco-acumulado`: seis na 1ª e `revisor-geral` na 2ª; `2026-11-28-e2e-professor-prova-no-prazo`: seis na 1ª e `revisor-geral` na 2ª; `2026-11-28-textos-do-tutor-na-prova`: sete na 2ª, depois de duas reprovações e um ajuste na 1ª) |
+
+Dependências: o `node_modules` estava em dia com o `package-lock.json`, e não precisou de `npm ci`. Para a integração rodar,
+parei os workers e o despachante do compose de teste que o meu e2e deixou de pé (`docker compose … stop`, os da própria
+mensagem do `integracao.setup.ts`); a web e a API ficaram.
+
+### 4. Achados
+
+**Críticos**
+- Nenhum. O da rodada 1 (`encerrar-provas.int.test.ts:961`) está resolvido: `removidasNoFiltro` soma só a tabela medida
+  (`:42`), o `beforeAll` planta os anos fora de curso (`:951-957`), e o arquivo passou duas vezes no banco acumulado.
+
+**Maiores**
+- `apps/api/src/atividade/atividade-aplicada/atividade-aplicada.repository.ts:114` (`enviaram` conta só `enviada_em is not
+  null`), lido em `apps/web/src/areas/professor/atividades/aprovar.ts:134` (`situacaoDaAplicacao`), em
+  `AtividadesDaTurma.tsx:55` ("Os alunos estão respondendo…") e no resumo da confirmação de encerrar
+  (`EncerramentoDaAtividade.tsx:91`, "Já enviaram"): a tentativa **vencida** que a rotina ainda não gravou (a rotina só
+  grava quando o `fecha_em` passa, Tech Spec §5.6) aparece para a professora como não enviada. Na foto
+  `professora--turma-painel-prova-vencida--computador.png` a prova "(foco)", com janela até amanhã e o único aluno em
+  "Tempo esgotado" no acompanhamento, diz "Aberta para a turma · avaliativa · 0 de 1 aluno enviaram" e "Os alunos estão
+  respondendo", enquanto o aluno já a vê em "Entregues" (`aluno--aluno-atividades--computador.png`). Contradiz a Tech
+  Spec §5.5, "vencida sem envio conta como enviada em toda leitura (RF5)", e não está registrado como divergência nem no
+  `TODO.md` (a linha 319 trata só da segunda chamada). Em prova curta a diferença dura minutos; em janela de um dia, dura
+  o dia, e é o número que a professora lê antes de decidir encerrar. Não muda correção nem nota: no encerramento a vencida
+  é gravada com `envio = 'limite'`. **Correção:** a contagem `enviaram` da leitura do professor contar também a tentativa
+  em andamento cujo `limiteDaTentativa` já passou (a mesma função, com as extensões e as quedas, como o acompanhamento já
+  faz), ou derivar `enviaram` do acompanhamento na prova com janela; teste em `prova-online.int.test.ts` com a tentativa
+  vencida e a janela aberta, mais o caso estendido que não conta. A frase "Os alunos estão respondendo" pode dizer o mesmo
+  que o acompanhamento quando ninguém mais está fazendo.
+- `docs/roteiro-da-demonstracao.md:226-227`: o passo 3 do roteiro manda a pessoa ver e ler, na avaliativa com janela que o
+  próprio passo aplica, "Avaliação: o Tutor fica pausado até quem dá a aula encerrar". Desde `aa21262e` a tela diz
+  "Avaliação: o Tutor fica pausado durante a prova, da abertura até ela fechar." (`apps/web/src/areas/aluno/atividades.ts:27`),
+  e o e2e do roteiro já espera o texto novo (`e2e/roteiro-da-demonstracao.spec.ts:482`). Doc em `docs/` contradizendo o
+  código, lido em voz alta na demonstração. Já anotado no `estado.md` ("Devo ainda") e pelo `test-engineer` na 2ª rodada da
+  correção, sem destino gravado. **Correção:** trocar o texto do passo 3, item 2, pelo de `AVISO_DA_PROVA`; só `docs/`.
+
+**Menores**
+- `apps/web/src/areas/professor/atividades/aprovar.ts:141` e `:151`: "o Tutor fica pausado **para a turma** … (ou até o fim
+  do tempo de quem recebeu mais)" sugere que a turma toda fica travada até o último aluno, e a trava é por aluno
+  (`tutor.repository.ts:275-276`, Tech Spec §5.10). Erra para o lado seguro. Dono: `TODO.md`, com a redação do `test-engineer` (2ª
+  rodada de `2026-11-28-textos-do-tutor-na-prova`). Ainda não está no `TODO.md`.
+- `apps/web/src/areas/aluno/atividades.test.ts:42`: o título do caso ainda diz "até o fim do tempo dele"; as asserções já
+  são as novas. Dono: `TODO.md` (recomendação do `frontend-reviewer`, 2ª rodada da mesma correção). Ainda não está lá.
+- A tela de foco no celular (`aluno--aluno-prova-01a222ac-ae5a…--celular.png`): com um enunciado de três linhas, o
+  "Enviar a prova" fica cortado pela metade na borda do miolo, acima da barra de Anterior e Próxima, e o "Para sair, use
+  Sair da prova" sai de vista. O miolo rola e o botão é alcançável (o e2e `aluno-prova.spec.ts` envia no projeto
+  `celular`), mas a ação principal da prova aparece pela metade na primeira vista. Componente: `ProvaEmFoco.tsx` (a
+  barra de baixo). Dono: `TODO.md`, ou a próxima tarefa que tocar a tela de foco.
+- `apps/web/src/components/ui/ListItem.tsx:64`: na lista do aluno a 360 px o título vai com reticências
+  ("Prova de estequiometr…"), e provas de título parecido ficam iguais na lista (`aluno--aluno-atividades--celular.png`).
+  Anterior à F6, e a segunda chamada tem o mesmo título da original. Dono: `TODO.md`.
+- `tasks/prd-avaliacao-e-correcao/techspec.md:4`: "Status: em revisão", com a `revisao-spec.md` APROVADA na rodada 4.
+  Dono: o Arquiteto, no fechamento.
+- Seguem sem destino, da rodada 1 (seção 4, Menores, e seção 6): o PUT com a extensão de B e a fronteira do `>` do tempo
+  esgotado; "Ela fecha às 10:16." sem data (`AntesDeComecar.tsx:83`); a pergunta 2 do PRD §10 a riscar; a métrica de
+  provas com duração (PRD §9); a saída da aba lida sem trava (aceita); a extensão da turma fora do arquivo do titular; a
+  chave da extensão com outro corpo. O `estado.md` já as leva ao `TODO.md` no fechamento.
+- As "Recomendações sem aplicar" das três correções com destino `TODO.md` que ainda não estão nele: as duas acima e a da
+  vitrine semear uma avaliativa com janela (a linha 266 do `TODO.md` cobre a vitrine, sem a janela). A dos
+  `janela.int.test.ts:279` e `slots.int.test.ts:554` já entrou (`TODO.md`, última linha).
+
+**Positivos**
+- A correção do `EXPLAIN` não só filtrou pela tabela: plantou no próprio teste o estado que o banco acumulado tinha, e
+  provou o vermelho com a soma antiga. É o jeito de tirar a dependência do banco sem afrouxar a asserção.
+- O texto do Tutor ficou em duas funções (`avisoDaAvaliacao`, `avisoDaAvaliativaAberta`) decididas pela janela, com o texto
+  de antes da F6 mantido para a avaliativa sem janela: os e2e de antes, que montam a atividade sem janela, seguem certos.
+
+### 5. Conclusão
+
+APROVADA COM RESSALVAS. Os dez RF estão atendidos, com código, teste efetivo (três mutações novas, todas vermelhas) e foto
+onde há tela; os testes de evidência rodados estão verdes, inclusive o `encerrar-provas` duas vezes no banco acumulado, e o
+e2e do professor saiu de perto do prazo. Nenhum crítico.
+
+Os dois maiores são pontuais e não seguram a F6d:
+1. A contagem "enviaram" da professora ignorar a vencida (Tech Spec §5.5): uma correção (`corrigir`) na API, com o teste
+   da vencida com janela aberta. É o que mais pesa: é o número que a professora lê antes de encerrar.
+2. O texto do roteiro da demonstração: uma linha de `docs/`, que o `estado.md` já previa.
+
+### 6. Pendências herdadas
+
+| Pendência | Destino |
+|---|---|
+| Os dois maiores da seção 4 | correção (`corrigir`), antes ou junto do fechamento |
+| Os menores da seção 4, um por linha, mais os da rodada 1 | `TODO.md`, no fechamento, pelo Orquestrador |
+| A premissa do `blur` no ChromeOS com leitor de tela (Tech Spec §12) | etapa 5 da AIA, na F6d |
+| Commits `Fora do processo:` com código da spec | nenhum (`git log origin/develop..HEAD -i --grep='^Fora do processo:'` sem resultado); de `cb64ca5f` a `da9a83ca`, todo commit com código é `(correção <slug>)`, e os outros são encontros de linha ou registro de estado |
+| O ambiente de teste deste andar | os workers e o despachante do compose `educa-teste` ficaram parados (a web e a API, de pé); a vitrine cheia ganhou a prova `01a222ac-ae5a…` e uma tentativa do Caio nela, sintéticas |
+
 ## Rodada 1 — 28/11/2026
 
 **Escopo:** funcionalidade completa (RF1 a RF10; os RF11 a RF20 são a F6d)
