@@ -131,10 +131,10 @@
 | Tela | Estados e textos |
 |---|---|
 | Aplicar (prova) | "Abre em", "Fecha em", "Duração (minutos)", "Embaralhar questões", "Embaralhar alternativas", "Tempo adicional" (+25%, +50%, +100%), cada campo com rótulo e erro (`FormField`); tempo que não cabe: "O tempo adicional não cabe na janela: com 40 min e +50%, a janela precisa de 60 min." Resumo: "7ºA · abre 24/11 às 10:00 · fecha às 11:40 · 40 min · 2 alunos com tempo adicional". Sem campo de motivo |
-| Acompanhar | carregando; erro com "Tentar de novo"; "Não começou", "Fazendo · termina às 10:42", "Enviou", "Tempo esgotado" (texto, não só cor); horário no fuso da escola; dois alunos de mesmo nome distinguidos pelo segundo nome ou matrícula, como em Alunos |
+| Acompanhar | carregando; erro com "Tentar de novo"; "Não começou", "Fazendo · termina às 10:42", "Enviou", "Tempo esgotado" (texto, não só cor); horário no fuso da escola; dois alunos de mesmo nome distinguidos por "(1 de 2)" e "(2 de 2)" (o contrato do acompanhamento traz o nome, sem matrícula: ela não vai a essa tela), na ordem do id |
 | Estender | "Mais quantos minutos?" (1 a 120); um aluno ou "a turma toda"; antes de confirmar: "Ana termina às 10:52 em vez de 10:42" |
 | Mudar janela | resumo da janela nova e "Ninguém começou ainda"; com alguém começado, o botão não aparece |
-| Segunda chamada | os alunos convocados por nome, janela, duração e tempo adicional, antes de confirmar |
+| Segunda chamada | os alunos convocados por nome, janela, duração e tempo adicional, antes de confirmar; só quem **não começou** é oferecido (a cortada pela professora antes do limite aparece como "Enviou" no acompanhamento, e a tela não a distingue: é recomendação da 11.0) |
 | Encerrar | "3 alunos ainda estão fazendo. As respostas salvas deles vão para a correção." |
 | Lista do aluno | "Abre em 24/11 às 10:00" (não abre); "Fechou" (passou); segunda chamada só para o convocado; sem prova: o vazio de hoje |
 | Antes de começar | "Esta prova tem 40 minutos, contados a partir de Começar." "Se você sair desta aba, isso aparece para o professor. Nada acontece com a sua prova." "Para sair, use Sair da prova. O tempo continua." Fora da janela: "Esta prova abre em 24/11 às 10:00" ou "Esta prova fechou às 11:40" |
@@ -157,7 +157,7 @@
 | Teste | O que afirma | Mutação |
 |---|---|---|
 | `aluno-prova.spec.ts` (`chromebook`, `celular`) | antes de começar e a tela de foco; a rede cai no meio ("Sem conexão…"), três respostas, a rede volta: as três gravadas uma vez no banco, e o mesmo relógio; axe | descartar a fila na queda |
-| `professor-prova.spec.ts` (`chromebook`, `celular`) | o professor aplica com janela e tempo adicional, acompanha, estende; o aluno faz e sai da aba uma vez; o professor encerra pelo botão; aprova o lote, com "1" na coluna "Saiu da aba" e o aviso; axe | coluna sem o aviso; contagem errada |
+| `professor-prova.spec.ts` (`chromebook`, `celular`) | com a prova aplicada pela API (com duração e tempo adicional: aplicar **pela tela** é de `professor-aplicacao.spec.ts`, 10.0, porque a carga do aplicativo no Chromebook já gasta uns 12 s dos 15 que o caso novo tem), o professor acompanha, estende; o aluno faz e sai da aba uma vez; o professor encerra pelo botão; aprova o lote, com "1" na coluna "Saiu da aba" e o aviso; axe | coluna sem o aviso; contagem errada |
 
 ## 5. Carga
 

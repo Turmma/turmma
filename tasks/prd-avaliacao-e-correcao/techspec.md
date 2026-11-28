@@ -183,7 +183,10 @@ Nenhum.
 
 - **Aplicar** (`AplicacaoDoArtefato.tsx`): janela, duração, embaralhar e "Tempo adicional" por aluno; resumo antes.
 - **Painel da atividade** (`acompanhamento`, uma consulta, nunca na tela da sala): situação por aluno; "Estender",
-  "Mudar janela" (antes do início) e "Segunda chamada", com resumo antes; "Encerrar" diz quantos fazem.
+  "Mudar janela" (antes do início) e "Segunda chamada", com resumo antes; "Encerrar" diz quantos fazem. O acompanhamento
+  traz o nome, sem matrícula: dois alunos de mesmo nome são "(1 de 2)" e "(2 de 2)", na ordem do id. A segunda chamada
+  oferece só quem não começou (`nao_comecou`): a cortada pela professora aparece como `enviou` e a leitura não a
+  distingue, embora a API a aceite (§5.9).
 - **Aprovar**: coluna "Saiu da aba" em avaliativa, sempre com o aviso fixo da D88 acima da tabela.
 - **Aluno**: "Antes de começar" (de `prova` sem tentativa) e "Começar"; `/aluno/prova/:id` **fora da casca**, com o relógio
   do servidor (corrigido pelo desvio), "Salvo"/"Salvando" e "Sair da prova", um clique. No celular, relógio e "Sair"

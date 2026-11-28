@@ -62,9 +62,9 @@
   - [x] 10.2 A janela obrigatória na avaliativa nova; roteiro da demonstração
   - [x] 10.3 Testes: §4 Aplicar e Mudar janela
 
-- [ ] **11.0 — Painel "Acompanhar" e o e2e do professor**
-  - [ ] 11.1 Acompanhar, Estender, Segunda chamada e Encerrar com quantos fazem
-  - [ ] 11.2 Testes: §4 Acompanhar, Estender, Segunda chamada, Encerrar; `professor-prova.spec.ts`
+- [x] **11.0 — Painel "Acompanhar" e o e2e do professor**
+  - [x] 11.1 Acompanhar, Estender, Segunda chamada e Encerrar com quantos fazem
+  - [x] 11.2 Testes: §4 Acompanhar, Estender, Segunda chamada, Encerrar; `professor-prova.spec.ts`
 
 - [ ] **12.0 — Tela do aluno: "Antes de começar" e a prova em foco**
   - [ ] 12.1 Atividades e "Antes de começar"

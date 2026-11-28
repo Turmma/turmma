@@ -2,6 +2,10 @@ import {
   camposInvalidosDaProva,
   DURACAO_MAXIMA_DA_PROVA_MIN,
   DURACAO_MINIMA_DA_PROVA_MIN,
+  EXTENSAO_MAXIMA_MIN,
+  EXTENSAO_MINIMA_MIN,
+  type AcompanhamentoResponse,
+  type AtividadeAplicada,
   type Embaralhar,
   type JanelaDaProva,
   type PercentualDeTempoAdicional,
@@ -67,6 +71,11 @@ function diaEHora(iso: string, fuso: string): { dia: string; hora: string } {
   const { mes, dia, hora, minuto } = partesNaParede(Date.parse(iso), fuso)
   const dois = (numero: number): string => String(numero).padStart(2, '0')
   return { dia: `${dois(dia)}/${dois(mes)}`, hora: `${dois(hora)}:${dois(minuto)}` }
+}
+
+/** A hora de um instante na parede da escola, `10:42`: o "termina às" do acompanhamento e o efeito de estender, nunca o fuso do navegador. */
+export function horaNaEscola(iso: string, fuso: string = FUSO_DA_PROVA): string {
+  return diaEHora(iso, fuso).hora
 }
 
 interface DadosDoResumo {
@@ -196,4 +205,82 @@ export function conferirAProva(formulario: FormularioDaProva): { readonly erros:
     return { erros: { fecha: textoDoTempoQueNaoCabe(duracaoMin, Math.max(...tempoAdicional.map((item) => item.percentual))) } }
   }
   return { erros, pedido: { janela, ...(duracaoMin === undefined ? {} : { duracaoMin }), embaralhar: formulario.embaralhar, tempoAdicional } }
+}
+
+/** Um aluno na lista do acompanhamento: o nome, a situação e, só em `fazendo`, o limite. Nada de saídas da aba, percentual ou "parado há" (D70, D88). */
+export type AlunoNoAcompanhamento = AcompanhamentoResponse['alunos'][number]
+
+/** Em texto, e não só na cor (regra 50, item 11). "Tempo esgotado" é o fato do relógio: nenhuma palavra de falta ou de consequência (regra 70, item 7). */
+export function textoDaSituacao(aluno: Pick<AlunoNoAcompanhamento, 'situacao' | 'limiteEm'>, fuso: string = FUSO_DA_PROVA): string {
+  if (aluno.situacao === 'nao_comecou') return 'Não começou'
+  if (aluno.situacao === 'enviou') return 'Enviou'
+  if (aluno.situacao === 'tempo_esgotado') return 'Tempo esgotado'
+  return aluno.limiteEm === null ? 'Fazendo' : `Fazendo · termina às ${horaNaEscola(aluno.limiteEm, fuso)}`
+}
+
+/** O aluno com o nome como a tela o escreve: dois com o mesmo nome (a contagem é do nome sem caixa nem espaço de sobra) ganham "(1 de 2)", na ordem do id. */
+export interface AlunoComNomeNaTela {
+  readonly aluno: AlunoNoAcompanhamento
+  readonly nomeNaTela: string
+}
+
+const chaveDoNome = (nome: string): string => nome.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR')
+
+/**
+ * Os alunos em ordem de nome (o id desempata, e a ordem não depende de quem a API entregou primeiro), **nunca por situação nem por tempo**: a lista não é
+ * ranking de quem acabou antes. O contrato do acompanhamento traz só o nome, sem matrícula: o homônimo se distingue por "(1 de 2)".
+ */
+export function alunosDoAcompanhamento(alunos: readonly AlunoNoAcompanhamento[]): AlunoComNomeNaTela[] {
+  const ordenados = [...alunos].sort((a, b) => chaveDoNome(a.nome).localeCompare(chaveDoNome(b.nome), 'pt-BR') || (a.alunoId < b.alunoId ? -1 : a.alunoId > b.alunoId ? 1 : 0))
+  const totais = new Map<string, number>()
+  for (const aluno of ordenados) totais.set(chaveDoNome(aluno.nome), (totais.get(chaveDoNome(aluno.nome)) ?? 0) + 1)
+  const vistos = new Map<string, number>()
+  return ordenados.map((aluno) => {
+    const chave = chaveDoNome(aluno.nome)
+    const total = totais.get(chave) ?? 1
+    const posicao = (vistos.get(chave) ?? 0) + 1
+    vistos.set(chave, posicao)
+    return { aluno, nomeNaTela: total > 1 ? `${aluno.nome} (${String(posicao)} de ${String(total)})` : aluno.nome }
+  })
+}
+
+/** O instante que sai de somar minutos a outro. */
+export function maisMinutos(iso: string, minutos: number): string {
+  return new Date(Date.parse(iso) + minutos * 60_000).toISOString()
+}
+
+/** Os minutos de uma extensão, escritos: inteiro de 1 a 120, ou `undefined`. */
+export function minutosDaExtensao(texto: string): number | undefined {
+  if (!/^\d+$/.test(texto.trim())) return undefined
+  const minutos = Number(texto)
+  return minutos >= EXTENSAO_MINIMA_MIN && minutos <= EXTENSAO_MAXIMA_MIN ? minutos : undefined
+}
+
+export const TEXTO_DOS_MINUTOS_FORA = `Diga de ${String(EXTENSAO_MINIMA_MIN)} a ${String(EXTENSAO_MAXIMA_MIN)} minutos, em número inteiro.`
+
+/**
+ * O que a extensão faz, dito antes de confirmar (regra 50, item 8). Para o aluno que está fazendo, o horário novo ao lado do velho: "Ana termina às 10:52 em vez
+ * de 10:42"; para o que ainda não começou ou já esgotou, o que a extensão dá; para a turma, o que anda junto.
+ */
+export function efeitoDeEstender(alvo: { readonly tipo: 'turma' } | { readonly tipo: 'aluno'; readonly nome: string; readonly aluno: Pick<AlunoNoAcompanhamento, 'situacao' | 'limiteEm'> }, minutos: number | undefined, fuso: string = FUSO_DA_PROVA): string {
+  if (minutos === undefined) return 'Diga quantos minutos a mais: o efeito aparece aqui antes de você confirmar.'
+  const quanto = `${String(minutos)} ${minutos === 1 ? 'minuto' : 'minutos'}`
+  if (alvo.tipo === 'turma') return `A turma toda ganha ${quanto}: quem está fazendo termina ${quanto} depois, quem ainda não começou terá ${quanto} a mais, e o fim da janela anda junto.`
+  const { aluno, nome } = alvo
+  if (aluno.situacao === 'fazendo' && aluno.limiteEm !== null) return `${nome} termina às ${horaNaEscola(maisMinutos(aluno.limiteEm, minutos), fuso)} em vez de ${horaNaEscola(aluno.limiteEm, fuso)}.`
+  return `${nome} ganha ${quanto} a mais na prova.`
+}
+
+/**
+ * O que o encerramento diz a quem ainda faz a prova, antes de confirmar: "3 alunos ainda estão fazendo. As respostas salvas deles vão para a correção." Com ninguém fazendo, nada
+ * (`undefined`): a frase não diz zero.
+ */
+export function avisoDeQuemAindaFaz(fazendo: number): string | undefined {
+  if (fazendo <= 0) return undefined
+  return fazendo === 1 ? '1 aluno ainda está fazendo. As respostas salvas dele vão para a correção.' : `${String(fazendo)} alunos ainda estão fazendo. As respostas salvas deles vão para a correção.`
+}
+
+/** A prova tem acompanhamento? Só a avaliativa com janela: a atividade prática e a de antes da F6 não têm relógio para acompanhar. */
+export function hasAcompanhamento(aplicada: Pick<AtividadeAplicada, 'avaliativa' | 'janela'>): boolean {
+  return aplicada.avaliativa && aplicada.janela != null
 }

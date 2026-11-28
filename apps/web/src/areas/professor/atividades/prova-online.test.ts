@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alunosDoAcompanhamento,
+  avisoDeQuemAindaFaz,
   conferirAJanela,
   conferirAMudancaDeJanela,
   conferirAProva,
+  efeitoDeEstender,
   FORMULARIO_VAZIO_DA_PROVA,
+  horaNaEscola,
   instanteDaParedeDaEscola,
+  maisMinutos,
+  minutosDaExtensao,
   paredeDaEscolaDoInstante,
   resumoDaProva,
   TEXTO_DA_DURACAO_FORA,
@@ -13,7 +19,9 @@ import {
   TEXTO_DO_FECHA_ANTES_DE_ABRIR,
   TEXTO_DO_FECHA_VAZIO,
   TEXTO_DO_TEMPO_ADICIONAL_SEM_DURACAO,
+  textoDaSituacao,
   textoDoTempoQueNaoCabe,
+  type AlunoNoAcompanhamento,
   type FormularioDaProva,
 } from './prova-online'
 
@@ -164,5 +172,60 @@ describe('a mudança de janela', () => {
       duracaoMin: 60,
     })
     expect(conferirAJanela({ abre: '2026-11-25T10:00', fecha: '2026-11-25T12:00', duracao: '' })).toStrictEqual({ erros: {}, janela: { abreEm: '2026-11-25T13:00:00.000Z', fechaEm: '2026-11-25T15:00:00.000Z' } })
+  })
+})
+
+describe('o acompanhamento da prova (11.0; RF4)', () => {
+  const aluno = (n: number, nome: string, situacao: AlunoNoAcompanhamento['situacao'], limiteEm: string | null = null): AlunoNoAcompanhamento => ({ alunoId: `0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a${String(n).padStart(2, '0')}`, nome, situacao, limiteEm })
+
+  it('a hora é a da parede da escola, e o fuso entra por parâmetro: 13:42 UTC é 10:42 em São Paulo e 22:42 em Tóquio', () => {
+    expect(horaNaEscola('2026-11-24T13:42:00.000Z')).toBe('10:42')
+    expect(horaNaEscola('2026-11-24T13:42:00.000Z', 'Asia/Tokyo')).toBe('22:42')
+  })
+
+  it('a situação é texto: o "termina às" só existe em "fazendo", e "Tempo esgotado" não diz falta nem consequência', () => {
+    expect(textoDaSituacao(aluno(1, 'Ana', 'fazendo', '2026-11-24T13:42:00.000Z'))).toBe('Fazendo · termina às 10:42')
+    expect(textoDaSituacao(aluno(1, 'Ana', 'fazendo', '2026-11-24T13:42:00.000Z'), 'Asia/Tokyo')).toBe('Fazendo · termina às 22:42')
+    expect(textoDaSituacao(aluno(1, 'Ana', 'fazendo'))).toBe('Fazendo')
+    expect(textoDaSituacao(aluno(2, 'Bia', 'nao_comecou'))).toBe('Não começou')
+    expect(textoDaSituacao(aluno(3, 'Caio', 'enviou'))).toBe('Enviou')
+    expect(textoDaSituacao(aluno(4, 'Dora', 'tempo_esgotado'))).toBe('Tempo esgotado')
+  })
+
+  it('em ordem de nome (o id desempata) e nunca por situação; dois nomes iguais, sem caixa nem espaço de sobra, ganham "(1 de 2)" e "(2 de 2)", e o nome único fica como está', () => {
+    const lista = alunosDoAcompanhamento([aluno(9, 'Bia Lima', 'enviou'), aluno(5, 'Ana  Souza', 'fazendo'), aluno(3, ' ana souza ', 'nao_comecou'), aluno(1, 'Caio Rocha', 'fazendo')])
+    expect(lista.map(({ nomeNaTela }) => nomeNaTela)).toEqual(expect.arrayContaining(['Bia Lima', 'Caio Rocha']))
+    const homonimos = lista.filter(({ aluno: a }) => /ana\s+souza/i.test(a.nome))
+    expect(homonimos.map(({ nomeNaTela }) => nomeNaTela.slice(-8))).toEqual(['(1 de 2)', '(2 de 2)'])
+    // Entre os iguais a ordem é a do id, e não a de chegada.
+    expect(homonimos.map(({ aluno: a }) => a.alunoId.slice(-2))).toEqual(['03', '05'])
+    expect(lista.map(({ aluno: a }) => a.nome.trim().split(/\s+/)[0]?.toLowerCase())).toEqual(['ana', 'ana', 'bia', 'caio'])
+    expect(alunosDoAcompanhamento([])).toEqual([])
+  })
+
+  it('maisMinutos soma ao instante; os minutos da extensão são inteiro de 1 a 120, e o resto é recusado', () => {
+    expect(maisMinutos('2026-11-24T13:42:00.000Z', 10)).toBe('2026-11-24T13:52:00.000Z')
+    expect(minutosDaExtensao('1')).toBe(1)
+    expect(minutosDaExtensao(' 120 ')).toBe(120)
+    for (const texto of ['', '0', '121', '-5', '2.5', 'dez', '1e1']) expect(minutosDaExtensao(texto), texto).toBeUndefined()
+  })
+
+  it('o efeito de estender: o horário novo ao lado do velho para quem faz (10 min: 10:52; 5 min: 10:47), os minutos para quem não faz, e o que anda junto para a turma', () => {
+    const fazendo = aluno(1, 'Ana', 'fazendo', '2026-11-24T13:42:00.000Z')
+    expect(efeitoDeEstender({ tipo: 'aluno', nome: 'Ana Souza', aluno: fazendo }, 10)).toBe('Ana Souza termina às 10:52 em vez de 10:42.')
+    expect(efeitoDeEstender({ tipo: 'aluno', nome: 'Ana Souza', aluno: fazendo }, 5)).toBe('Ana Souza termina às 10:47 em vez de 10:42.')
+    expect(efeitoDeEstender({ tipo: 'aluno', nome: 'Bia Lima', aluno: aluno(2, 'Bia', 'nao_comecou') }, 1)).toBe('Bia Lima ganha 1 minuto a mais na prova.')
+    // Quem faz a prova sem relógio (sem duração) não tem horário de fim a mostrar.
+    expect(efeitoDeEstender({ tipo: 'aluno', nome: 'Dora Alves', aluno: aluno(4, 'Dora', 'fazendo', null) }, 10)).toBe('Dora Alves ganha 10 minutos a mais na prova.')
+    // Quem não está fazendo não tem "termina às", mesmo com um limite na leitura.
+    expect(efeitoDeEstender({ tipo: 'aluno', nome: 'Caio Rocha', aluno: aluno(3, 'Caio', 'tempo_esgotado', '2026-11-24T13:42:00.000Z') }, 10)).toBe('Caio Rocha ganha 10 minutos a mais na prova.')
+    expect(efeitoDeEstender({ tipo: 'turma' }, 15)).toMatch(/^A turma toda ganha 15 minutos: quem está fazendo termina 15 minutos depois/)
+    expect(efeitoDeEstender({ tipo: 'turma' }, undefined)).toMatch(/Diga quantos minutos a mais/)
+  })
+
+  it('o aviso do encerramento conta quem faz, no plural e no singular, e com ninguém fazendo não diz nada', () => {
+    expect(avisoDeQuemAindaFaz(3)).toBe('3 alunos ainda estão fazendo. As respostas salvas deles vão para a correção.')
+    expect(avisoDeQuemAindaFaz(1)).toBe('1 aluno ainda está fazendo. As respostas salvas dele vão para a correção.')
+    expect(avisoDeQuemAindaFaz(0)).toBeUndefined()
   })
 })

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { AtividadeAplicada } from '@educa/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Router } from 'wouter'
@@ -601,6 +601,64 @@ describe('as ações do painel', () => {
     expect(chamadasA(montada.rede, `/v1/atividades-aplicadas/${ABERTA.id}/encerrar`)).toHaveLength(1)
     await waitFor(() => expect(aberto.contains(document.activeElement)).toBe(true))
     expect(document.activeElement).not.toBe(document.body)
+  })
+})
+
+describe('o painel da prova: Acompanhar e Segunda chamada (11.0; RF4, RF10)', () => {
+  const janela = { abreEm: '2026-11-24T13:00:00.000Z', fechaEm: '2026-11-24T14:40:00.000Z' }
+  const PROVA_ABERTA = aplicada(9, { avaliativa: true, estado: 'aberta', encerradaEm: null, entrega: null, janela, duracaoMin: 40, comTempoAdicional: 0, participacao: { alunos: 2, iniciaram: 1, enviaram: 0 } })
+  const PROVA_ENCERRADA = aplicada(8, { avaliativa: true, entrega: PENDENTE, janela, duracaoMin: 40, comTempoAdicional: 0, participacao: { alunos: 2, iniciaram: 1, enviaram: 1 } })
+  const acompanhamentoDe = (atividade: AtividadeAplicada) =>
+    ok({
+      atividadeAplicadaId: atividade.id,
+      agora: '2026-11-24T13:10:00.000Z',
+      alunos: [
+        { alunoId: id(401), nome: 'Ana Souza', situacao: 'fazendo', limiteEm: '2026-11-24T13:42:00.000Z' },
+        { alunoId: id(402), nome: 'Bia Lima', situacao: 'nao_comecou', limiteEm: null },
+      ],
+    })
+
+  async function abrir(atividade: AtividadeAplicada) {
+    const rede = fakeNetwork()
+    instalar(rede, TURMA, { lista: [atividade] })
+    rede.responderPor(`/v1/atividades-aplicadas/${atividade.id}/acompanhamento`, acompanhamentoDe(atividade))
+    const localizacao = memoryLocation({ path: `/turmas/${TURMA}`, searchPath: `aba=atividades&atividade=${atividade.id}`, record: true })
+    const cliente = createQueryClient()
+    render(
+      <QueryClientProvider client={cliente}>
+        <Router hook={localizacao.hook} searchHook={localizacao.searchHook}>
+          <AtividadesDaTurma turmaId={TURMA} />
+        </Router>
+      </QueryClientProvider>,
+    )
+    return { rede, painel: await screen.findByRole('dialog', { name: atividade.titulo }) }
+  }
+
+  it('a prova aberta mostra "Acompanhar" com um cartão por aluno, e "Estender"; a segunda chamada ainda não existe', async () => {
+    const { painel } = await abrir(PROVA_ABERTA)
+    const acompanhar = await within(painel).findByRole('region', { name: 'Acompanhar' })
+    expect(await within(acompanhar).findByText('Fazendo · termina às 10:42')).toBeTruthy()
+    expect(within(acompanhar).getByText('Não começou')).toBeTruthy()
+    expect(within(acompanhar).getByRole('button', { name: 'Estender a turma toda' })).toBeTruthy()
+    expect(within(painel).queryByRole('button', { name: 'Segunda chamada' })).toBeNull()
+  })
+
+  it('a prova encerrada tem "Segunda chamada", e o acompanhamento sem "Estender"', async () => {
+    const { painel } = await abrir(PROVA_ENCERRADA)
+    const acompanhar = await within(painel).findByRole('region', { name: 'Acompanhar' })
+    await within(acompanhar).findByText('Ana Souza')
+    expect(within(acompanhar).queryByRole('button', { name: /Estender/ })).toBeNull()
+    expect(within(painel).getByRole('button', { name: 'Segunda chamada' })).toBeTruthy()
+  })
+
+  it('a atividade prática e a avaliativa sem janela (a de antes da F6) não têm "Acompanhar" nem leem o acompanhamento', async () => {
+    const { rede, painel } = await abrir(ABERTA)
+    expect(within(painel).queryByRole('region', { name: 'Acompanhar' })).toBeNull()
+    expect(rede.chamadas.some((chamada) => chamada.caminho.includes('/acompanhamento'))).toBe(false)
+    cleanup()
+    const { rede: outra, painel: semJanela } = await abrir(AVALIATIVA)
+    expect(within(semJanela).queryByRole('region', { name: 'Acompanhar' })).toBeNull()
+    expect(outra.chamadas.some((chamada) => chamada.caminho.includes('/acompanhamento'))).toBe(false)
   })
 })
 

@@ -59,3 +59,12 @@ export async function perguntarAoTutorPelaApi(request: APIRequestContext, token:
     .toBe(true)
   return estado
 }
+
+/**
+ * O aluno **sai da aba** da prova, uma vez (`POST .../saidas-da-aba`, 204): a tela dele (12.0) é quem manda a saída de verdade, e este é o mesmo pedido, com a chave
+ * uuid v4 que o contrato exige. É o que faz a coluna "Saiu da aba" do lote ter "1" para o professor.
+ */
+export async function sairDaAbaPelaApi(request: APIRequestContext, token: string, atividadeAplicadaId: string): Promise<void> {
+  const saida = await request.post(`/v1/atividades-aplicadas/${atividadeAplicadaId}/saidas-da-aba`, { headers: comToken(token), data: { chave: randomUUID() } })
+  expect(saida.status(), 'a saída da aba é aceita').toBe(204)
+}

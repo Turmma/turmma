@@ -127,12 +127,17 @@ export class ProfessoraApiClient {
 
   /**
    * Aplica a atividade à turma e devolve o id da aplicação. A avaliativa nova exige janela (avaliacao-e-correcao, 10.0): a deste apoio está aberta desde
-   * uma hora atrás até daqui a um dia, sem duração, e o e2e que trata da janela usa a tela.
+   * uma hora atrás até daqui a um dia, sem duração (a menos que o caso peça `duracaoMin`, com ou sem `tempoAdicional`: o "termina às" do acompanhamento precisa dela), e o e2e que trata da janela usa a tela.
    */
-  async aplicar(artefatoId: string, turmaId: string, avaliativa: boolean): Promise<string> {
+  async aplicar(artefatoId: string, turmaId: string, avaliativa: boolean, prova: { readonly duracaoMin?: number; readonly tempoAdicional?: readonly { readonly alunoId: string; readonly percentual: number }[] } = {}): Promise<string> {
     const agora = Date.now()
     const janela = { abreEm: new Date(agora - 60 * 60_000).toISOString(), fechaEm: new Date(agora + 24 * 60 * 60_000).toISOString() }
-    return (await this.chamar<{ id: string }>('POST', '/v1/atividades-aplicadas', { artefatoId, turmaId, avaliativa, ...(avaliativa ? { janela } : {}) })).id
+    return (await this.chamar<{ id: string }>('POST', '/v1/atividades-aplicadas', { artefatoId, turmaId, avaliativa, ...(avaliativa ? { janela, ...prova } : {}) })).id
+  }
+
+  /** Encerra a atividade e não espera correção nenhuma: a prova que ninguém fez não tem lote (a segunda chamada parte daí). */
+  async encerrarSemLote(atividadeAplicadaId: string): Promise<void> {
+    await this.chamar('POST', `/v1/atividades-aplicadas/${atividadeAplicadaId}/encerrar`, {})
   }
 
   /** Encerra a atividade e espera a correção montar o lote, que fica pendente, esperando a professora. */

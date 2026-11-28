@@ -18,8 +18,10 @@ import { formatDateTime } from '../../../format'
 import { AVISO_DA_AVALIATIVA_ABERTA, semCorrecao, situacaoDaAplicacao, TEXTO_SEM_CORRECAO } from './aprovar'
 import { useCorrigirDeNovo } from './corrigir-de-novo'
 import { enderecoComFiltros } from '../artefatos/criados'
+import { Acompanhamento } from './Acompanhamento'
 import { EncerramentoDaAtividade } from './EncerramentoDaAtividade'
 import { MudarJanela } from './MudarJanela'
+import { SegundaChamada } from './SegundaChamada'
 import { resumoDaProva } from './prova-online'
 import { IconeDeFerramenta } from '../ferramentas/icones-de-ferramenta'
 
@@ -250,6 +252,9 @@ interface PropsDoPainel {
  * ou ver a correção são links; "Corrigir de novo" só existe quando a atividade encerrou sem correção que valha (a função suspensa, ou
  * o lote rejeitado); "Encerrar a atividade" só existe na aberta, e passa pela confirmação. **Aprovar a correção não é daqui**: a
  * aprovação é a tela de revisar (14.0), onde a professora abre cada destaque.
+ *
+ * Na prova com relógio (avaliativa com janela) o painel ganha **"Acompanhar"** (um cartão por aluno, com "Estender") e, com a prova encerrada, **"Segunda chamada"**
+ * (avaliacao-e-correcao, 11.0; RF4, RF10): o acompanhamento mora aqui, em Atividades, e nunca na aba Hoje, que a professora projeta em sala.
  */
 function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDoPainel) {
   const idDaDescricao = useId()
@@ -293,6 +298,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
             </Button>
           )}
           <MudarJanela aplicada={aplicada} nomeDaTurma={nomeDaTurma} focoDeReserva={() => reserva.current?.focus()} />
+          <SegundaChamada aplicada={aplicada} nomeDaTurma={nomeDaTurma} focoDeReserva={() => reserva.current?.focus()} />
           <EncerramentoDaAtividade aplicada={aplicada} nomeDaTurma={nomeDaTurma} focoDeReserva={() => reserva.current?.focus()} />
         </>
       }
@@ -324,6 +330,7 @@ function PainelDaAtividade({ aplicada, nomeDaTurma, turmaId, aoFechar }: PropsDo
             </p>
           )}
         </section>
+        <Acompanhamento aplicada={aplicada} nomeDaTurma={nomeDaTurma} focoDeReserva={() => reserva.current?.focus()} />
       </div>
     </Sheet>
   )

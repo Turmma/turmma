@@ -387,6 +387,30 @@ atividade", leva a Criados já filtrado pela turma e pelo tipo; sem atividade, o
   a avaliativa **não aplica sem janela** (a API recusa). No painel, a prova aparece em uma frase, e **"Mudar janela"**
   (horário e duração, com o resumo da janela nova e "Ninguém começou ainda") só existe na aberta que ninguém
   começou; com alguém começado, o botão some e a API responde `PROVA_JA_COMECOU`
+- **Acompanhar a prova** (avaliacao-e-correcao, 11.0; RF4, RF5, RF10). O painel de uma avaliativa com janela traz a
+  seção **"Acompanhar"**: um cartão por aluno da turma, em ordem de nome, com a situação **em texto** ("Não começou",
+  "Fazendo · termina às 10:42", "Enviou", "Tempo esgotado"; o horário é o da escola, nunca o do navegador). A leitura
+  é uma só (`acompanhamento`), **relida a cada 15 s enquanto a prova está aberta e a janela está à vista**, e mora
+  no painel de Atividades: **nunca na aba Hoje**, que a professora projeta em sala. Só situação: nada de saída da
+  aba (é do lote, D70 e D88), de percentual de tempo adicional nem de "parado há X min" (regra 70, item 7), e
+  "Tempo esgotado" não diz falta nem consequência. Dois alunos com o mesmo nome são dois cartões, "(1 de 2)" e
+  "(2 de 2)": o contrato traz o nome, sem matrícula. Com falha e sem leitura, a mensagem com "Tentar de novo"; a
+  releitura que falha deixa o último acompanhamento
+- **Estender** (RF4). Cada cartão de quem ainda não enviou tem **"Estender"**, e a seção, **"Estender a turma
+  toda"**. O diálogo pergunta **"Mais quantos minutos?"** (de 1 a 120), deixa escolher entre o aluno e a turma toda
+  e **diz o efeito antes de confirmar**: "Ana Souza termina às 10:52 em vez de 10:42." (no fuso da escola); para
+  quem ainda não começou, os minutos a mais; para a turma, o que anda junto, inclusive o fim da janela. A extensão
+  fica registrada com o nome da professora, sem motivo. O pedido sai uma vez só (duplo clique) e leva uma `chave`
+  por pedido: o reenvio depois da falha repete a chave, e outros minutos ou outro alvo levam outra. A resposta
+  troca o limite no cartão sem esperar a releitura, e a leitura que estava no ar é descartada. Alvos de 44 px
+- **Segunda chamada** (RF10). Na prova **já encerrada** que não é ela mesma uma segunda chamada, **"Segunda
+  chamada"** abre o diálogo: os convocados **por nome**, em lista de **uma coluna** (só quem não começou a prova),
+  a janela nova, a duração (a da prova, já preenchida) e o tempo adicional por convocado. A confirmação diz os
+  convocados, a janela, a duração e **quantos** têm tempo adicional (nunca quais). Nasce uma aplicação própria, com
+  correção em lote próprio; o embaralhamento é o da original
+- **Encerrar a prova** diz quantos ainda fazem: "3 alunos ainda estão fazendo. As respostas salvas deles vão para
+  a correção." (a contagem é a do acompanhamento, relida na abertura do diálogo; com ninguém fazendo, a frase não
+  aparece, e sem a leitura a confirmação segue sem ela)
 - **Aprovar não é daqui**: é a tela de revisar, onde cada destaque se abre (seção 11.5). A aba não diz nota,
   média, conceito nem pontuação, e nada ordena por acerto
 

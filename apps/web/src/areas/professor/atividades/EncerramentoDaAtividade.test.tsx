@@ -4,6 +4,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useQuery } from '@tanstack/react-query'
+import { acompanhamentoQueryOptions } from './api/acompanhamento'
 import { atividadesAplicadasQueryOptions } from './api/atividades'
 import { setupScreen, fakeNetwork, renderScreen, type FakeResponse } from '../../../__fixtures__/render-screen'
 import { EFEITO_DE_ENCERRAR } from './aprovar'
@@ -169,3 +170,86 @@ describe('EncerramentoDaAtividade: a releitura', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
   })
 })
+
+const PROVA: AtividadeAplicada = { ...APLICADA, avaliativa: true, janela: { abreEm: '2026-10-05T13:00:00.000Z', fechaEm: '2026-10-05T14:40:00.000Z' }, duracaoMin: 40, comTempoAdicional: 0 }
+const LEITURA = `/v1/atividades-aplicadas/${APLICADA.id}/acompanhamento`
+const alunoDaProva = (n: number, situacao: 'nao_comecou' | 'fazendo' | 'enviou' | 'tempo_esgotado') => ({ alunoId: id(100 + n), nome: `Aluno ${String(n)}`, situacao, limiteEm: situacao === 'fazendo' ? '2026-10-05T13:42:00.000Z' : null })
+const doAcompanhamento = (situacoes: readonly ('nao_comecou' | 'fazendo' | 'enviou' | 'tempo_esgotado')[]): FakeResponse =>
+  ok({ atividadeAplicadaId: APLICADA.id, agora: '2026-10-05T13:10:00.000Z', alunos: situacoes.map((situacao, indice) => alunoDaProva(indice + 1, situacao)) })
+
+describe('EncerramentoDaAtividade: a prova com relógio diz quantos ainda fazem (RF5)', () => {
+  it('com 3 fazendo, a confirmação diz "3 alunos ainda estão fazendo. As respostas salvas deles vão para a correção.", e quem enviou ou não começou não entra na conta', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor(LEITURA, doAcompanhamento(['fazendo', 'fazendo', 'enviou', 'fazendo', 'nao_comecou', 'tempo_esgotado']))
+    const usuario = userEvent.setup()
+    montar(PROVA)
+    // A leitura só sai quando a confirmação abre: a lista de atividades não paga um acompanhamento por linha.
+    expect(rede.chamadas.some((chamada) => chamada.caminho === LEITURA)).toBe(false)
+    await usuario.click(screen.getByRole('button', { name: 'Encerrar a atividade' }))
+    const dialogo = screen.getByRole('alertdialog', { name: 'Encerrar a atividade' })
+    expect(await within(dialogo).findByText('3 alunos ainda estão fazendo. As respostas salvas deles vão para a correção.')).toBeTruthy()
+    expect(encerramentos(rede)).toHaveLength(0)
+  })
+
+  it('com 1 fazendo, a frase vai ao singular; com ninguém fazendo, não há frase nem "0 alunos"', async () => {
+    const rede = fakeNetwork()
+    let situacoes: ('fazendo' | 'enviou')[] = ['fazendo', 'enviou']
+    rede.responderPor(LEITURA, () => doAcompanhamento(situacoes))
+    const usuario = userEvent.setup()
+    montar(PROVA)
+    await usuario.click(screen.getByRole('button', { name: 'Encerrar a atividade' }))
+    const dialogo = screen.getByRole('alertdialog', { name: 'Encerrar a atividade' })
+    expect(await within(dialogo).findByText('1 aluno ainda está fazendo. As respostas salvas dele vão para a correção.')).toBeTruthy()
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Cancelar' }))
+
+    situacoes = ['enviou', 'enviou']
+    await usuario.click(screen.getByRole('button', { name: 'Encerrar a atividade' }))
+    await waitFor(() => expect(screen.getByRole('alertdialog').textContent).not.toMatch(/ainda (está|estão) fazendo/))
+    expect(screen.getByRole('alertdialog').textContent).not.toMatch(/\b0 alunos ainda|zero alunos/i)
+  })
+
+  it('a leitura relida na abertura vale mais que a antiga: o aluno que terminou entre uma e outra sai da conta', async () => {
+    const rede = fakeNetwork()
+    let leituras = 0
+    rede.responderPor(LEITURA, () => doAcompanhamento((leituras += 1) === 1 ? ['fazendo', 'fazendo'] : ['fazendo', 'enviou']))
+    const usuario = userEvent.setup()
+    renderScreen(
+      <>
+        <LeitorDoAcompanhamento />
+        <EncerramentoDaAtividade aplicada={PROVA} nomeDaTurma="7ºA" focoDeReserva={() => undefined} />
+      </>,
+    )
+    await waitFor(() => expect(leituras).toBe(1))
+    await usuario.click(screen.getByRole('button', { name: 'Encerrar a atividade' }))
+    await waitFor(() => expect(leituras).toBeGreaterThanOrEqual(2))
+    expect(await within(screen.getByRole('alertdialog')).findByText('1 aluno ainda está fazendo. As respostas salvas dele vão para a correção.')).toBeTruthy()
+  })
+
+  it('sem a leitura (a rede falhou), a confirmação segue sem a frase, e encerrar continua possível', async () => {
+    const rede = fakeNetwork()
+    rede.responderPor(LEITURA, { status: 429, corpo: { erro: { codigo: 'LIMITE_EXCEDIDO', mensagem: 'x', requisicaoId: '0190f5a0-0000-7000-8000-000000000001' } } })
+    rede.responderPor(`/v1/atividades-aplicadas/${APLICADA.id}/encerrar`, ok({ atividade: { ...PROVA, estado: 'encerrada' }, execucaoId: null }))
+    const usuario = userEvent.setup()
+    montar(PROVA)
+    await usuario.click(screen.getByRole('button', { name: 'Encerrar a atividade' }))
+    const dialogo = screen.getByRole('alertdialog')
+    await waitFor(() => expect(rede.chamadas.some((chamada) => chamada.caminho === LEITURA)).toBe(true))
+    expect(dialogo.textContent).not.toMatch(/ainda (está|estão) fazendo/)
+    await usuario.click(within(dialogo).getAllByRole('button', { name: 'Encerrar a atividade' }).at(-1) as HTMLElement)
+    await waitFor(() => expect(encerramentos(rede)).toHaveLength(1))
+  })
+
+  it('a atividade prática não lê o acompanhamento: o diálogo é o de sempre', async () => {
+    const rede = fakeNetwork()
+    const usuario = userEvent.setup()
+    montar(APLICADA)
+    await usuario.click(screen.getByRole('button', { name: 'Encerrar a atividade' }))
+    expect(rede.chamadas.some((chamada) => chamada.caminho === LEITURA)).toBe(false)
+  })
+})
+
+/** Quem já lê o acompanhamento, como o painel faz: o diálogo encontra a leitura em memória e manda relê-la. */
+function LeitorDoAcompanhamento() {
+  useQuery(acompanhamentoQueryOptions(APLICADA.id))
+  return null
+}
